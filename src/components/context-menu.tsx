@@ -407,96 +407,6 @@ function ViewContextMenu() {
                 ],
             },
         },
-        {
-            key: "section_2",
-            itemType: ContextualMenuItemType.Section,
-            sectionProps: {
-                title: intl.get("context.filter"),
-                bottomDivider: true,
-                items: [
-                    {
-                        key: "allArticles",
-                        text: intl.get("allArticles"),
-                        iconProps: { iconName: "ClearFilter" },
-                        canCheck: true,
-                        checked:
-                            (filter & ~FilterType.Toggles) ==
-                            FilterType.Default,
-                        onClick: () =>
-                            dispatch(switchFilter(FilterType.Default)),
-                    },
-                    {
-                        key: "unreadOnly",
-                        text: intl.get("context.unreadOnly"),
-                        iconProps: {
-                            iconName: "RadioBtnOn",
-                            style: {
-                                fontSize: 14,
-                                textAlign: "center",
-                            },
-                        },
-                        canCheck: true,
-                        checked:
-                            (filter & ~FilterType.Toggles) ==
-                            FilterType.UnreadOnly,
-                        onClick: () =>
-                            dispatch(switchFilter(FilterType.UnreadOnly)),
-                    },
-                    {
-                        key: "starredOnly",
-                        text: intl.get("context.starredOnly"),
-                        iconProps: { iconName: "FavoriteStarFill" },
-                        canCheck: true,
-                        checked:
-                            (filter & ~FilterType.Toggles) ==
-                            FilterType.StarredOnly,
-                        onClick: () =>
-                            dispatch(switchFilter(FilterType.StarredOnly)),
-                    },
-                ],
-            },
-        },
-        {
-            key: "section_3",
-            itemType: ContextualMenuItemType.Section,
-            sectionProps: {
-                title: intl.get("search"),
-                bottomDivider: true,
-                items: [
-                    {
-                        key: "caseSensitive",
-                        text: intl.get("context.caseSensitive"),
-                        iconProps: {
-                            style: {
-                                fontSize: 12,
-                                fontStyle: "normal",
-                            },
-                            children: "Aa",
-                        },
-                        canCheck: true,
-                        checked: !(filter & FilterType.CaseInsensitive),
-                        onClick: () =>
-                            dispatch(toggleFilter(FilterType.CaseInsensitive)),
-                    },
-                    {
-                        key: "fullSearch",
-                        text: intl.get("context.fullSearch"),
-                        iconProps: { iconName: "Breadcrumb" },
-                        canCheck: true,
-                        checked: Boolean(filter & FilterType.FullSearch),
-                        onClick: () =>
-                            dispatch(toggleFilter(FilterType.FullSearch)),
-                    },
-                ],
-            },
-        },
-        {
-            key: "showHidden",
-            text: intl.get("context.showHidden"),
-            canCheck: true,
-            checked: Boolean(filter & FilterType.ShowHidden),
-            onClick: () => dispatch(toggleFilter(FilterType.ShowHidden)),
-        },
     ]
     return <ContextMenuBase menuItems={menuItems} />
 }
@@ -593,6 +503,7 @@ function ContextMenuBase({
 }: Readonly<{ menuItems: IContextualMenuItem[] }>) {
     const { event, position } = useAppSelector(state => state.app.contextMenu)
     const dispatch = useAppDispatch()
+
 
     return (
         <ContextualMenu

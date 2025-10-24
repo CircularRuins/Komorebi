@@ -10,7 +10,6 @@ type NavProps = {
     state: AppState
     itemShown: boolean
     search: () => void
-    markAllRead: () => void
     fetch: () => void
     logs: () => void
     views: () => void
@@ -64,9 +63,6 @@ class Nav extends React.Component<NavProps, NavState> {
                     break
                 case "F5":
                     this.fetch()
-                    break
-                case "F6":
-                    this.props.markAllRead()
                     break
                 case "F8":
                     if (!this.props.itemShown) this.props.views()
@@ -138,20 +134,6 @@ class Nav extends React.Component<NavProps, NavState> {
                         onClick={this.fetch}
                         title={intl.get("nav.refresh")}>
                         <Icon iconName="Refresh" />
-                    </a>
-                    <a
-                        className="btn"
-                        id="mark-all-toggle"
-                        onClick={this.props.markAllRead}
-                        title={intl.get("nav.markAllRead")}
-                        onMouseDown={e => {
-                            if (
-                                this.props.state.contextMenu.event ===
-                                "#mark-all-toggle"
-                            )
-                                e.stopPropagation()
-                        }}>
-                        <Icon iconName="InboxCheck" />
                     </a>
                     <a
                         className="btn"

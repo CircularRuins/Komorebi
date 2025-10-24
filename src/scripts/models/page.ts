@@ -110,10 +110,12 @@ export function selectSources(
     }
 }
 
-export function switchView(viewType: ViewType): PageActionTypes {
-    return {
-        type: SWITCH_VIEW,
-        viewType: viewType,
+export function switchView(viewType: ViewType): AppThunk {
+    return (dispatch, getState) => {
+        dispatch({
+            type: SWITCH_VIEW,
+            viewType: viewType,
+        })
     }
 }
 

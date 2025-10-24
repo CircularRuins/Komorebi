@@ -63,7 +63,7 @@
     pointer-events: unset;
 }
 .article-container {
-    z-index: 6;
+    z-index: 15;
 }
 .menu-container .menu {
     width: 100%;
@@ -109,7 +109,7 @@ body.darwin .menu .btn-group {
 
 .settings-container {
     position: fixed;
-    z-index: 7;
+    z-index: 12;
     left: 0;
     top: 0;
     width: 100%;
@@ -271,7 +271,8 @@ img.favicon.dropdown {
         background: transparent;
     }
     body.darwin .menu-container .menu.item-on {
-        background-color: var(--neutralLight);
+        background-color: transparent;
+        opacity: 0;
     }
     .menu-container .menu::after {
         content: "";
@@ -334,9 +335,10 @@ img.favicon.dropdown {
     background-color: transparent;
     cursor: col-resize;
     position: relative;
-    z-index: 10;
+    z-index: 5;
     transition: background-color 0.2s ease;
 }
+
 
 .resizer:hover {
     background-color: rgba(0, 120, 212, 0.3);

@@ -2,12 +2,11 @@ import intl from "react-intl-universal"
 import { connect } from "react-redux"
 import { createSelector } from "reselect"
 import { RootState } from "../scripts/reducer"
-import { fetchItems, markAllRead } from "../scripts/models/item"
+import { fetchItems } from "../scripts/models/item"
 import {
     toggleLogMenu,
     toggleSettings,
     openViewMenu,
-    openMarkAllMenu,
 } from "../scripts/models/app"
 import { toggleSearch } from "../scripts/models/page"
 import { ViewType } from "../schema-types"
@@ -31,7 +30,6 @@ const mapDispatchToProps = dispatch => ({
     views: () => dispatch(openViewMenu()),
     settings: () => dispatch(toggleSettings()),
     search: () => dispatch(toggleSearch()),
-    markAllRead: () => dispatch(openMarkAllMenu()),
 })
 
 const NavContainer = connect(mapStateToProps, mapDispatchToProps)(Nav)
