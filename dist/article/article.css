@@ -1,0 +1,139 @@
+@import "../styles/scroll.css";
+
+html,
+body {
+    margin: 0;
+    font-family: "Segoe UI", "Source Han Sans Regular", sans-serif;
+}
+body {
+    padding: 12px 96px 32px;
+    overflow: hidden scroll;
+}
+body.rtl {
+    direction: rtl;
+}
+body.vertical {
+    padding: 32px;
+    padding-right: 96px;
+    writing-mode: vertical-rl;
+    overflow: scroll hidden;
+}
+
+:root {
+    --gray: #484644;
+    --primary: #0078d4;
+    --primary-alt: #004578;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        color: #f8f8f8;
+        --gray: #a19f9d;
+        --primary: #4ba0e1;
+        --primary-alt: #65aee6;
+    }
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+b,
+strong {
+    font-weight: 600;
+}
+a {
+    color: var(--primary);
+    text-decoration: none;
+}
+a:hover,
+a:active {
+    color: var(--primary-alt);
+    text-decoration: underline;
+}
+
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+#main {
+    max-width: 700px;
+    margin: 0 auto;
+    display: none;
+}
+body.vertical #main {
+    max-width: unset;
+    max-height: 700px;
+    margin: auto 0;
+}
+#main.show {
+    display: block;
+    animation-name: fadeIn;
+    animation-duration: 0.367s;
+    animation-timing-function: cubic-bezier(0.1, 0.9, 0.2, 1);
+    animation-fill-mode: both;
+}
+
+#main > p.title {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+    margin-block-end: 0;
+}
+#main > p.date {
+    color: var(--gray);
+    font-size: 0.875rem;
+}
+
+article {
+    line-height: 1.6;
+}
+body.vertical article {
+    line-height: 1.5;
+}
+body.vertical article p {
+    text-indent: 2rem;
+}
+article * {
+    max-width: 100%;
+}
+article img {
+    height: auto;
+}
+body.vertical article img {
+    max-height: 75%;
+}
+article figure {
+    margin: 16px 0;
+    text-align: center;
+}
+article figure figcaption {
+    font-size: 0.875rem;
+    color: var(--gray);
+    -webkit-user-modify: read-only;
+}
+article iframe {
+    width: 100%;
+}
+article code {
+    font-family: Monaco, Consolas, monospace;
+    font-size: 0.875rem;
+    line-height: 1;
+}
+article pre {
+    word-break: normal;
+    overflow-wrap: normal;
+    white-space: pre-wrap;
+}
+article blockquote {
+    border-left: 2px solid var(--gray);
+    margin: 1em 0;
+    padding: 0 40px;
+}
