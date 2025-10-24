@@ -7,7 +7,7 @@ class AboutTab extends React.Component {
         <div className="tab-body">
             <Stack className="settings-about" horizontalAlign="center">
                 <img src="icons/logo.svg" style={{ width: 120, height: 120 }} />
-                <h3 style={{ fontWeight: 600 }}>Fluent Reader</h3>
+                <h3 style={{ fontWeight: 600 }}>Komorebi</h3>
                 <small>
                     {intl.get("settings.version")} {window.utils.getVersion()}
                 </small>
@@ -22,7 +22,7 @@ class AboutTab extends React.Component {
                         <Link
                             onClick={() =>
                                 window.utils.openExternal(
-                                    "https://github.com/yang991178/fluent-reader/wiki/Support#keyboard-shortcuts"
+                                    "https://github.com/yang991178/komorebi/wiki/Support#keyboard-shortcuts"
                                 )
                             }>
                             {intl.get("settings.shortcuts")}
@@ -32,7 +32,7 @@ class AboutTab extends React.Component {
                         <Link
                             onClick={() =>
                                 window.utils.openExternal(
-                                    "https://github.com/yang991178/fluent-reader"
+                                    "https://github.com/yang991178/komorebi"
                                 )
                             }>
                             {intl.get("settings.openSource")}
@@ -42,7 +42,7 @@ class AboutTab extends React.Component {
                         <Link
                             onClick={() =>
                                 window.utils.openExternal(
-                                    "https://github.com/yang991178/fluent-reader/issues"
+                                    "https://github.com/yang991178/komorebi/issues"
                                 )
                             }>
                             {intl.get("settings.feedback")}

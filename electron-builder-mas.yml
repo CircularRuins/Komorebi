@@ -1,6 +1,6 @@
-appId: DevHYLiu.FluentReader
+appId: DevHYLiu.Komorebi
 buildVersion: 29
-productName: Fluent Reader
+productName: Komorebi
 copyright: Copyright © 2020 Haoyuan Liu
 files:
     - "./dist/**/*"

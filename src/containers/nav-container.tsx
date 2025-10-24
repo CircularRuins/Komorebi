@@ -5,8 +5,8 @@ import { RootState } from "../scripts/reducer"
 import { fetchItems } from "../scripts/models/item"
 import {
     toggleLogMenu,
-    toggleSettings,
     openViewMenu,
+    openSettingsTab,
 } from "../scripts/models/app"
 import { toggleSearch } from "../scripts/models/page"
 import { ViewType } from "../schema-types"
@@ -28,7 +28,9 @@ const mapDispatchToProps = dispatch => ({
     fetch: () => dispatch(fetchItems()),
     logs: () => dispatch(toggleLogMenu()),
     views: () => dispatch(openViewMenu()),
-    settings: () => dispatch(toggleSettings()),
+    openSourcesSettings: () => dispatch(openSettingsTab("sources")),
+    openGroupingSettings: () => dispatch(openSettingsTab("grouping")),
+    openAppSettings: () => dispatch(openSettingsTab("app")),
     search: () => dispatch(toggleSearch()),
 })
 

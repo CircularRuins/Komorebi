@@ -13,7 +13,9 @@ type NavProps = {
     fetch: () => void
     logs: () => void
     views: () => void
-    settings: () => void
+    openSourcesSettings: () => void
+    openGroupingSettings: () => void
+    openAppSettings: () => void
 }
 
 type NavState = {
@@ -68,7 +70,7 @@ class Nav extends React.Component<NavProps, NavState> {
                     if (!this.props.itemShown) this.props.views()
                     break
                 case "F9":
-                    if (!this.props.itemShown) this.props.settings()
+                    if (!this.props.itemShown) this.props.openAppSettings()
                     break
             }
         }
@@ -151,8 +153,20 @@ class Nav extends React.Component<NavProps, NavState> {
                     </a>
                     <a
                         className="btn"
-                        title={intl.get("nav.settings")}
-                        onClick={this.props.settings}>
+                        title={intl.get("settings.sources")}
+                        onClick={this.props.openSourcesSettings}>
+                        <Icon iconName="Source" />
+                    </a>
+                    <a
+                        className="btn"
+                        title={intl.get("settings.grouping")}
+                        onClick={this.props.openGroupingSettings}>
+                        <Icon iconName="GroupList" />
+                    </a>
+                    <a
+                        className="btn"
+                        title={intl.get("settings.app")}
+                        onClick={this.props.openAppSettings}>
                         <Icon iconName="Settings" />
                     </a>
                     <span className="seperator"></span>

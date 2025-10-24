@@ -14,6 +14,7 @@ const mapStateToProps = createSelector([getApp], app => ({
         app.fetchingItems ||
         app.settings.saving,
     exitting: app.settings.saving,
+    activeTab: app.settings.activeTab,
 }))
 
 const mapDispatchToProps = dispatch => {

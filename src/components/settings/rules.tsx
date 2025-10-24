@@ -555,7 +555,7 @@ class RulesTab extends React.Component<RulesTabProps, RulesTabState> {
                         <Link
                             onClick={() =>
                                 window.utils.openExternal(
-                                    "https://github.com/yang991178/fluent-reader/wiki/Support#rules"
+                                    "https://github.com/yang991178/komorebi/wiki/Support#rules"
                                 )
                             }
                             style={{ marginLeft: 6 }}>

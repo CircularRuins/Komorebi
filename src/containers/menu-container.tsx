@@ -36,11 +36,11 @@ const mapDispatchToProps = dispatch => ({
         dispatch(selectAllArticles(init)), dispatch(initFeeds())
     },
     selectSourceGroup: (group: SourceGroup, menuKey: string) => {
-        dispatch(selectSources(group.sids, menuKey, group.name))
+        dispatch(selectSources(group.sids, menuKey, ""))
         dispatch(initFeeds())
     },
     selectSource: (source: RSSSource) => {
-        dispatch(selectSources([source.sid], "s-" + source.sid, source.name))
+        dispatch(selectSources([source.sid], "s-" + source.sid, ""))
         dispatch(initFeeds())
     },
     groupContextMenu: (sids: number[], event: React.MouseEvent) => {

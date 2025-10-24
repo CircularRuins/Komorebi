@@ -13,7 +13,7 @@ if (!process.mas) {
 
 if (!app.isPackaged) app.setAppUserModelId(process.execPath)
 else if (process.platform === "win32")
-    app.setAppUserModelId("me.hyliu.fluentreader")
+    app.setAppUserModelId("me.hyliu.komorebi")
 
 let restarting = false
 

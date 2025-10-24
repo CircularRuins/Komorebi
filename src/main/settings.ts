@@ -12,6 +12,10 @@ import {
 import { ipcMain, session, nativeTheme, app } from "electron"
 import { WindowManager } from "./window"
 
+// 设置用户数据路径为 komorebi
+const userDataPath = require('path').join(app.getPath('appData'), 'komorebi')
+app.setPath('userData', userDataPath)
+
 export const store = new Store<SchemaTypes>()
 
 const GROUPS_STORE_KEY = "sourceGroups"

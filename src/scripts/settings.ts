@@ -91,7 +91,7 @@ export async function exportAll() {
     const filters = [{ name: intl.get("app.frData"), extensions: ["frdata"] }]
     const write = await window.utils.showSaveDialog(
         filters,
-        "*/Fluent_Reader_Backup.frdata"
+        "*/Komorebi_Backup.frdata"
     )
     if (write) {
         let output = window.settings.getAll()

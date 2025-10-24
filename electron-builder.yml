@@ -1,5 +1,5 @@
-appId: me.hyliu.fluentreader
-productName: Fluent Reader
+appId: me.hyliu.komorebi
+productName: Komorebi
 copyright: Copyright © 2020 Haoyuan Liu
 files:
     - "./dist/**/*"
@@ -35,8 +35,8 @@ win:
         - nsis
         - zip
 appx:
-    applicationId: FluentReader
-    identityName: 25286HaoyuanLiu.FluentReader
+    applicationId: Komorebi
+    identityName: 25286HaoyuanLiu.Komorebi
     publisher: CN=FD70E7FA-E5AC-41C4-B9C4-6E8708A6616A
     backgroundColor: transparent
     languages:
@@ -70,4 +70,4 @@ linux:
     icon: build/icons
     category: Utility
     desktop:
-        StartupWMClass: fluent-reader
+        StartupWMClass: komorebi

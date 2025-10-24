@@ -12,6 +12,7 @@ type SettingsProps = {
     display: boolean
     blocked: boolean
     exitting: boolean
+    activeTab: "sources" | "grouping" | "app"
     close: () => void
 }
 
@@ -67,22 +68,31 @@ class Settings extends React.Component<SettingsProps> {
                             />
                         </FocusTrapZone>
                     )}
-                    <Pivot>
-                        <PivotItem
-                            headerText={intl.get("settings.sources")}
-                            itemIcon="Source">
-                            <SourcesTabContainer />
-                        </PivotItem>
-                        <PivotItem
-                            headerText={intl.get("settings.grouping")}
-                            itemIcon="GroupList">
-                            <GroupsTabContainer />
-                        </PivotItem>
-                        <PivotItem
-                            headerText={intl.get("settings.app")}
-                            itemIcon="Settings">
-                            <AppTabContainer />
-                        </PivotItem>
+                    <Pivot selectedKey={this.props.activeTab}>
+                        {this.props.activeTab === "sources" && (
+                            <PivotItem
+                                headerText={intl.get("settings.sources")}
+                                itemIcon="Source"
+                                itemKey="sources">
+                                <SourcesTabContainer />
+                            </PivotItem>
+                        )}
+                        {this.props.activeTab === "grouping" && (
+                            <PivotItem
+                                headerText={intl.get("settings.grouping")}
+                                itemIcon="GroupList"
+                                itemKey="grouping">
+                                <GroupsTabContainer />
+                            </PivotItem>
+                        )}
+                        {this.props.activeTab === "app" && (
+                            <PivotItem
+                                headerText={intl.get("settings.app")}
+                                itemIcon="Settings"
+                                itemKey="app">
+                                <AppTabContainer />
+                            </PivotItem>
+                        )}
                     </Pivot>
                 </div>
             </div>
