@@ -27,6 +27,7 @@ export enum PageType {
     AllArticles,
     Sources,
     Page,
+    AIMode,
 }
 
 interface SelectPageAction {
@@ -107,6 +108,18 @@ export function selectSources(
                 init: true,
             } as PageActionTypes)
         }
+    }
+}
+
+export function selectAIMode(): AppThunk {
+    return (dispatch, getState) => {
+        dispatch({
+            type: SELECT_PAGE,
+            pageType: PageType.AIMode,
+            keepMenu: getWindowBreakpoint(),
+            filter: getState().page.filter,
+            init: true,
+        } as PageActionTypes)
     }
 }
 
@@ -300,6 +313,12 @@ export function pageReducer(
                     return {
                         ...state,
                         feedId: SOURCE,
+                        itemId: null,
+                    }
+                case PageType.AIMode:
+                    return {
+                        ...state,
+                        feedId: "ai-mode",
                         itemId: null,
                     }
                 default:

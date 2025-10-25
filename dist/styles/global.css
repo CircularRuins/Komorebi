@@ -253,6 +253,13 @@ nav.hide-btns .btn-group .btn.system {
 nav.item-on .btn-group .btn.system {
     color: var(--whiteConstant);
 }
+nav.item-on .btn-group .btn {
+    display: none;
+}
+nav.ai-mode-on .btn-group .btn:first-child,
+nav.ai-mode-on .btn-group .btn:nth-child(2) {
+    display: none;
+}
 .btn-group .btn:hover,
 .ms-Nav-compositeLink:hover {
     background-color: #0001;

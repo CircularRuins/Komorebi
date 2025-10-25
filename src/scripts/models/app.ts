@@ -604,6 +604,13 @@ export function appReducer(
                         menuKey: action.menuKey,
                         title: action.title,
                     }
+                case PageType.AIMode:
+                    return {
+                        ...state,
+                        menu: state.menu && action.keepMenu,
+                        menuKey: "ai-mode",
+                        title: "",
+                    }
             }
         case CLOSE_CONTEXT_MENU:
             return {

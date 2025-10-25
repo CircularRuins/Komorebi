@@ -2,6 +2,7 @@ import * as React from "react"
 import { FeedContainer } from "../containers/feed-container"
 import { AnimationClassNames, Icon, FocusTrapZone } from "@fluentui/react"
 import ArticleContainer from "../containers/article-container"
+import AIMode from "./ai-mode"
 import { ViewType } from "../schema-types"
 
 type PageProps = {
@@ -24,8 +25,17 @@ class Page extends React.Component<PageProps> {
     prevItem = (event: React.MouseEvent) => this.offsetItem(event, -1)
     nextItem = (event: React.MouseEvent) => this.offsetItem(event, 1)
 
-    render = () =>
-        this.props.viewType !== ViewType.List ? (
+    render = () => {
+        // 检查是否为AI模式
+        if (this.props.feeds.includes("ai-mode")) {
+            return (
+                <div className="ai-mode-page">
+                    <AIMode />
+                </div>
+            )
+        }
+        
+        return this.props.viewType !== ViewType.List ? (
             <>
                 {this.props.settingsOn ? null : (
                     <div
@@ -108,6 +118,7 @@ class Page extends React.Component<PageProps> {
                 )}
             </>
         )
+    }
 }
 
 export default Page
