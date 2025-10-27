@@ -8,9 +8,7 @@ import {
     RSSSource,
     updateSource,
     deleteSource,
-    SourceOpenTarget,
     deleteSources,
-    toggleSourceHidden,
 } from "../../scripts/models/source"
 import { importOPML, exportOPML } from "../../scripts/models/group"
 import { AppDispatch, validateFavicon } from "../../scripts/utils"
@@ -47,14 +45,6 @@ const mapDispatchToProps = (dispatch: AppDispatch) => {
             }
             dispatch(saveSettings())
         },
-        updateSourceOpenTarget: (
-            source: RSSSource,
-            target: SourceOpenTarget
-        ) => {
-            dispatch(
-                updateSource({ ...source, openTarget: target } as RSSSource)
-            )
-        },
         updateFetchFrequency: (source: RSSSource, frequency: number) => {
             dispatch(
                 updateSource({
@@ -68,8 +58,6 @@ const mapDispatchToProps = (dispatch: AppDispatch) => {
             dispatch(deleteSources(sources)),
         importOPML: () => dispatch(importOPML()),
         exportOPML: () => dispatch(exportOPML()),
-        toggleSourceHidden: (source: RSSSource) =>
-            dispatch(toggleSourceHidden(source)),
     }
 }
 

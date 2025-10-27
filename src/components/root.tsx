@@ -16,13 +16,12 @@ const Root = ({ locale, dispatch }) =>
             id="root"
             key={locale}
             onMouseDown={(e) => {
-                // 检查点击是否在菜单内部或视图按钮上
+                // 检查点击是否在菜单内部
                 const target = e.target as Element
                 const isMenuClick = target.closest('.ms-ContextualMenu')
-                const isViewButton = target.closest('#view-toggle')
                 
-                // 只有在点击菜单外部且不是视图按钮时才关闭菜单
-                if (!isMenuClick && !isViewButton) {
+                // 只有在点击菜单外部时才关闭菜单
+                if (!isMenuClick) {
                     dispatch(closeContextMenu())
                 }
             }}>

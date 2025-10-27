@@ -5,7 +5,6 @@ import { RootState } from "../scripts/reducer"
 import { fetchItems } from "../scripts/models/item"
 import {
     toggleLogMenu,
-    openViewMenu,
     openSettingsTab,
 } from "../scripts/models/app"
 import { toggleSearch, selectAIMode, selectAllArticles } from "../scripts/models/page"
@@ -33,7 +32,6 @@ const mapStateToProps = createSelector(
 const mapDispatchToProps = dispatch => ({
     fetch: () => dispatch(fetchItems()),
     logs: () => dispatch(toggleLogMenu()),
-    views: () => dispatch(openViewMenu()),
     openSourcesSettings: () => dispatch(openSettingsTab("sources")),
     openGroupingSettings: () => dispatch(openSettingsTab("grouping")),
     openAppSettings: () => dispatch(openSettingsTab("app")),

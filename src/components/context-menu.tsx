@@ -68,8 +68,6 @@ export function ContextMenu() {
             return <TextContextMenu />
         case ContextMenuType.Image:
             return <ImageContextMenu />
-        case ContextMenuType.View:
-            return <ViewContextMenu />
         case ContextMenuType.Group:
             return <GroupContextMenu />
         case ContextMenuType.MarkRead:
@@ -359,57 +357,6 @@ function ImageContextMenu() {
     return <ContextMenuBase menuItems={menuItems} />
 }
 
-function ViewContextMenu() {
-    const dispatch = useAppDispatch()
-    const viewType = useAppSelector(state => state.page.viewType)
-    const filter = useAppSelector(state => state.page.filter.type)
-
-    const menuItems: IContextualMenuItem[] = [
-        {
-            key: "section_1",
-            itemType: ContextualMenuItemType.Section,
-            sectionProps: {
-                title: intl.get("context.view"),
-                bottomDivider: true,
-                items: [
-                    {
-                        key: "cardView",
-                        text: intl.get("context.cardView"),
-                        iconProps: { iconName: "GridViewMedium" },
-                        canCheck: true,
-                        checked: viewType === ViewType.Cards,
-                        onClick: () => dispatch(switchView(ViewType.Cards)),
-                    },
-                    {
-                        key: "listView",
-                        text: intl.get("context.listView"),
-                        iconProps: { iconName: "BacklogList" },
-                        canCheck: true,
-                        checked: viewType === ViewType.List,
-                        onClick: () => dispatch(switchView(ViewType.List)),
-                    },
-                    {
-                        key: "magazineView",
-                        text: intl.get("context.magazineView"),
-                        iconProps: { iconName: "Articles" },
-                        canCheck: true,
-                        checked: viewType === ViewType.Magazine,
-                        onClick: () => dispatch(switchView(ViewType.Magazine)),
-                    },
-                    {
-                        key: "compactView",
-                        text: intl.get("context.compactView"),
-                        iconProps: { iconName: "BulletedList" },
-                        canCheck: true,
-                        checked: viewType === ViewType.Compact,
-                        onClick: () => dispatch(switchView(ViewType.Compact)),
-                    },
-                ],
-            },
-        },
-    ]
-    return <ContextMenuBase menuItems={menuItems} />
-}
 
 function GroupContextMenu() {
     const dispatch = useAppDispatch()

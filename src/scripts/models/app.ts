@@ -40,7 +40,6 @@ export const enum ContextMenuType {
     Hidden,
     Item,
     Text,
-    View,
     Group,
     Image,
     MarkRead,
@@ -116,7 +115,6 @@ export class AppState {
 export const CLOSE_CONTEXT_MENU = "CLOSE_CONTEXT_MENU"
 export const OPEN_ITEM_MENU = "OPEN_ITEM_MENU"
 export const OPEN_TEXT_MENU = "OPEN_TEXT_MENU"
-export const OPEN_VIEW_MENU = "OPEN_VIEW_MENU"
 export const OPEN_GROUP_MENU = "OPEN_GROUP_MENU"
 export const OPEN_IMAGE_MENU = "OPEN_IMAGE_MENU"
 export const OPEN_MARK_ALL_MENU = "OPEN_MARK_ALL_MENU"
@@ -138,9 +136,6 @@ interface OpenTextMenuAction {
     item: [string, string]
 }
 
-interface OpenViewMenuAction {
-    type: typeof OPEN_VIEW_MENU
-}
 
 interface OpenMarkAllMenuAction {
     type: typeof OPEN_MARK_ALL_MENU
@@ -161,7 +156,6 @@ export type ContextMenuActionTypes =
     | CloseContextMenuAction
     | OpenItemMenuAction
     | OpenTextMenuAction
-    | OpenViewMenuAction
     | OpenGroupMenuAction
     | OpenImageMenuAction
     | OpenMarkAllMenuAction
@@ -249,9 +243,6 @@ export function openTextMenu(
     }
 }
 
-export const openViewMenu = (): ContextMenuActionTypes => ({
-    type: OPEN_VIEW_MENU,
-})
 
 export function openGroupMenu(
     sids: number[],
@@ -635,17 +626,6 @@ export function appReducer(
                     type: ContextMenuType.Text,
                     position: action.position,
                     target: action.item,
-                },
-            }
-        case OPEN_VIEW_MENU:
-            return {
-                ...state,
-                contextMenu: {
-                    type:
-                        state.contextMenu.type === ContextMenuType.View
-                            ? ContextMenuType.Hidden
-                            : ContextMenuType.View,
-                    event: "#view-toggle",
                 },
             }
         case OPEN_GROUP_MENU:

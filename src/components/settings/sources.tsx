@@ -10,18 +10,14 @@ import {
     IColumn,
     SelectionMode,
     Selection,
-    IChoiceGroupOption,
-    ChoiceGroup,
     IDropdownOption,
     Dropdown,
     MessageBar,
     MessageBarType,
-    Toggle,
 } from "@fluentui/react"
 import {
     SourceState,
     RSSSource,
-    SourceOpenTarget,
 } from "../../scripts/models/source"
 import { urlTest } from "../../scripts/utils"
 import DangerButton from "../utils/danger-button"
@@ -34,16 +30,11 @@ type SourcesTabProps = {
     addSource: (url: string) => void
     updateSourceName: (source: RSSSource, name: string) => void
     updateSourceIcon: (source: RSSSource, iconUrl: string) => Promise<void>
-    updateSourceOpenTarget: (
-        source: RSSSource,
-        target: SourceOpenTarget
-    ) => void
     updateFetchFrequency: (source: RSSSource, frequency: number) => void
     deleteSource: (source: RSSSource) => void
     deleteSources: (sources: RSSSource[]) => void
     importOPML: () => void
     exportOPML: () => void
-    toggleSourceHidden: (source: RSSSource) => void
 }
 
 type SourcesTabState = {
@@ -159,24 +150,6 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         })
     }
 
-    sourceOpenTargetChoices = (): IChoiceGroupOption[] => [
-        {
-            key: String(SourceOpenTarget.Local),
-            text: intl.get("sources.rssText"),
-        },
-        {
-            key: String(SourceOpenTarget.FullContent),
-            text: intl.get("article.loadFull"),
-        },
-        {
-            key: String(SourceOpenTarget.Webpage),
-            text: intl.get("sources.loadWebpage"),
-        },
-        {
-            key: String(SourceOpenTarget.External),
-            text: intl.get("openExternal"),
-        },
-    ]
 
     updateSourceName = () => {
         let newName = this.state.newSourceName.trim()
@@ -208,26 +181,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         if (urlTest(trimmed)) this.props.addSource(trimmed)
     }
 
-    onOpenTargetChange = (_, option: IChoiceGroupOption) => {
-        let newTarget = parseInt(option.key) as SourceOpenTarget
-        this.props.updateSourceOpenTarget(this.state.selectedSource, newTarget)
-        this.setState({
-            selectedSource: {
-                ...this.state.selectedSource,
-                openTarget: newTarget,
-            } as RSSSource,
-        })
-    }
 
-    onToggleHidden = () => {
-        this.props.toggleSourceHidden(this.state.selectedSource)
-        this.setState({
-            selectedSource: {
-                ...this.state.selectedSource,
-                hidden: !this.state.selectedSource.hidden,
-            } as RSSSource,
-        })
-    }
 
     render = () => (
         <div className="tab-body">
@@ -413,25 +367,6 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                             </Stack>
                         </>
                     )}
-                    <ChoiceGroup
-                        label={intl.get("sources.openTarget")}
-                        options={this.sourceOpenTargetChoices()}
-                        selectedKey={String(
-                            this.state.selectedSource.openTarget
-                        )}
-                        onChange={this.onOpenTargetChange}
-                    />
-                    <Stack horizontal verticalAlign="baseline">
-                        <Stack.Item grow>
-                            <Label>{intl.get("sources.hidden")}</Label>
-                        </Stack.Item>
-                        <Stack.Item>
-                            <Toggle
-                                checked={this.state.selectedSource.hidden}
-                                onChange={this.onToggleHidden}
-                            />
-                        </Stack.Item>
-                    </Stack>
                     {!this.state.selectedSource.serviceRef && (
                         <Stack horizontal>
                             <Stack.Item>

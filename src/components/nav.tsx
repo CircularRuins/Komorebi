@@ -51,7 +51,6 @@ type NavProps = {
     search: () => void
     fetch: () => void
     logs: () => void
-    views: () => void
     openSourcesSettings: () => void
     openGroupingSettings: () => void
     openAppSettings: () => void
@@ -108,9 +107,6 @@ class Nav extends React.Component<NavProps, NavState> {
                 case "F5":
                     this.fetch()
                     break
-                case "F8":
-                    if (!this.props.itemShown) this.props.views()
-                    break
                 case "F9":
                     if (!this.props.itemShown) this.props.openAppSettings()
                     break
@@ -157,11 +153,6 @@ class Nav extends React.Component<NavProps, NavState> {
         if (this.canFetch()) this.props.fetch()
     }
 
-    views = () => {
-        if (this.props.state.contextMenu.event !== "#view-toggle") {
-            this.props.views()
-        }
-    }
 
     getProgress = () => {
         return this.props.state.fetchingTotal > 0
@@ -244,20 +235,6 @@ class Nav extends React.Component<NavProps, NavState> {
                         onClick={this.fetch}
                         title={intl.get("nav.refresh")}>
                         <Icon iconName="Refresh" />
-                    </a>
-                    <a
-                        className="btn"
-                        id="view-toggle"
-                        title={intl.get("nav.view")}
-                        onClick={this.props.views}
-                        onMouseDown={e => {
-                            if (
-                                this.props.state.contextMenu.event ===
-                                "#view-toggle"
-                            )
-                                e.stopPropagation()
-                        }}>
-                        <Icon iconName="View" />
                     </a>
                     <a
                         className="btn"
