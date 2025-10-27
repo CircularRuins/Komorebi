@@ -491,6 +491,64 @@ img.favicon.dropdown {
     margin: 0 auto;
 }
 
+/* AI简化界面样式 */
+.ai-simple-container {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    background: var(--white);
+}
+
+.ai-input-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+}
+
+.ai-simple-input {
+    width: 100%;
+}
+
+.ai-send-button {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+}
+
+.send-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 8px;
+    padding: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .ai-simple-container {
+        padding: 20px;
+    }
+    
+    .ai-send-button {
+        bottom: 8px;
+        right: 8px;
+    }
+    
+    .send-btn {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+    }
+}
+
 /* Switch开关样式 */
 .switch {
     display: inline-block;
