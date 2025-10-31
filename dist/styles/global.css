@@ -162,6 +162,9 @@ i.ms-Nav-chevron {
     -webkit-app-region: drag;
     user-select: none;
     overflow: hidden;
+    position: relative;
+    z-index: 1000;
+    background-color: var(--neutralLighterAlt);
 }
 #root > nav .btn,
 #root > nav span {
