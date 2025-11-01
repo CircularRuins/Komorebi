@@ -1,7 +1,7 @@
 import * as React from "react"
 import { TextField } from "@fluentui/react/lib/TextField"
 import { PrimaryButton, DefaultButton } from "@fluentui/react/lib/Button"
-import { Spinner, MessageBar, MessageBarType, Panel, PanelType } from "@fluentui/react"
+import { Spinner, MessageBar, MessageBarType, Panel, PanelType, Dialog, DialogType } from "@fluentui/react"
 import { Icon } from "@fluentui/react/lib/Icon"
 import OpenAI from "openai"
 
@@ -24,6 +24,11 @@ type AIModeState = {
     apiKey: string
     model: string
     showConfigPanel: boolean
+    tempApiEndpoint: string
+    tempApiKey: string
+    tempModel: string
+    showErrorDialog: boolean
+    errorDialogMessage: string
 }
 
 class AIMode extends React.Component<AIModeProps, AIModeState> {
@@ -34,15 +39,23 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
         super(props)
         this.messagesEndRef = React.createRef()
         this.messagesContainerRef = React.createRef()
+        const savedEndpoint = localStorage.getItem('ai-api-endpoint') || 'https://api.openai.com/v1/chat/completions'
+        const savedKey = localStorage.getItem('ai-api-key') || ''
+        const savedModel = localStorage.getItem('ai-model') || ''
         this.state = {
             inputValue: '',
             messages: [],
             isLoading: false,
             error: null,
-            apiEndpoint: localStorage.getItem('ai-api-endpoint') || 'https://api.openai.com/v1/chat/completions',
-            apiKey: localStorage.getItem('ai-api-key') || '',
-            model: localStorage.getItem('ai-model') || 'gpt-3.5-turbo',
-            showConfigPanel: false
+            apiEndpoint: savedEndpoint,
+            apiKey: savedKey,
+            model: savedModel,
+            showConfigPanel: false,
+            tempApiEndpoint: savedEndpoint,
+            tempApiKey: savedKey,
+            tempModel: savedModel,
+            showErrorDialog: false,
+            errorDialogMessage: ''
         }
     }
 
@@ -51,19 +64,26 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
         // 注册全局回调，让导航栏可以打开配置面板
         if (typeof window !== 'undefined') {
             (window as any).openAIConfigPanel = () => {
-                this.setState({ showConfigPanel: true })
+                this.handleConfigPanelOpen()
             }
+            // 初始化是否有消息的标志
+            (window as any).hasAIMessages = this.state.messages.length > 0
         }
     }
 
     componentDidUpdate() {
         this.scrollToBottom()
+        // 更新全局标志，通知导航栏是否有消息
+        if (typeof window !== 'undefined') {
+            (window as any).hasAIMessages = this.state.messages.length > 0
+        }
     }
 
     componentWillUnmount() {
-        // 清理全局回调
+        // 清理全局回调和标志
         if (typeof window !== 'undefined') {
             delete (window as any).openAIConfigPanel
+            delete (window as any).hasAIMessages
         }
     }
 
@@ -81,20 +101,53 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
 
     handleApiEndpointChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
-        this.setState({ apiEndpoint: value })
-        localStorage.setItem('ai-api-endpoint', value)
+        this.setState({ tempApiEndpoint: value })
     }
 
     handleApiKeyChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
-        this.setState({ apiKey: value })
-        localStorage.setItem('ai-api-key', value)
+        this.setState({ tempApiKey: value })
     }
 
     handleModelChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
-        this.setState({ model: value })
-        localStorage.setItem('ai-model', value)
+        this.setState({ tempModel: value })
+    }
+
+    handleConfigConfirm = () => {
+        const { tempApiEndpoint, tempApiKey, tempModel } = this.state
+        // 保存到localStorage和state
+        localStorage.setItem('ai-api-endpoint', tempApiEndpoint)
+        localStorage.setItem('ai-api-key', tempApiKey)
+        localStorage.setItem('ai-model', tempModel)
+        this.setState({
+            apiEndpoint: tempApiEndpoint,
+            apiKey: tempApiKey,
+            model: tempModel,
+            showConfigPanel: false
+        })
+    }
+
+    handleConfigCancel = () => {
+        // 恢复临时状态为已保存的值
+        const { apiEndpoint, apiKey, model } = this.state
+        this.setState({
+            tempApiEndpoint: apiEndpoint,
+            tempApiKey: apiKey,
+            tempModel: model,
+            showConfigPanel: false
+        })
+    }
+
+    handleConfigPanelOpen = () => {
+        // 打开面板时，初始化临时状态为当前保存的值
+        const { apiEndpoint, apiKey, model } = this.state
+        this.setState({
+            showConfigPanel: true,
+            tempApiEndpoint: apiEndpoint,
+            tempApiKey: apiKey,
+            tempModel: model
+        })
     }
 
     handleSendMessage = async () => {
@@ -102,12 +155,20 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
         if (!inputValue.trim()) return
 
         if (!apiEndpoint.trim() || !apiKey.trim()) {
-            this.setState({ error: '请先配置API Endpoint和API Key', showConfigPanel: true })
+            this.setState({ 
+                showErrorDialog: true,
+                errorDialogMessage: '请先配置API Endpoint和API Key'
+            })
+            this.handleConfigPanelOpen()
             return
         }
 
         if (!model.trim()) {
-            this.setState({ error: '请先配置模型名称', showConfigPanel: true })
+            this.setState({ 
+                showErrorDialog: true,
+                errorDialogMessage: '请先配置模型名称'
+            })
+            this.handleConfigPanelOpen()
             return
         }
 
@@ -118,6 +179,8 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
         }
 
         const updatedMessages = [...messages, userMessage]
+        // 先保存输入值，以便在错误时恢复
+        const savedInputValue = inputValue
         this.setState({ 
             inputValue: '', 
             messages: updatedMessages,
@@ -141,9 +204,13 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
         } catch (error) {
             console.error('API调用失败:', error)
             const errorMessage = error instanceof Error ? error.message : '请求失败，请检查API配置和网络连接'
+            // 移除已添加的用户消息，因为请求失败了，并恢复输入框的值
             this.setState({ 
+                messages: messages,
+                inputValue: savedInputValue,
                 isLoading: false,
-                error: errorMessage
+                showErrorDialog: true,
+                errorDialogMessage: errorMessage
             })
         }
     }
@@ -230,11 +297,20 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
     }
 
     handleClearMessages = () => {
-        this.setState({ messages: [], error: null })
+        this.setState({ messages: [], error: null }, () => {
+            // 更新全局标志，通知导航栏没有消息了
+            if (typeof window !== 'undefined') {
+                (window as any).hasAIMessages = false
+            }
+        })
+    }
+
+    handleCloseErrorDialog = () => {
+        this.setState({ showErrorDialog: false, errorDialogMessage: '' })
     }
 
     render() {
-        const { inputValue, messages, isLoading, error, apiEndpoint, apiKey, model, showConfigPanel } = this.state
+        const { inputValue, messages, isLoading, error, apiEndpoint, apiKey, model, showConfigPanel, tempApiEndpoint, tempApiKey, tempModel, showErrorDialog, errorDialogMessage } = this.state
 
         return (
             <div className={`ai-mode-container ${messages.length === 0 ? 'no-messages' : 'has-messages'}`}>
@@ -242,14 +318,14 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
                 <Panel
                     isOpen={showConfigPanel}
                     type={PanelType.smallFixedFar}
-                    onDismiss={() => this.setState({ showConfigPanel: false })}
+                    onDismiss={this.handleConfigCancel}
                     headerText="AI API 配置"
                     closeButtonAriaLabel="关闭"
                 >
                     <div style={{ padding: '20px 0' }}>
                         <TextField
                             label="API Endpoint"
-                            value={apiEndpoint}
+                            value={tempApiEndpoint}
                             onChange={this.handleApiEndpointChange}
                             placeholder="https://api.openai.com/v1/chat/completions"
                             description="OpenAI兼容的API端点地址。必须是完整的URL，包含协议(https://)和完整路径(如/v1/chat/completions)"
@@ -258,7 +334,7 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
                         <TextField
                             label="API Key"
                             type="password"
-                            value={apiKey}
+                            value={tempApiKey}
                             onChange={this.handleApiKeyChange}
                             placeholder="sk-..."
                             description="您的API密钥"
@@ -266,12 +342,22 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
                         />
                         <TextField
                             label="模型名称"
-                            value={model}
+                            value={tempModel}
                             onChange={this.handleModelChange}
-                            placeholder="gpt-3.5-turbo"
+                            placeholder="请输入模型名称"
                             description="要使用的模型名称，例如：gpt-3.5-turbo, gpt-4, claude-3-opus 等"
                             styles={{ root: { marginBottom: '20px' } }}
                         />
+                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                            <DefaultButton
+                                text="取消"
+                                onClick={this.handleConfigCancel}
+                            />
+                            <PrimaryButton
+                                text="确认"
+                                onClick={this.handleConfigConfirm}
+                            />
+                        </div>
                     </div>
                 </Panel>
 
@@ -292,7 +378,7 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
                                     actions={
                                         <DefaultButton
                                             text="配置API"
-                                            onClick={() => this.setState({ showConfigPanel: true })}
+                                            onClick={this.handleConfigPanelOpen}
                                         />
                                     }
                                 >
@@ -350,20 +436,26 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
                                 )}
                                 <div ref={this.messagesEndRef} />
                             </div>
-                            
-                            {error && (
-                                <MessageBar
-                                    messageBarType={MessageBarType.error}
-                                    onDismiss={() => this.setState({ error: null })}
-                                    dismissButtonAriaLabel="关闭"
-                                    styles={{ root: { margin: '10px 20px' } }}
-                                >
-                                    {error}
-                                </MessageBar>
-                            )}
                         </>
                     )}
                 </div>
+
+                {/* 错误对话框 */}
+                <Dialog
+                    hidden={!showErrorDialog}
+                    onDismiss={this.handleCloseErrorDialog}
+                    dialogContentProps={{
+                        type: DialogType.normal,
+                        title: '错误',
+                        subText: errorDialogMessage
+                    }}
+                    modalProps={{
+                        isBlocking: false,
+                        styles: { main: { maxWidth: 500 } }
+                    }}
+                >
+                    <DefaultButton onClick={this.handleCloseErrorDialog} text="确定" />
+                </Dialog>
 
                 {/* 输入区域 */}
                 <div className="ai-input-wrapper">

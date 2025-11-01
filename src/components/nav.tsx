@@ -61,9 +61,12 @@ type NavProps = {
 
 type NavState = {
     maximized: boolean
+    hasAIMessages: boolean
 }
 
 class Nav extends React.Component<NavProps, NavState> {
+    private aiMessagesCheckInterval: NodeJS.Timeout | null = null
+
     constructor(props) {
         super(props)
         this.setBodyFocusState(window.utils.isFocused())
@@ -71,7 +74,15 @@ class Nav extends React.Component<NavProps, NavState> {
         window.utils.addWindowStateListener(this.windowStateListener)
         this.state = {
             maximized: window.utils.isMaximized(),
+            hasAIMessages: typeof window !== 'undefined' && (window as any).hasAIMessages === true
         }
+        // 设置定时器检查AI消息状态
+        this.aiMessagesCheckInterval = setInterval(() => {
+            const hasMessages = typeof window !== 'undefined' && (window as any).hasAIMessages === true
+            if (hasMessages !== this.state.hasAIMessages) {
+                this.setState({ hasAIMessages: hasMessages })
+            }
+        }, 100) // 每100ms检查一次
     }
 
     setBodyFocusState = (focused: boolean) => {
@@ -121,6 +132,9 @@ class Nav extends React.Component<NavProps, NavState> {
     }
     componentWillUnmount() {
         document.removeEventListener("keydown", this.navShortcutsHandler)
+        if (this.aiMessagesCheckInterval) {
+            clearInterval(this.aiMessagesCheckInterval)
+        }
     }
 
     minimize = () => {
@@ -242,16 +256,18 @@ class Nav extends React.Component<NavProps, NavState> {
                         onClick={this.props.openSourcesSettings}>
                         <Icon iconName="Source" />
                     </a>
-                    <a
-                        className="btn"
-                        title={intl.get("settings.ai")}
-                        onClick={() => {
-                            if (typeof window !== 'undefined' && (window as any).openAIConfigPanel) {
-                                (window as any).openAIConfigPanel()
-                            }
-                        }}>
-                        <Icon iconName="Cloud" />
-                    </a>
+                    {(!this.props.isAIModeEnabled || !this.state.hasAIMessages) && (
+                        <a
+                            className="btn"
+                            title={intl.get("settings.ai")}
+                            onClick={() => {
+                                if (typeof window !== 'undefined' && (window as any).openAIConfigPanel) {
+                                    (window as any).openAIConfigPanel()
+                                }
+                            }}>
+                            <Icon iconName="Cloud" />
+                        </a>
+                    )}
                     <a
                         className="btn"
                         title={intl.get("settings.grouping")}
