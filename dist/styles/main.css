@@ -375,12 +375,15 @@ img.favicon.dropdown {
 
 /* Adjust main content for new layout */
 .resizable-layout .main,
-.resizable-layout .list-main {
+.resizable-layout .list-main,
+.resizable-layout .ai-mode-page {
     margin-left: 0;
     margin-top: calc(-1 * var(--navHeight));
     width: 100%;
     height: 100%;
     background-color: var(--neutralLighterAlt) !important;
+    overflow-x: hidden;
+    overflow-y: visible; /* 允许纵向溢出，确保按钮不被截断 */
 }
 
 /* 确保在 resizable-layout 中 .main::before 正常创建间隔 */
@@ -461,14 +464,86 @@ img.favicon.dropdown {
     flex-direction: column;
     position: relative;
     z-index: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: visible; /* 允许纵向溢出，确保按钮不被截断 */
+    min-height: 0;
 }
 
 .ai-mode-container {
     flex: 1;
     display: flex;
     flex-direction: column;
+    padding: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: visible; /* 允许纵向溢出，确保按钮不被截断 */
+}
+
+/* 有消息时，保持原有布局 */
+.ai-mode-container.has-messages {
+    justify-content: flex-start;
+    align-items: stretch; /* 确保子元素宽度一致 */
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: visible; /* 允许纵向溢出，确保按钮不被截断 */
+}
+
+.ai-mode-container.has-messages .ai-messages-container {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding: 20px;
+    margin-bottom: 0;
+    min-height: 0;
+    max-width: 100%;
+}
+
+.ai-input-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 800px; /* 基础样式保留，但会被子选择器覆盖 */
+    margin: 0 auto;
+    flex-shrink: 0;
+    overflow: visible;
+    box-sizing: border-box; /* 统一 box-sizing，确保 padding 计算一致 */
+}
+
+/* 没有消息时，输入框居中显示 */
+.ai-mode-container.no-messages {
+    position: relative;
+    justify-content: center;
+    align-items: center; /* 恢复原始的 center，用于居中 */
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: visible; /* 允许纵向溢出，确保按钮不被截断 */
+}
+
+.ai-mode-container.no-messages .ai-messages-container {
+    display: none;
+}
+
+.ai-mode-container.no-messages .ai-input-wrapper {
+    margin: 0 auto; /* 恢复原始的 auto，用于居中 */
+    max-width: 800px; /* 恢复原始的 max-width */
+    width: calc(100% - 40px); /* 恢复原始的宽度计算 */
+    flex-shrink: 0;
+    position: relative;
+    padding: 0 20px; /* 恢复原始的 padding，只有左右 padding，没有下 padding */
+    box-sizing: border-box;
+    overflow: visible; /* 确保按钮不被截断 */
+}
+
+/* 有消息时，让样式与没有消息时保持一致 */
+.ai-mode-container.has-messages .ai-input-wrapper {
+    flex: 0 0 auto;
+    padding: 0 20px 20px 20px; /* 添加下 padding 20px，让输入框与页面底部有距离 */
+    margin: 0 auto; /* 与没有消息时保持一致 */
+    max-width: 800px; /* 与没有消息时保持一致 */
+    width: calc(100% - 40px); /* 与没有消息时保持一致 */
+    box-sizing: border-box;
+    position: relative;
+    align-self: stretch; /* 确保宽度占满父容器 */
+    overflow: visible; /* 确保按钮不被截断 */
 }
 
 .ai-mode-header {
@@ -520,20 +595,103 @@ img.favicon.dropdown {
     background: var(--white);
 }
 
-.ai-input-wrapper {
-    position: relative;
-    width: 100%;
-    max-width: 800px;
+/* 发送按钮统一定位 */
+/* 按钮应该相对于 TextField 的 fieldGroup 定位 */
+/* 无论有没有消息，wrapper 的左右 padding 都是 20px */
+/* TextField field padding 右边是 60px，按钮宽度 40px */
+/* 按钮应该位于 field 的右边 padding 区域内，距离 fieldGroup 右边缘约 12px */
+/* 所以按钮的 right = wrapper padding (20px) + (TextField field right padding (60px) - button width (40px) - margin (12px)) = 20 + 8 = 28px */
+/* 确保 TextField 的 root 和 fieldGroup 在不同状态下宽度一致 */
+.ai-input-wrapper .ms-TextField {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    position: relative; /* 设置为定位上下文，让按钮可以相对于 TextField 定位 */
+}
+
+.ai-input-wrapper .ms-TextField-fieldGroup {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    position: relative; /* 设置为定位上下文 */
+}
+
+/* 发送按钮统一定位 */
+/* 按钮应该相对于 TextField 的 fieldGroup 定位 */
+/* 无论有没有消息，wrapper 的左右 padding 都是 20px */
+/* TextField field padding 右边是 60px，按钮宽度 40px */
+/* 按钮应该位于 field 的右边 padding 区域内，距离 fieldGroup 右边缘约 12px */
+/* 所以按钮的 right = wrapper padding (20px) + (TextField field right padding (60px) - button width (40px) - margin (12px)) = 20 + 8 = 28px */
+/* 按钮的 bottom 应该相对于 TextField 的底部，而不是 wrapper 的底部 */
+/* 有消息时 wrapper 有下 padding 20px，按钮的 bottom 需要加上这个值，使按钮相对于 TextField 底部的位置一致 */
+.ai-input-wrapper .ai-send-button {
+    position: absolute;
+    bottom: 12px; /* 基础值，相对于 wrapper 的 padding box */
+    right: 28px; /* 统一使用相同的值，确保两种状态下按钮位置一致 */
+    z-index: 10;
+    pointer-events: auto;
+}
+
+/* 有消息时，wrapper 有下 padding 20px，按钮的 bottom 需要加上这个值 */
+/* 这样按钮相对于 TextField 底部的位置就和没有消息时一致了 */
+.ai-mode-container.has-messages .ai-input-wrapper .ai-send-button {
+    bottom: 32px; /* 12px + 20px (wrapper 下 padding) = 32px，使按钮相对于 TextField 底部的位置与没有消息时一致 */
+    right: 28px;
+}
+
+/* 没有消息时，wrapper 没有下 padding，按钮的 bottom 是 12px */
+.ai-mode-container.no-messages .ai-input-wrapper .ai-send-button {
+    bottom: 12px; /* 相对于 TextField 的底部 */
+    right: 28px;
+}
+
+.ai-input-actions {
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* 没有消息时隐藏 actions，但保留布局空间，确保 TextField 位置一致 */
+.ai-input-actions.hidden {
+    visibility: hidden;
+    height: 0;
+    margin-bottom: 12px; /* 保持相同的 margin-bottom，确保 TextField 位置一致 */
+    overflow: hidden;
+}
+
+.ai-config-button-fixed {
+    position: fixed !important;
+    bottom: 20px !important;
+    left: 20px !important;
+    z-index: 10000 !important;
+    pointer-events: auto !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .ai-simple-input {
     width: 100%;
+    box-sizing: border-box; /* 确保 box-sizing 一致 */
 }
 
-.ai-send-button {
-    position: absolute;
-    bottom: 12px;
-    right: 12px;
+/* 确保 TextField 的 root 和 fieldGroup 在不同状态下宽度一致 */
+.ai-input-wrapper .ms-TextField {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    position: relative; /* 设置为定位上下文 */
+}
+
+.ai-input-wrapper .ms-TextField-fieldGroup {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    position: relative; /* 设置为定位上下文，让按钮可以相对于 fieldGroup 定位 */
 }
 
 .send-btn {
@@ -562,6 +720,16 @@ img.favicon.dropdown {
     min-height: 0;
 }
 
+/* 有消息时，消息容器需要特殊处理 */
+.ai-mode-container.has-messages .ai-messages-container {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+    margin-bottom: 0;
+    min-height: 0;
+}
+
 .ai-messages-list {
     display: flex;
     flex-direction: column;
@@ -570,6 +738,11 @@ img.favicon.dropdown {
     margin: 0 auto;
     width: 100%;
     padding-bottom: 20px;
+    box-sizing: border-box;
+}
+
+.ai-mode-container.has-messages .ai-messages-list {
+    max-width: 100%;
 }
 
 .ai-message {

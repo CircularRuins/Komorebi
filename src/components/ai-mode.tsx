@@ -224,7 +224,7 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
         const { inputValue, messages, isLoading, error, apiEndpoint, apiKey, model, showConfigPanel } = this.state
 
         return (
-            <div className="ai-mode-container">
+            <div className={`ai-mode-container ${messages.length === 0 ? 'no-messages' : 'has-messages'}`}>
                 {/* 配置面板 */}
                 <Panel
                     isOpen={showConfigPanel}
@@ -344,16 +344,14 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
 
                 {/* 输入区域 */}
                 <div className="ai-input-wrapper">
-                    {messages.length > 0 && (
-                        <div className="ai-input-actions">
-                            <DefaultButton
-                                iconProps={{ iconName: 'Clear' }}
-                                text="清空"
-                                onClick={this.handleClearMessages}
-                                styles={{ root: { marginRight: '8px' } }}
-                            />
-                        </div>
-                    )}
+                    <div className={`ai-input-actions ${messages.length === 0 ? 'hidden' : ''}`}>
+                        <DefaultButton
+                            iconProps={{ iconName: 'Clear' }}
+                            text="清空"
+                            onClick={this.handleClearMessages}
+                            styles={{ root: { marginRight: '8px' } }}
+                        />
+                    </div>
                     <TextField
                         multiline
                         rows={4}
@@ -366,7 +364,8 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
                         styles={{
                             root: {
                                 width: '100%',
-                                maxWidth: '100%'
+                                maxWidth: '100%',
+                                margin: 0
                             },
                             fieldGroup: {
                                 border: '1px solid var(--neutralLight)',
@@ -375,6 +374,7 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
                                 width: '100%',
                                 maxWidth: '100%',
                                 boxSizing: 'border-box',
+                                margin: 0,
                                 '&:hover': {
                                     borderColor: 'var(--neutralSecondary)'
                                 },
