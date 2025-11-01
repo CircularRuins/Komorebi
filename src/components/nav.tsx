@@ -244,6 +244,16 @@ class Nav extends React.Component<NavProps, NavState> {
                     </a>
                     <a
                         className="btn"
+                        title={intl.get("settings.ai")}
+                        onClick={() => {
+                            if (typeof window !== 'undefined' && (window as any).openAIConfigPanel) {
+                                (window as any).openAIConfigPanel()
+                            }
+                        }}>
+                        <Icon iconName="Cloud" />
+                    </a>
+                    <a
+                        className="btn"
                         title={intl.get("settings.grouping")}
                         onClick={this.props.openGroupingSettings}>
                         <Icon iconName="GroupList" />

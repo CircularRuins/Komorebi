@@ -48,10 +48,23 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
 
     componentDidMount() {
         this.scrollToBottom()
+        // 注册全局回调，让导航栏可以打开配置面板
+        if (typeof window !== 'undefined') {
+            (window as any).openAIConfigPanel = () => {
+                this.setState({ showConfigPanel: true })
+            }
+        }
     }
 
     componentDidUpdate() {
         this.scrollToBottom()
+    }
+
+    componentWillUnmount() {
+        // 清理全局回调
+        if (typeof window !== 'undefined') {
+            delete (window as any).openAIConfigPanel
+        }
     }
 
     scrollToBottom = () => {
@@ -350,15 +363,6 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
                             )}
                         </>
                     )}
-                </div>
-
-                {/* 配置按钮 - 固定在左下角 */}
-                <div className="ai-config-button-fixed">
-                    <DefaultButton
-                        iconProps={{ iconName: 'Settings' }}
-                        text="配置"
-                        onClick={() => this.setState({ showConfigPanel: true })}
-                    />
                 </div>
 
                 {/* 输入区域 */}

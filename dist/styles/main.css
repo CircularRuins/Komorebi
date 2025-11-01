@@ -667,11 +667,19 @@ img.favicon.dropdown {
     position: fixed !important;
     bottom: 20px !important;
     left: 20px !important;
-    z-index: 10000 !important;
+    z-index: 99999 !important;
     pointer-events: auto !important;
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
+    background: transparent !important;
+}
+
+/* 确保按钮在所有父容器中都可见 */
+.ai-mode-page .ai-config-button-fixed,
+.ai-mode-container .ai-config-button-fixed {
+    position: fixed !important;
+    z-index: 99999 !important;
 }
 
 .ai-simple-input {

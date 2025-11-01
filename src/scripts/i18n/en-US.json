@@ -113,6 +113,7 @@
         "fetching": "Updating sources, please wait …",
         "exit": "Exit settings",
         "sources": "Sources",
+        "ai": "AI Config",
         "grouping": "Groups",
         "rules": "Rules",
         "service": "Service",
