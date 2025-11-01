@@ -383,7 +383,7 @@ img.favicon.dropdown {
     height: 100%;
     background-color: var(--neutralLighterAlt) !important;
     overflow-x: hidden;
-    overflow-y: visible; /* 允许纵向溢出，确保按钮不被截断 */
+    overflow-y: hidden; /* 防止出现滚动条，由内部容器控制滚动 */
 }
 
 /* 确保在 resizable-layout 中 .main::before 正常创建间隔 */
@@ -465,7 +465,7 @@ img.favicon.dropdown {
     position: relative;
     z-index: 0;
     overflow-x: hidden;
-    overflow-y: visible; /* 允许纵向溢出，确保按钮不被截断 */
+    overflow-y: hidden; /* 防止出现滚动条，由内部容器控制滚动 */
     min-height: 0;
 }
 
@@ -476,7 +476,7 @@ img.favicon.dropdown {
     padding: 0;
     min-height: 0;
     overflow-x: hidden;
-    overflow-y: visible; /* 允许纵向溢出，确保按钮不被截断 */
+    overflow-y: hidden; /* 防止出现滚动条，由内部容器控制滚动 */
 }
 
 /* 有消息时，保持原有布局 */
@@ -485,7 +485,7 @@ img.favicon.dropdown {
     align-items: stretch; /* 确保子元素宽度一致 */
     padding: 0;
     overflow-x: hidden;
-    overflow-y: visible; /* 允许纵向溢出，确保按钮不被截断 */
+    overflow-y: hidden; /* 防止出现滚动条，由内部容器控制滚动 */
 }
 
 .ai-mode-container.has-messages .ai-messages-container {
@@ -515,11 +515,13 @@ img.favicon.dropdown {
     align-items: center; /* 恢复原始的 center，用于居中 */
     padding: 0;
     overflow-x: hidden;
-    overflow-y: visible; /* 允许纵向溢出，确保按钮不被截断 */
+    overflow-y: hidden; /* 防止出现滚动条 */
 }
 
 .ai-mode-container.no-messages .ai-messages-container {
-    display: none;
+    display: none !important;
+    overflow-y: hidden !important;
+    overflow-x: hidden !important;
 }
 
 .ai-mode-container.no-messages .ai-input-wrapper {
