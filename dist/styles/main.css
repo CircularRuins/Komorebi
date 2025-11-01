@@ -714,6 +714,7 @@ img.favicon.dropdown {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 20px;
+    padding-top: calc(20px + var(--navHeight));
     margin-bottom: 20px;
     display: flex;
     flex-direction: column;
@@ -726,6 +727,7 @@ img.favicon.dropdown {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 20px;
+    padding-top: calc(20px + var(--navHeight));
     margin-bottom: 0;
     min-height: 0;
 }
@@ -738,7 +740,50 @@ img.favicon.dropdown {
     margin: 0 auto;
     width: 100%;
     padding-bottom: 20px;
+    padding-top: 0;
     box-sizing: border-box;
+}
+
+.ai-messages-list > .ai-message:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    position: relative;
+}
+
+.ai-messages-list > .ai-message:first-child::before {
+    content: '';
+    display: block;
+    height: 0;
+    margin-top: 0;
+}
+
+.ai-messages-list > .ai-message:first-child .ai-message-role {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    width: auto !important;
+    max-width: 100% !important;
+}
+
+/* 特别处理第一个用户消息的角色标签 */
+.ai-messages-list > .ai-message-user:first-child .ai-message-role {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 75% !important;
+    align-self: flex-end !important;
+    text-align: right !important;
+    margin-right: 0 !important;
+    padding-right: 4px !important;
+    height: auto !important;
+    min-height: 16px !important;
+    line-height: 16px !important;
+    color: var(--neutralSecondary) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
 }
 
 .ai-mode-container.has-messages .ai-messages-list {
@@ -750,14 +795,41 @@ img.favicon.dropdown {
     flex-direction: column;
     gap: 8px;
     animation: fadeIn 0.3s ease-in;
+    position: relative;
+}
+
+.ai-message:first-child {
+    margin-top: 0;
+}
+
+.ai-message:first-child .ai-message-role {
+    margin-top: 0;
+    margin-bottom: 4px;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .ai-message-user {
     align-items: flex-end;
 }
 
+.ai-message-user .ai-message-role {
+    align-self: flex-end;
+    text-align: right;
+    width: 100%;
+    max-width: 75%;
+}
+
 .ai-message-assistant {
     align-items: flex-start;
+}
+
+.ai-message-assistant .ai-message-role {
+    align-self: flex-start;
+    text-align: left;
+    width: 100%;
+    max-width: 75%;
 }
 
 .ai-message-role {
@@ -766,6 +838,18 @@ img.favicon.dropdown {
     color: var(--neutralSecondary);
     margin-bottom: 4px;
     padding: 0 4px;
+    display: block;
+    min-height: 16px;
+    line-height: 16px;
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 确保角色标签在暗色主题下也清晰可见 */
+@media (prefers-color-scheme: dark) {
+    .ai-message-role {
+        color: var(--neutralSecondary);
+    }
 }
 
 .ai-message-content {
@@ -776,18 +860,57 @@ img.favicon.dropdown {
     white-space: pre-wrap;
     line-height: 1.5;
     font-size: 14px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .ai-message-user .ai-message-content {
-    background-color: var(--themePrimary);
-    color: var(--white);
+    background-color: #0078d4 !important;
+    color: var(--whiteConstant) !important;
     border-bottom-right-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .ai-message-assistant .ai-message-content {
-    background-color: var(--neutralLight);
+    background-color: var(--neutralLighter) !important;
     color: var(--neutralPrimary);
     border-bottom-left-radius: 4px;
+    border: 1px solid var(--neutralQuaternaryAlt);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* 确保文字颜色在不同主题下都有良好的对比度 */
+@media (prefers-color-scheme: dark) {
+    .ai-message-assistant .ai-message-content {
+        background-color: var(--neutralQuaternaryAlt) !important;
+        color: var(--whiteConstant) !important;
+        border-color: var(--neutralQuaternary);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .ai-message-user .ai-message-content {
+        color: var(--whiteConstant) !important;
+        background-color: #3a96dd !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+}
+
+/* 确保在浅色主题下也有良好的对比度 */
+@media (prefers-color-scheme: light) {
+    .ai-message-assistant .ai-message-content {
+        background-color: var(--neutralLighter) !important;
+        color: var(--neutralDark) !important;
+        border-color: var(--neutralQuaternaryAlt);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .ai-message-user .ai-message-content {
+        color: var(--whiteConstant) !important;
+        background-color: #0078d4 !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
 }
 
 @keyframes fadeIn {

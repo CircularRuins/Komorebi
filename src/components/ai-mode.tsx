@@ -295,7 +295,26 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
                                         key={index}
                                         className={`ai-message ai-message-${message.role}`}
                                     >
-                                        <div className="ai-message-role">
+                                        <div 
+                                            className="ai-message-role"
+                                            style={{
+                                                display: 'block',
+                                                visibility: 'visible',
+                                                opacity: 1,
+                                                ...(index === 0 && message.role === 'user' ? {
+                                                    width: '100%',
+                                                    maxWidth: '75%',
+                                                    alignSelf: 'flex-end',
+                                                    textAlign: 'right' as const,
+                                                    paddingRight: '4px',
+                                                    minHeight: '16px',
+                                                    lineHeight: '16px',
+                                                    fontSize: '12px',
+                                                    fontWeight: 600,
+                                                    color: 'var(--neutralSecondary)'
+                                                } : {})
+                                            }}
+                                        >
                                             {message.role === 'user' ? '你' : 'AI'}
                                         </div>
                                         <div className="ai-message-content">
