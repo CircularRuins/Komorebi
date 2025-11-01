@@ -1,7 +1,7 @@
 import * as React from "react"
 import { TextField } from "@fluentui/react/lib/TextField"
 import { PrimaryButton, DefaultButton } from "@fluentui/react/lib/Button"
-import { Spinner, MessageBar, MessageBarType, Panel, PanelType, Dialog, DialogType } from "@fluentui/react"
+import { Spinner, MessageBar, MessageBarType, Panel, PanelType } from "@fluentui/react"
 import { Icon } from "@fluentui/react/lib/Icon"
 import OpenAI from "openai"
 
@@ -313,7 +313,7 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
         const { inputValue, messages, isLoading, error, apiEndpoint, apiKey, model, showConfigPanel, tempApiEndpoint, tempApiKey, tempModel, showErrorDialog, errorDialogMessage } = this.state
 
         return (
-            <div className={`ai-mode-container ${messages.length === 0 ? 'no-messages' : 'has-messages'}`}>
+            <div className={`ai-mode-container ${messages.length === 0 ? 'no-messages' : 'has-messages'}`} style={{ position: 'relative' }}>
                 {/* 配置面板 */}
                 <Panel
                     isOpen={showConfigPanel}
@@ -441,21 +441,41 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
                 </div>
 
                 {/* 错误对话框 */}
-                <Dialog
-                    hidden={!showErrorDialog}
-                    onDismiss={this.handleCloseErrorDialog}
-                    dialogContentProps={{
-                        type: DialogType.normal,
-                        title: '错误',
-                        subText: errorDialogMessage
-                    }}
-                    modalProps={{
-                        isBlocking: false,
-                        styles: { main: { maxWidth: 500 } }
-                    }}
-                >
-                    <DefaultButton onClick={this.handleCloseErrorDialog} text="确定" />
-                </Dialog>
+                {showErrorDialog && (
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                        backgroundColor: 'rgba(0, 0, 0, 0.3)'
+                    }} onClick={this.handleCloseErrorDialog}>
+                        <div style={{
+                            backgroundColor: 'var(--white)',
+                            borderRadius: '4px',
+                            padding: '24px',
+                            maxWidth: '500px',
+                            width: '90%',
+                            boxShadow: '0 6.4px 14.4px rgba(0, 0, 0, 0.132), 0 1.2px 3.6px rgba(0, 0, 0, 0.108)',
+                            maxHeight: '90%',
+                            overflow: 'auto'
+                        }} onClick={(e) => e.stopPropagation()}>
+                            <div style={{ marginBottom: '16px' }}>
+                                <h2 style={{ margin: 0, fontSize: '21px', fontWeight: 600, color: 'var(--neutralPrimary)' }}>错误</h2>
+                            </div>
+                            <div style={{ marginBottom: '20px', color: 'var(--neutralPrimary)', fontSize: '14px', whiteSpace: 'pre-wrap' }}>
+                                {errorDialogMessage}
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <DefaultButton onClick={this.handleCloseErrorDialog} text="确定" />
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* 输入区域 */}
                 <div className="ai-input-wrapper">
