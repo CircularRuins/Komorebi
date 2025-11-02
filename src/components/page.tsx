@@ -65,7 +65,7 @@ class Page extends React.Component<PageProps> {
                                 disabled={this.props.contextOn}
                                 ignoreExternalFocusing={true}
                                 isClickableOutsideFocusTrap={true}
-                                className="article-container"
+                                className={"article-container" + (this.props.menuOn ? " menu-on" : "")}
                                 onClick={this.props.dismissItem}>
                                 <div
                                     className="article-wrapper"

@@ -27,22 +27,36 @@ export class ResizableLayout extends React.Component<ResizableLayoutProps, Resiz
     constructor(props: ResizableLayoutProps) {
         super(props)
         
+        const initialLeftWidth = props.defaultLeftWidth || 240
         this.state = {
-            leftWidth: props.defaultLeftWidth || 240,
+            leftWidth: initialLeftWidth,
             rightWidth: props.defaultRightWidth || 300,
             isDragging: false,
             dragType: null
+        }
+        // 立即设置 CSS 变量，确保在组件渲染前就设置好
+        if (typeof document !== 'undefined') {
+            document.documentElement.style.setProperty('--left-panel-width', `${initialLeftWidth}px`)
         }
     }
 
     componentDidMount() {
         document.addEventListener('mousemove', this.handleMouseMove)
         document.addEventListener('mouseup', this.handleMouseUp)
+        // 设置初始左侧面板宽度的 CSS 变量
+        document.documentElement.style.setProperty('--left-panel-width', `${this.state.leftWidth}px`)
     }
 
     componentWillUnmount() {
         document.removeEventListener('mousemove', this.handleMouseMove)
         document.removeEventListener('mouseup', this.handleMouseUp)
+    }
+
+    componentDidUpdate(prevProps: ResizableLayoutProps, prevState: ResizableLayoutState) {
+        // 当左侧面板宽度变化时，更新 CSS 变量
+        if (prevState.leftWidth !== this.state.leftWidth) {
+            document.documentElement.style.setProperty('--left-panel-width', `${this.state.leftWidth}px`)
+        }
     }
 
     handleMouseDown = (type: 'left' | 'right') => (e: React.MouseEvent) => {
@@ -76,6 +90,8 @@ export class ResizableLayout extends React.Component<ResizableLayoutProps, Resiz
                 Math.min(maxLeftWidth, mouseX)
             )
             this.setState({ leftWidth: newLeftWidth })
+            // 实时更新 CSS 变量，确保文章容器能够实时响应左侧面板宽度变化
+            document.documentElement.style.setProperty('--left-panel-width', `${newLeftWidth}px`)
         } else if (this.state.dragType === 'right') {
             const maxRightWidth = typeof this.props.maxRightWidth === 'number' 
                 ? this.props.maxRightWidth <= 1 ? containerWidth * this.props.maxRightWidth : this.props.maxRightWidth
