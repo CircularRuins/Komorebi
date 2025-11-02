@@ -119,45 +119,20 @@ export async function importAll() {
     let configs = JSON.parse(data)
     await db.sourcesDB.delete().from(db.sources).exec()
     await db.itemsDB.delete().from(db.items).exec()
-    if (configs.nedb) {
-        let openRequest = window.indexedDB.open("NeDB")
-        configs.useNeDB = true
-        openRequest.onsuccess = () => {
-            let db = openRequest.result
-            let objectStore = db
-                .transaction("nedbdata", "readwrite")
-                .objectStore("nedbdata")
-            let requests = Object.entries(configs.nedb).map(([key, value]) => {
-                return objectStore.put(value, key)
-            })
-            let promises = requests.map(
-                req =>
-                    new Promise<void>((resolve, reject) => {
-                        req.onsuccess = () => resolve()
-                        req.onerror = () => reject()
-                    })
-            )
-            Promise.all(promises).then(() => {
-                delete configs.nedb
-                window.settings.setAll(configs)
-            })
-        }
-    } else {
-        const sRows = configs.lovefield.sources.map(s => {
-            s.lastFetched = new Date(s.lastFetched)
-            if (!s.textDir) s.textDir = SourceTextDirection.LTR
-            if (!s.hidden) s.hidden = false
-            return db.sources.createRow(s)
-        })
-        const iRows = configs.lovefield.items.map(i => {
-            i.date = new Date(i.date)
-            i.fetchedDate = new Date(i.fetchedDate)
-            return db.items.createRow(i)
-        })
-        await db.sourcesDB.insert().into(db.sources).values(sRows).exec()
-        await db.itemsDB.insert().into(db.items).values(iRows).exec()
-        delete configs.lovefield
-        window.settings.setAll(configs)
-    }
+    const sRows = configs.lovefield.sources.map(s => {
+        s.lastFetched = new Date(s.lastFetched)
+        if (!s.textDir) s.textDir = SourceTextDirection.LTR
+        if (!s.hidden) s.hidden = false
+        return db.sources.createRow(s)
+    })
+    const iRows = configs.lovefield.items.map(i => {
+        i.date = new Date(i.date)
+        i.fetchedDate = new Date(i.fetchedDate)
+        return db.items.createRow(i)
+    })
+    await db.sourcesDB.insert().into(db.sources).values(sRows).exec()
+    await db.itemsDB.insert().into(db.items).values(iRows).exec()
+    delete configs.lovefield
+    window.settings.setAll(configs)
     return false
 }
