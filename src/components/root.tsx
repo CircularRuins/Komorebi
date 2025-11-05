@@ -32,7 +32,7 @@ class RootWithProvider extends React.Component<{ locale: string; dispatch: any }
         // 比较关键字段
         const significantChanged = (
             this.lastContextValue.timeRange !== newValue.timeRange ||
-            this.lastContextValue.topics.length !== newValue.topics.length ||
+            this.lastContextValue.topic !== newValue.topic ||
             this.lastContextValue.summary !== newValue.summary ||
             this.lastContextValue.isLoading !== newValue.isLoading ||
             this.lastContextValue.showConfigPanel !== newValue.showConfigPanel ||

@@ -20,8 +20,9 @@ export const AIModeMenuContent: React.FC = () => {
 
     const {
         timeRange,
-        topics,
+        topic,
         topicInput,
+        recentTopics,
         isLoading,
         filteredArticles,
         handleTimeRangeChange,
@@ -29,10 +30,9 @@ export const AIModeMenuContent: React.FC = () => {
         handleTopicInputKeyDown,
         handleTopicInputCompositionStart,
         handleTopicInputCompositionEnd,
-        addTopic,
-        removeTopic,
         handleGenerateSummary,
         handleClearSummary,
+        handleRecentTopicClick,
         topicInputRef,
         isComposing
     } = context
@@ -65,109 +65,80 @@ export const AIModeMenuContent: React.FC = () => {
             </div>
 
             <div style={{ marginBottom: '8px' }}>
-                <Label style={{ fontSize: '14px', fontWeight: 600 }}>话题标签</Label>
-                {/* 标签显示区域 */}
-                {topics.length > 0 && (
-                    <div style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '6px',
-                        marginTop: '4px',
-                        marginBottom: '8px',
-                        padding: '8px',
-                        backgroundColor: 'var(--white)',
-                        border: '1px solid var(--neutralLight)',
-                        borderRadius: '4px',
-                        minHeight: '32px'
-                    }}>
-                        {topics.map((topic, index) => (
-                            <div
-                                key={index}
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    backgroundColor: '#0078d4',
-                                    color: '#ffffff',
-                                    borderRadius: '4px',
-                                    padding: '4px 8px',
-                                    fontSize: '12px',
-                                    gap: '6px',
-                                    height: '24px',
-                                    border: '1px solid #005a9e',
-                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
-                                }}
-                            >
-                                <span style={{ fontWeight: 500 }}>{topic}</span>
-                                <Icon
-                                    iconName="Cancel"
+                <Label style={{ fontSize: '14px', fontWeight: 600 }}>话题</Label>
+                <TextField
+                    componentRef={topicInputRef}
+                    value={topicInput}
+                    onChange={handleTopicInputChange}
+                    onKeyDown={handleTopicInputKeyDown}
+                    onCompositionStart={handleTopicInputCompositionStart}
+                    onCompositionEnd={handleTopicInputCompositionEnd}
+                    placeholder="输入话题关键词..."
+                    styles={{
+                        root: { width: '100%', marginTop: '4px' },
+                        fieldGroup: { 
+                            borderRadius: '4px',
+                            border: '1px solid var(--neutralLight)'
+                        },
+                        field: { 
+                            fontSize: '12px',
+                            padding: '4px 8px'
+                        }
+                    }}
+                    disabled={isLoading}
+                />
+                <Label styles={{ root: { fontSize: '11px', color: 'var(--neutralSecondary)', marginTop: '4px', fontWeight: 'normal' } }}>
+                    输入话题关键词，按Enter确认。将搜索文章标题和内容中的匹配文本。
+                </Label>
+                
+                {/* 常选话题 */}
+                {recentTopics && recentTopics.length > 0 && (
+                    <div style={{ marginTop: '8px' }}>
+                        <Label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--neutralSecondary)', marginBottom: '4px' }}>
+                            常选话题
+                        </Label>
+                        <div style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '6px',
+                            marginTop: '4px'
+                        }}>
+                            {recentTopics.map((recentTopic, index) => (
+                                <div
+                                    key={index}
+                                    onClick={() => !isLoading && handleRecentTopicClick(recentTopic)}
                                     style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        backgroundColor: 'var(--neutralLighter)',
+                                        color: 'var(--neutralPrimary)',
+                                        borderRadius: '4px',
+                                        padding: '4px 10px',
                                         fontSize: '12px',
-                                        cursor: 'pointer',
-                                        opacity: 0.9,
-                                        color: '#ffffff'
-                                    }}
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        if (!isLoading) {
-                                            removeTopic(index)
-                                        }
+                                        cursor: isLoading ? 'not-allowed' : 'pointer',
+                                        border: '1px solid var(--neutralLight)',
+                                        transition: 'all 0.2s ease',
+                                        opacity: isLoading ? 0.6 : 1
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.opacity = '1'
+                                        if (!isLoading) {
+                                            e.currentTarget.style.backgroundColor = 'var(--neutralLight)'
+                                            e.currentTarget.style.borderColor = 'var(--neutralTertiary)'
+                                        }
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.opacity = '0.9'
+                                        if (!isLoading) {
+                                            e.currentTarget.style.backgroundColor = 'var(--neutralLighter)'
+                                            e.currentTarget.style.borderColor = 'var(--neutralLight)'
+                                        }
                                     }}
-                                />
-                            </div>
-                        ))}
+                                >
+                                    <span>{recentTopic}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
-                {/* 输入框和添加按钮 */}
-                <div style={{
-                    display: 'flex',
-                    gap: '4px',
-                    alignItems: 'center'
-                }}>
-                    <TextField
-                        componentRef={topicInputRef}
-                        value={topicInput}
-                        onChange={handleTopicInputChange}
-                        onKeyDown={handleTopicInputKeyDown}
-                        onCompositionStart={handleTopicInputCompositionStart}
-                        onCompositionEnd={handleTopicInputCompositionEnd}
-                        placeholder={topics.length === 0 ? "输入话题标签..." : "继续添加标签..."}
-                        styles={{
-                            root: { flex: 1 },
-                            fieldGroup: { 
-                                borderRadius: '4px',
-                                border: '1px solid var(--neutralLight)'
-                            },
-                            field: { 
-                                fontSize: '12px',
-                                padding: '4px 8px'
-                            }
-                        }}
-                        disabled={isLoading}
-                    />
-                    <DefaultButton
-                        iconProps={{ iconName: 'Add' }}
-                        onClick={addTopic}
-                        disabled={isLoading || !topicInput.trim()}
-                        styles={{
-                            root: {
-                                minWidth: '32px',
-                                width: '32px',
-                                height: '32px',
-                                padding: '0'
-                            }
-                        }}
-                        title="添加标签"
-                    />
-                </div>
-                <Label styles={{ root: { fontSize: '11px', color: 'var(--neutralSecondary)', marginTop: '4px', fontWeight: 'normal' } }}>
-                    输入标签后点击加号或按Enter添加。（暂未实现筛选功能）
-                </Label>
             </div>
 
             <div style={{ display: 'flex', gap: '8px', flexDirection: 'column', marginTop: '8px' }}>

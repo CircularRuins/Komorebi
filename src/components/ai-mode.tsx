@@ -12,7 +12,7 @@ import type { RSSItem } from "../scripts/models/item"
 import { connect } from "react-redux"
 import { RootState } from "../scripts/reducer"
 import { RSSSource } from "../scripts/models/source"
-import { markRead, fetchItemsSuccess } from "../scripts/models/item"
+import { markRead } from "../scripts/models/item"
 import { openItemMenu } from "../scripts/models/app"
 import { showItem } from "../scripts/models/page"
 import { itemShortcuts } from "../scripts/models/item"
@@ -25,8 +25,9 @@ import { AIModeMenuContent } from "./ai-mode-menu-content"
 // AIMode Context 类型定义
 export type AIModeContextType = {
     timeRange: string | null
-    topics: string[]
+    topic: string  // 单个话题文本
     topicInput: string
+    recentTopics: string[]  // 最近使用的话题（最多5个）
     isComposing: boolean
     isLoading: boolean
     summary: string
@@ -38,11 +39,9 @@ export type AIModeContextType = {
     error: string | null
     filteredArticles: RSSItem[]  // 筛选后的文章列表
     setTimeRange: (timeRange: string | null) => void
-    setTopics: (topics: string[]) => void
+    setTopic: (topic: string) => void
     setTopicInput: (topicInput: string) => void
     setIsComposing: (isComposing: boolean) => void
-    addTopic: () => void
-    removeTopic: (index: number) => void
     handleGenerateSummary: () => void
     handleClearSummary: () => void
     handleConfigPanelOpen: () => void
@@ -51,6 +50,7 @@ export type AIModeContextType = {
     handleTopicInputCompositionStart: () => void
     handleTopicInputCompositionEnd: () => void
     handleTimeRangeChange: (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption) => void
+    handleRecentTopicClick: (topic: string) => void
     topicInputRef: React.RefObject<ITextField>
 }
 
@@ -70,8 +70,9 @@ export const AIModeContext = React.createContext<AIModeContextType | null>(null)
 
 type AIModeState = {
     timeRange: string | null  // 时间范围key，例如 "1" 表示1天，"7" 表示7天
-    topics: string[]  // 话题标签数组
+    topic: string  // 单个话题文本
     topicInput: string  // 当前输入的话题文本
+    recentTopics: string[]  // 最近使用的话题（最多5个）
     isComposing: boolean  // 是否正在使用输入法输入
     summary: string    // AI生成的总结
     isLoading: boolean
@@ -103,10 +104,15 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         const savedEndpoint = localStorage.getItem('ai-api-endpoint') || 'https://api.openai.com/v1/chat/completions'
         const savedKey = localStorage.getItem('ai-api-key') || ''
         const savedModel = localStorage.getItem('ai-model') || ''
+        // 从localStorage加载最近话题
+        const savedRecentTopics = localStorage.getItem('ai-recent-topics')
+        const recentTopics = savedRecentTopics ? JSON.parse(savedRecentTopics) : []
+        
         this.state = {
             timeRange: null,
-            topics: [],
+            topic: '',
             topicInput: '',
+            recentTopics: recentTopics,
             isComposing: false,
             summary: '',
             isLoading: false,
@@ -143,7 +149,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         // 只在关键状态改变时通知Root组件更新Context（排除输入框变化以避免打断输入）
         if (
             prevState.timeRange !== this.state.timeRange ||
-            prevState.topics.length !== this.state.topics.length ||
+            prevState.topic !== this.state.topic ||
             prevState.summary !== this.state.summary ||
             prevState.isLoading !== this.state.isLoading ||
             prevState.showConfigPanel !== this.state.showConfigPanel ||
@@ -176,8 +182,9 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
     getContextValue = (): AIModeContextType => {
         return {
             timeRange: this.state.timeRange,
-            topics: this.state.topics,
+            topic: this.state.topic,
             topicInput: this.state.topicInput,
+            recentTopics: this.state.recentTopics,
             isComposing: this.state.isComposing,
             isLoading: this.state.isLoading,
             summary: this.state.summary,
@@ -189,11 +196,9 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             error: this.state.error,
             filteredArticles: this.state.filteredArticles,
             setTimeRange: (timeRange: string | null) => this.setState({ timeRange }),
-            setTopics: (topics: string[]) => this.setState({ topics }),
+            setTopic: (topic: string) => this.setState({ topic }),
             setTopicInput: (topicInput: string) => this.setState({ topicInput }),
             setIsComposing: (isComposing: boolean) => this.setState({ isComposing }),
-            addTopic: this.addTopic,
-            removeTopic: this.removeTopic,
             handleGenerateSummary: this.handleGenerateSummary,
             handleClearSummary: this.handleClearSummary,
             handleConfigPanelOpen: this.handleConfigPanelOpen,
@@ -202,6 +207,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             handleTopicInputCompositionStart: this.handleTopicInputCompositionStart,
             handleTopicInputCompositionEnd: this.handleTopicInputCompositionEnd,
             handleTimeRangeChange: this.handleTimeRangeChange,
+            handleRecentTopicClick: this.handleRecentTopicClick,
             topicInputRef: this.topicInputRef
         }
     }
@@ -235,37 +241,53 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
     }
 
     handleTopicInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-        const { isComposing } = this.state
-        // 如果正在使用输入法，不处理Enter键
-        if (isComposing) {
-            return
-        }
-        if (event.key === 'Enter' || event.key === ',') {
+        // 处理Enter键确认话题
+        if (event.key === 'Enter' && !this.state.isComposing) {
             event.preventDefault()
-            this.addTopic()
-        }
-        // 移除了Backspace删除标签的逻辑，避免误删
-    }
-
-    addTopic = () => {
-        const { topicInput, topics } = this.state
-        const trimmed = topicInput.trim()
-        if (trimmed && !topics.includes(trimmed)) {
-            this.setState({
-                topics: [...topics, trimmed],
-                topicInput: ''
-            })
-        } else if (trimmed && topics.includes(trimmed)) {
-            // 如果标签已存在，只清空输入
-            this.setState({ topicInput: '' })
+            const trimmed = this.state.topicInput.trim()
+            if (trimmed) {
+                this.setState({ topic: trimmed })
+            }
         }
     }
 
-    removeTopic = (index: number) => {
-        const { topics } = this.state
-        this.setState({
-            topics: topics.filter((_, i) => i !== index)
+    handleRecentTopicClick = (topic: string) => {
+        // 点击常选话题时填充到输入框和话题字段
+        this.setState({ 
+            topicInput: topic,
+            topic: topic
+        }, () => {
+            // 直接设置 TextField 的值（如果引用存在）
+            if (this.topicInputRef.current) {
+                const inputElement = this.topicInputRef.current as any
+                if (inputElement.setValue) {
+                    inputElement.setValue(topic)
+                }
+                // 聚焦到输入框
+                inputElement.focus()
+            }
+            // 状态更新后立即更新Context，确保输入框能正常显示输入
+            if (typeof window !== 'undefined') {
+                const event = new CustomEvent('aiModeInputChanged')
+                window.dispatchEvent(event)
+            }
         })
+    }
+
+    // 保存话题到最近话题列表
+    saveTopicToRecent = (topic: string) => {
+        const trimmed = topic.trim()
+        if (!trimmed) return
+
+        const { recentTopics } = this.state
+        // 移除已存在的相同话题
+        const filtered = recentTopics.filter(t => t !== trimmed)
+        // 添加到最前面
+        const updated = [trimmed, ...filtered].slice(0, 5)  // 最多保留5个
+        
+        this.setState({ recentTopics: updated })
+        // 保存到localStorage
+        localStorage.setItem('ai-recent-topics', JSON.stringify(updated))
     }
 
     handleApiEndpointChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
@@ -342,8 +364,8 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         ]
     }
 
-    // 查询符合条件的文章（只根据时间范围筛选）
-    queryArticles = async (timeRangeDays: number | null): Promise<RSSItem[]> => {
+    // 查询符合条件的文章（根据时间范围和话题筛选）
+    queryArticles = async (timeRangeDays: number | null, topic: string | null): Promise<RSSItem[]> => {
         // 等待数据库初始化
         let retries = 0
         while ((!db.itemsDB || !db.items) && retries < 50) {
@@ -372,17 +394,32 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             .select()
             .from(db.items)
             .orderBy(db.items.date, lf.Order.DESC)
-            .limit(100)  // 限制最多100篇文章
+            .limit(1000)  // 增加限制以支持话题筛选（先查询更多，然后在内存中过滤）
 
         const items = query 
             ? await queryBuilder.where(query).exec() as RSSItem[]
             : await queryBuilder.exec() as RSSItem[]
 
+        // 如果有话题，在内存中过滤标题和内容
+        if (topic && topic.trim()) {
+            const trimmedTopic = topic.trim()
+            const topicRegex = new RegExp(trimmedTopic.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') // 转义特殊字符，不区分大小写
+            
+            return items.filter(item => {
+                // 搜索标题、snippet 和 content
+                return (
+                    topicRegex.test(item.title) ||
+                    topicRegex.test(item.snippet || '') ||
+                    topicRegex.test(item.content || '')
+                )
+            })
+        }
+
         return items
     }
 
     // 生成总结
-    generateSummary = async (articles: RSSItem[], topics: string[]): Promise<string> => {
+    generateSummary = async (articles: RSSItem[], topic: string): Promise<string> => {
         const { apiEndpoint, apiKey, model } = this.state
 
         // 规范化endpoint URL
@@ -413,7 +450,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
 摘要: ${article.snippet || article.content.substring(0, 200)}`
         }).join('\n\n')
 
-        const topicText = topics.length > 0 ? `，重点关注话题：${topics.join('、')}` : ''
+        const topicText = topic ? `，重点关注话题：${topic}` : ''
 
         const prompt = `请帮我总结整理以下RSS文章${topicText}。
 
@@ -474,7 +511,7 @@ ${articlesText}
     }
 
     handleGenerateSummary = async () => {
-        const { timeRange } = this.state
+        const { timeRange, topicInput } = this.state
 
         // 验证时间范围必须选择
         if (!timeRange) {
@@ -483,6 +520,13 @@ ${articlesText}
                 errorDialogMessage: '请先选择文章发布时间'
             })
             return
+        }
+
+        // 保存当前话题到状态和最近话题列表
+        const trimmedTopic = topicInput.trim()
+        if (trimmedTopic) {
+            this.setState({ topic: trimmedTopic })
+            this.saveTopicToRecent(trimmedTopic)
         }
 
         this.setState({ 
@@ -503,13 +547,17 @@ ${articlesText}
             // 解析时间范围
             const timeRangeDays = this.parseTimeRange(timeRange)
 
-            // 查询文章（只根据时间范围）
-            const articles = await this.queryArticles(timeRangeDays)
+            // 获取当前话题（如果有的话）
+            const currentTopic = trimmedTopic || this.state.topic || null
+
+            // 查询文章（根据时间范围和话题）
+            const articles = await this.queryArticles(timeRangeDays, currentTopic)
             
             if (articles.length === 0) {
+                const topicMessage = currentTopic ? `或话题"${currentTopic}"` : ''
                 this.setState({
                     isLoading: false,
-                    error: '没有找到符合条件的文章。请尝试调整时间范围。'
+                    error: `没有找到符合条件的文章。请尝试调整时间范围${topicMessage}。`
                 }, () => {
                     if (typeof window !== 'undefined') {
                         const event = new CustomEvent('aiModeUpdated')
@@ -536,8 +584,11 @@ ${articlesText}
                 console.warn(`有 ${articles.length - articlesWithValidSources.length} 篇文章的 source 不存在，已过滤`)
             }
             
-            // 使用 fetchItemsSuccess 将文章添加到 store
-            dispatch(fetchItemsSuccess(articlesWithValidSources, items))
+            // 注意：这些文章已经在数据库和 store 中了（因为我们是从数据库查询的）
+            // 我们不需要调用 fetchItemsSuccess，因为：
+            // 1. 这些文章已经在 itemReducer 的 state 中了
+            // 2. 调用 fetchItemsSuccess 会导致 feedReducer 将它们再次添加到 feed 中，造成重复
+            // 3. showItem 可以直接使用 store 中已有的文章
             
             // 保存筛选后的文章列表
             this.setState({ 
@@ -587,7 +638,7 @@ ${articlesText}
         
         const { 
             timeRange, 
-            topics,
+            topic,
             topicInput,
             summary, 
             isLoading, 
