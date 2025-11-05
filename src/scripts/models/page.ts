@@ -145,14 +145,35 @@ export function setViewConfigs(configs: ViewConfigs): AppThunk {
 export function showItem(feedId: string, item: RSSItem): AppThunk {
     return (dispatch, getState) => {
         const state = getState()
-        if (
-            state.items.hasOwnProperty(item._id) &&
-            state.sources.hasOwnProperty(item.source)
-        ) {
+        const hasItem = state.items.hasOwnProperty(item._id)
+        const hasSource = state.sources.hasOwnProperty(item.source)
+        
+        // 调试日志
+        if (feedId === "ai-mode") {
+            console.log('showItem 检查:', {
+                itemId: item._id,
+                sourceId: item.source,
+                feedId: feedId,
+                hasItem: hasItem,
+                hasSource: hasSource,
+                itemKeys: Object.keys(state.items).slice(0, 5),
+                sourceKeys: Object.keys(state.sources).slice(0, 5)
+            })
+        }
+        
+        if (hasItem && hasSource) {
             dispatch({
                 type: SHOW_ITEM,
                 feedId: feedId,
                 item: item,
+            })
+        } else {
+            console.warn('showItem 失败:', {
+                itemId: item._id,
+                sourceId: item.source,
+                feedId: feedId,
+                hasItem: hasItem,
+                hasSource: hasSource
             })
         }
     }

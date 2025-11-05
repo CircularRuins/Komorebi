@@ -28,12 +28,34 @@ class Page extends React.Component<PageProps> {
     render = () => {
         const isAIMode = this.props.feeds.includes("ai-mode")
         
+        // 调试日志
+        if (isAIMode && this.props.itemId) {
+            console.log('AI模式页面渲染，itemId:', this.props.itemId)
+        }
+        
         // 检查是否为AI模式
         if (isAIMode) {
+            // AI模式：始终显示 AI 模式页面，如果有 itemId 则弹出文章窗口
             return (
-                <div className="ai-mode-page">
-                    <AIMode />
-                </div>
+                <>
+                    <div className="ai-mode-page">
+                        <AIMode />
+                    </div>
+                    {this.props.itemId && (
+                        <FocusTrapZone
+                            disabled={this.props.contextOn}
+                            ignoreExternalFocusing={true}
+                            isClickableOutsideFocusTrap={true}
+                            className={"article-container" + (this.props.menuOn ? " menu-on" : "")}
+                            onClick={this.props.dismissItem}>
+                            <div
+                                className="article-wrapper"
+                                onClick={e => e.stopPropagation()}>
+                                <ArticleContainer itemId={this.props.itemId} />
+                            </div>
+                        </FocusTrapZone>
+                    )}
+                </>
             )
         }
         

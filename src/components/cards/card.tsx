@@ -40,6 +40,14 @@ export namespace Card {
             }
             default: {
                 props.markRead(props.item)
+                // 调试日志
+                if (props.feedId === "ai-mode") {
+                    console.log('AI模式点击文章:', {
+                        itemId: props.item._id,
+                        sourceId: props.item.source,
+                        feedId: props.feedId
+                    })
+                }
                 props.showItem(props.feedId, props.item)
                 break
             }

@@ -27,20 +27,43 @@ type ArticleContainerProps = {
     itemId: number
 }
 
-const getItem = (state: RootState, props: ArticleContainerProps) =>
-    state.items[props.itemId]
-const getSource = (state: RootState, props: ArticleContainerProps) =>
-    state.sources[state.items[props.itemId].source]
+const getItem = (state: RootState, props: ArticleContainerProps) => {
+    const item = state.items[props.itemId]
+    if (!item && props.itemId) {
+        console.warn('ArticleContainer: item not found in store, itemId:', props.itemId)
+    }
+    return item
+}
+const getSource = (state: RootState, props: ArticleContainerProps) => {
+    const item = state.items[props.itemId]
+    if (!item) return null
+    const source = state.sources[item.source]
+    if (!source && item) {
+        console.warn('ArticleContainer: source not found in store, sourceId:', item.source)
+    }
+    return source
+}
 const getLocale = (state: RootState) => state.app.locale
 
 const makeMapStateToProps = () => {
     return createSelector(
         [getItem, getSource, getLocale],
-        (item, source, locale) => ({
-            item: item,
-            source: source,
-            locale: locale,
-        })
+        (item, source, locale) => {
+            // 调试日志
+            if (!item || !source) {
+                console.warn('ArticleContainer mapStateToProps: 缺少数据', {
+                    hasItem: !!item,
+                    hasSource: !!source,
+                    itemId: item?._id,
+                    sourceId: source?.sid
+                })
+            }
+            return {
+                item: item,
+                source: source,
+                locale: locale,
+            }
+        }
     )
 }
 

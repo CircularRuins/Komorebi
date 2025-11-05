@@ -9,18 +9,18 @@ import { RootState } from "../scripts/reducer"
 import { ContextMenu } from "./context-menu"
 import ResizableLayout from "./resizable-layout"
 import AIMode from "./ai-mode"
-import { AIModeContext } from "./ai-mode"
+import { AIModeContext, AIModeComponent } from "./ai-mode"
 // import LogMenu from "./log-menu"
 
 class RootWithProvider extends React.Component<{ locale: string; dispatch: any }, { contextValue: any }> {
-    private aiModeRef = React.createRef<AIMode>()
+    private aiModeRef = React.createRef<AIModeComponent>()
     private lastContextValue: any = null
     state = { contextValue: null }
 
     updateContextValue = () => {
         if (this.aiModeRef.current) {
             const newValue = (this.aiModeRef.current as any).getContextValue()
-            // 总是更新 Context，确保输入框能正常显示输入
+            // 总是更新 Context，确保状态同步
             this.lastContextValue = newValue
             this.setState({ contextValue: newValue })
         }

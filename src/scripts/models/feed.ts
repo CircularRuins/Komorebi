@@ -35,8 +35,9 @@ export enum FilterType {
 export class FeedFilter {
     type: FilterType
     search: string
+    timeRange: number | null // 时间范围（天数），null表示不限制
 
-    constructor(type: FilterType = null, search = "") {
+    constructor(type: FilterType = null, search = "", timeRange: number | null = null) {
         if (
             type === null &&
             (type = window.settings.getFilterType()) === null
@@ -45,6 +46,7 @@ export class FeedFilter {
         }
         this.type = type
         this.search = search
+        this.timeRange = timeRange
     }
 
     static toPredicates(filter: FeedFilter) {
@@ -70,6 +72,12 @@ export class FeedFilter {
                 predicates.push(db.items.title.match(regex))
             }
         }
+        // 时间范围筛选
+        if (filter.timeRange !== null && filter.timeRange > 0) {
+            const cutoffDate = new Date()
+            cutoffDate.setDate(cutoffDate.getDate() - filter.timeRange)
+            predicates.push(db.items.date.gte(cutoffDate))
+        }
         return predicates
     }
 
@@ -90,6 +98,12 @@ export class FeedFilter {
             } else {
                 flag = flag && regex.test(item.title)
             }
+        }
+        // 时间范围筛选
+        if (filter.timeRange !== null && filter.timeRange > 0) {
+            const cutoffDate = new Date()
+            cutoffDate.setDate(cutoffDate.getDate() - filter.timeRange)
+            flag = flag && item.date.getTime() >= cutoffDate.getTime()
         }
         return Boolean(flag)
     }

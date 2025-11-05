@@ -9,6 +9,18 @@ import OpenAI from "openai"
 import * as db from "../scripts/db"
 import lf from "lovefield"
 import type { RSSItem } from "../scripts/models/item"
+import { connect } from "react-redux"
+import { RootState } from "../scripts/reducer"
+import { RSSSource } from "../scripts/models/source"
+import { markRead, fetchItemsSuccess } from "../scripts/models/item"
+import { openItemMenu } from "../scripts/models/app"
+import { showItem } from "../scripts/models/page"
+import { itemShortcuts } from "../scripts/models/item"
+import { FeedFilter } from "../scripts/models/feed"
+import ListCard from "./cards/list-card"
+import { ViewConfigs } from "../schema-types"
+import { ActionStatus } from "../scripts/utils"
+import { AIModeMenuContent } from "./ai-mode-menu-content"
 
 // AIMode Context 类型定义
 export type AIModeContextType = {
@@ -24,6 +36,7 @@ export type AIModeContextType = {
     showConfigPanel: boolean
     articleCount: number
     error: string | null
+    filteredArticles: RSSItem[]  // 筛选后的文章列表
     setTimeRange: (timeRange: string | null) => void
     setTopics: (topics: string[]) => void
     setTopicInput: (topicInput: string) => void
@@ -41,12 +54,19 @@ export type AIModeContextType = {
     topicInputRef: React.RefObject<ITextField>
 }
 
+type AIModeProps = {
+    sources: { [sid: number]: RSSSource }
+    items: { [id: number]: RSSItem }
+    markRead: (item: RSSItem) => void
+    contextMenu: (feedId: string, item: RSSItem, e: React.MouseEvent) => void
+    showItem: (fid: string, item: RSSItem) => void
+    shortcuts: (item: RSSItem, e: KeyboardEvent) => void
+    dispatch: any
+    hideArticleList?: boolean  // 是否隐藏文章列表（在侧边栏模式下）
+}
+
 // 创建 Context
 export const AIModeContext = React.createContext<AIModeContextType | null>(null)
-
-type AIModeProps = {
-    // 可以添加需要的props
-}
 
 type AIModeState = {
     timeRange: string | null  // 时间范围key，例如 "1" 表示1天，"7" 表示7天
@@ -66,9 +86,12 @@ type AIModeState = {
     showErrorDialog: boolean
     errorDialogMessage: string
     articleCount: number  // 筛选到的文章数量
+    filteredArticles: RSSItem[]  // 筛选后的文章列表
 }
 
-class AIMode extends React.Component<AIModeProps, AIModeState> {
+export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
+    static contextType = AIModeContext
+    declare context: React.ContextType<typeof AIModeContext>
     private summaryContainerRef: React.RefObject<HTMLDivElement>
     private topicInputRef: React.RefObject<ITextField>
     private updateTimeout: NodeJS.Timeout | null = null
@@ -97,7 +120,8 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
             tempModel: savedModel,
             showErrorDialog: false,
             errorDialogMessage: '',
-            articleCount: 0
+            articleCount: 0,
+            filteredArticles: []
         }
     }
 
@@ -125,7 +149,10 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
             prevState.showConfigPanel !== this.state.showConfigPanel ||
             prevState.apiEndpoint !== this.state.apiEndpoint ||
             prevState.apiKey !== this.state.apiKey ||
-            prevState.model !== this.state.model
+            prevState.model !== this.state.model ||
+            prevState.filteredArticles.length !== this.state.filteredArticles.length ||
+            prevState.articleCount !== this.state.articleCount ||
+            prevState.error !== this.state.error
         ) {
             // 通知Root组件更新Context
             if (typeof window !== 'undefined') {
@@ -160,6 +187,7 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
             showConfigPanel: this.state.showConfigPanel,
             articleCount: this.state.articleCount,
             error: this.state.error,
+            filteredArticles: this.state.filteredArticles,
             setTimeRange: (timeRange: string | null) => this.setState({ timeRange }),
             setTopics: (topics: string[]) => this.setState({ topics }),
             setTopicInput: (topicInput: string) => this.setState({ topicInput }),
@@ -314,8 +342,8 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
         ]
     }
 
-    // 查询符合条件的文章
-    queryArticles = async (timeRangeDays: number | null, topics: string[]): Promise<RSSItem[]> => {
+    // 查询符合条件的文章（只根据时间范围筛选）
+    queryArticles = async (timeRangeDays: number | null): Promise<RSSItem[]> => {
         // 等待数据库初始化
         let retries = 0
         while ((!db.itemsDB || !db.items) && retries < 50) {
@@ -334,24 +362,6 @@ class AIMode extends React.Component<AIModeProps, AIModeState> {
             const cutoffDate = new Date()
             cutoffDate.setDate(cutoffDate.getDate() - timeRangeDays)
             predicates.push(db.items.date.gte(cutoffDate))
-        }
-        
-        // 话题筛选（在标题和内容中搜索，多个标签需要同时匹配）
-        if (topics.length > 0) {
-            const topicPredicates: lf.Predicate[] = []
-            for (const topic of topics) {
-                const topicRegex = RegExp(topic.trim(), 'i')
-                topicPredicates.push(
-                    lf.op.or(
-                        db.items.title.match(topicRegex),
-                        db.items.snippet.match(topicRegex)
-                    )
-                )
-            }
-            // 所有标签都需要匹配（AND关系）
-            if (topicPredicates.length > 0) {
-                predicates.push(lf.op.and.apply(null, topicPredicates))
-            }
         }
 
         const query = predicates.length > 0 
@@ -464,34 +474,7 @@ ${articlesText}
     }
 
     handleGenerateSummary = async () => {
-        const { timeRange, topics, apiEndpoint, apiKey, model } = this.state
-
-        if (!apiEndpoint.trim() || !apiKey.trim()) {
-            this.setState({ 
-                showErrorDialog: true,
-                errorDialogMessage: '请先配置API Endpoint和API Key'
-            })
-            this.handleConfigPanelOpen()
-            return
-        }
-
-        if (!model.trim()) {
-            this.setState({ 
-                showErrorDialog: true,
-                errorDialogMessage: '请先配置模型名称'
-            })
-            this.handleConfigPanelOpen()
-            return
-        }
-
-        // 验证至少需要一个标签
-        if (topics.length === 0) {
-            this.setState({ 
-                showErrorDialog: true,
-                errorDialogMessage: '请至少输入一个话题标签'
-            })
-            return
-        }
+        const { timeRange } = this.state
 
         // 验证时间范围必须选择
         if (!timeRange) {
@@ -506,41 +489,80 @@ ${articlesText}
             isLoading: true,
             error: null,
             summary: '',
-            articleCount: 0
+            articleCount: 0,
+            filteredArticles: []
+        }, () => {
+            // 状态更新后立即通知 Context 更新
+            if (typeof window !== 'undefined') {
+                const event = new CustomEvent('aiModeUpdated')
+                window.dispatchEvent(event)
+            }
         })
 
         try {
             // 解析时间范围
             const timeRangeDays = this.parseTimeRange(timeRange)
 
-            // 查询文章
-            const articles = await this.queryArticles(timeRangeDays, topics)
+            // 查询文章（只根据时间范围）
+            const articles = await this.queryArticles(timeRangeDays)
             
             if (articles.length === 0) {
                 this.setState({
                     isLoading: false,
-                    error: '没有找到符合条件的文章。请尝试调整时间范围或话题。'
+                    error: '没有找到符合条件的文章。请尝试调整时间范围。'
+                }, () => {
+                    if (typeof window !== 'undefined') {
+                        const event = new CustomEvent('aiModeUpdated')
+                        window.dispatchEvent(event)
+                    }
                 })
                 return
             }
 
-            this.setState({ articleCount: articles.length })
-
-            // 生成总结
-            const summary = await this.generateSummary(articles, topics)
+            // 将文章添加到 Redux store，确保可以点击查看
+            const { dispatch, items, sources } = this.props
             
+            // 确保所有文章的 source 都存在
+            const articlesWithValidSources = articles.filter(item => {
+                const source = sources[item.source]
+                if (!source) {
+                    console.warn(`文章 ${item._id} 的 source ${item.source} 不存在`)
+                    return false
+                }
+                return true
+            })
+            
+            if (articlesWithValidSources.length !== articles.length) {
+                console.warn(`有 ${articles.length - articlesWithValidSources.length} 篇文章的 source 不存在，已过滤`)
+            }
+            
+            // 使用 fetchItemsSuccess 将文章添加到 store
+            dispatch(fetchItemsSuccess(articlesWithValidSources, items))
+            
+            // 保存筛选后的文章列表
             this.setState({ 
-                summary,
+                articleCount: articlesWithValidSources.length, 
+                filteredArticles: articlesWithValidSources,
                 isLoading: false
+            }, () => {
+                if (typeof window !== 'undefined') {
+                    const event = new CustomEvent('aiModeUpdated')
+                    window.dispatchEvent(event)
+                }
             })
         } catch (error) {
-            console.error('生成总结失败:', error)
-            const errorMessage = error instanceof Error ? error.message : '请求失败，请检查API配置和网络连接'
+            console.error('查询文章失败:', error)
+            const errorMessage = error instanceof Error ? error.message : '查询失败，请稍后重试'
             this.setState({ 
                 isLoading: false,
                 error: errorMessage,
                 showErrorDialog: true,
                 errorDialogMessage: errorMessage
+            }, () => {
+                if (typeof window !== 'undefined') {
+                    const event = new CustomEvent('aiModeUpdated')
+                    window.dispatchEvent(event)
+                }
             })
         }
     }
@@ -549,7 +571,8 @@ ${articlesText}
         this.setState({ 
             summary: '',
             error: null,
-            articleCount: 0
+            articleCount: 0,
+            filteredArticles: []
         })
     }
 
@@ -558,6 +581,10 @@ ${articlesText}
     }
 
     render() {
+        // 优先使用 Context 中的状态（如果存在），否则使用本地 state
+        const context = this.context
+        const useContext = context !== null && context !== undefined
+        
         const { 
             timeRange, 
             topics,
@@ -574,11 +601,21 @@ ${articlesText}
             tempModel, 
             showErrorDialog, 
             errorDialogMessage,
-            articleCount
-        } = this.state
+            articleCount,
+            filteredArticles
+        } = useContext ? {
+            ...this.state,
+            summary: context.summary !== undefined ? context.summary : this.state.summary,
+            filteredArticles: context.filteredArticles !== undefined ? context.filteredArticles : this.state.filteredArticles,
+            articleCount: context.articleCount !== undefined ? context.articleCount : this.state.articleCount,
+            isLoading: context.isLoading !== undefined ? context.isLoading : this.state.isLoading,
+            error: context.error !== undefined ? context.error : this.state.error
+        } : this.state
+        
+        const { sources, markRead, contextMenu, showItem, shortcuts } = this.props
 
         return (
-            <div className={`ai-mode-container ${summary ? 'has-summary' : 'no-summary'}`} style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div className={`ai-mode-container ${summary ? 'has-summary' : 'no-summary'}`} style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 {/* 配置面板 */}
                 <Panel
                     isOpen={showConfigPanel}
@@ -626,8 +663,8 @@ ${articlesText}
                     </div>
                 </Panel>
 
-                {/* 总结显示区域 */}
-                {summary && (
+                {/* 筛选后的文章列表 */}
+                {filteredArticles.length > 0 && (
                     <div 
                         ref={this.summaryContainerRef}
                         className="ai-summary-container has-summary"
@@ -637,42 +674,49 @@ ${articlesText}
                             padding: '20px',
                             display: 'flex',
                             flexDirection: 'column',
-                            backgroundColor: 'var(--neutralLighterAlt)'
+                            backgroundColor: 'var(--neutralLighterAlt)',
+                            minHeight: 0
                         }}
                     >
-                        <div style={{ 
+                        <div style={{
                             backgroundColor: 'var(--white)',
                             borderRadius: '8px',
                             padding: '24px',
-                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                            overflow: 'hidden'
                         }}>
-                            {articleCount > 0 && (
-                                <div style={{ 
-                                    marginBottom: '16px', 
-                                    paddingBottom: '16px',
-                                    borderBottom: '1px solid var(--neutralLight)'
-                                }}>
-                                    <p style={{ 
-                                        margin: 0, 
-                                        fontSize: '14px', 
-                                        color: 'var(--neutralSecondary)'
-                                    }}>
-                                        基于 {articleCount} 篇文章生成
-                                    </p>
-                                </div>
-                            )}
-                            <div style={{ 
-                                fontSize: '15px',
-                                lineHeight: '1.8',
-                                color: 'var(--neutralPrimary)',
-                                whiteSpace: 'pre-wrap'
+                            <h3 style={{
+                                margin: '0 0 16px 0',
+                                fontSize: '18px',
+                                fontWeight: 600,
+                                color: 'var(--neutralPrimary)'
                             }}>
-                                {summary.split('\n').map((line, i) => (
-                                    <React.Fragment key={i}>
-                                        {line}
-                                        {i < summary.split('\n').length - 1 && <br />}
-                                    </React.Fragment>
-                                ))}
+                                筛选后的文章 ({filteredArticles.length} 篇)
+                            </h3>
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px'
+                            }}>
+                                {filteredArticles.map((item) => {
+                                    const source = sources[item.source]
+                                    if (!source) return null
+                                    const filter = new FeedFilter()
+                                    return (
+                                        <ListCard
+                                            key={item._id}
+                                            feedId="ai-mode"
+                                            item={item}
+                                            source={source}
+                                            filter={filter}
+                                            viewConfigs={ViewConfigs.ShowSnippet}
+                                            shortcuts={shortcuts}
+                                            markRead={markRead}
+                                            contextMenu={contextMenu}
+                                            showItem={showItem}
+                                        />
+                                    )
+                                })}
                             </div>
                         </div>
                     </div>
@@ -693,16 +737,11 @@ ${articlesText}
                         backgroundColor: 'rgba(255, 255, 255, 0.9)',
                         zIndex: 100
                     }}>
-                        <Spinner label="正在分析文章并生成总结..." />
-                        {articleCount > 0 && (
-                            <p style={{ color: 'var(--neutralSecondary)', fontSize: '14px', marginTop: '16px' }}>
-                                已找到 {articleCount} 篇文章，正在生成总结...
-                            </p>
-                        )}
+                        <Spinner label="正在查询文章..." />
                     </div>
                 )}
 
-                {error && !isLoading && !summary && (
+                {error && !isLoading && filteredArticles.length === 0 && (
                     <div style={{ 
                         display: 'flex', 
                         flexDirection: 'column',
@@ -719,8 +758,8 @@ ${articlesText}
                     </div>
                 )}
 
-                {/* 占位符文本 - 只在没有总结且没有错误时显示 */}
-                {!summary && !isLoading && !error && (
+                {/* 占位符文本 - 只在没有文章且没有错误时显示 */}
+                {filteredArticles.length === 0 && !isLoading && !error && (
                     <div style={{ 
                         display: 'flex', 
                         flexDirection: 'column',
@@ -739,7 +778,7 @@ ${articlesText}
                             AI文章总结助手
                         </p>
                         <p style={{ fontSize: '14px', color: 'var(--neutralSecondary)', maxWidth: '500px' }}>
-                            在上方选择文章发布时间和输入话题标签（至少一个），AI将帮您筛选并总结整理RSS文章
+                            在上方选择文章发布时间，然后点击"查询文章"按钮筛选RSS文章
                         </p>
                     </div>
                 )}
@@ -785,4 +824,19 @@ ${articlesText}
     }
 }
 
+const mapStateToProps = (state: RootState) => ({
+    sources: state.sources,
+    items: state.items
+})
+
+const mapDispatchToProps = dispatch => ({
+    dispatch: dispatch,
+    markRead: (item: RSSItem) => dispatch(markRead(item)),
+    contextMenu: (feedId: string, item: RSSItem, e: React.MouseEvent) => 
+        dispatch(openItemMenu(item, feedId, e)),
+    showItem: (fid: string, item: RSSItem) => dispatch(showItem(fid, item)),
+    shortcuts: (item: RSSItem, e: KeyboardEvent) => dispatch(itemShortcuts(item, e))
+})
+
+const AIMode = connect(mapStateToProps, mapDispatchToProps, null, { forwardRef: true })(AIModeComponent)
 export default AIMode

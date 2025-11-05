@@ -57,6 +57,29 @@ class Article extends React.Component<ArticleProps, ArticleState> {
 
     constructor(props: ArticleProps) {
         super(props)
+        // 调试日志
+        if (!props.item || !props.source) {
+            console.error('Article组件接收到无效的props:', {
+                hasItem: !!props.item,
+                hasSource: !!props.source,
+                itemId: props.item?._id,
+                sourceId: props.item?.source
+            })
+            // 如果 props 无效，设置默认值避免崩溃
+            this.state = {
+                fontFamily: window.settings.getFont(),
+                fontSize: window.settings.getFontSize(),
+                loadWebpage: false,
+                loadFull: false,
+                fullContent: "",
+                loaded: false,
+                error: false,
+                errorDescription: "",
+            }
+            return
+        } else {
+            console.log('Article组件渲染，itemId:', props.item._id, 'sourceId:', props.source.sid)
+        }
         this.state = {
             fontFamily: window.settings.getFont(),
             fontSize: window.settings.getFontSize(),
@@ -374,7 +397,21 @@ class Article extends React.Component<ArticleProps, ArticleState> {
         }&m=${this.state.loadFull ? 1 : 0}`
     }
 
-    render = () => (
+    render = () => {
+        // 如果 item 或 source 不存在，返回空内容
+        if (!this.props.item || !this.props.source) {
+            console.error('Article组件渲染失败: item或source不存在', {
+                hasItem: !!this.props.item,
+                hasSource: !!this.props.source
+            })
+            return (
+                <div style={{ padding: '20px', textAlign: 'center' }}>
+                    <p>无法加载文章内容</p>
+                </div>
+            )
+        }
+        
+        return (
         <FocusZone className="article">
             <Stack horizontal style={{ height: 36 }}>
                 <span style={{ width: 96 }}></span>
@@ -509,7 +546,8 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 </Stack>
             )}
         </FocusZone>
-    )
+        )
+    }
 }
 
 export default Article

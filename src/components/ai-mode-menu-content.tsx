@@ -3,7 +3,6 @@ import { TextField } from "@fluentui/react/lib/TextField"
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown"
 import { Label } from "@fluentui/react/lib/Label"
 import { PrimaryButton, DefaultButton } from "@fluentui/react/lib/Button"
-import { MessageBar, MessageBarType } from "@fluentui/react"
 import { Icon } from "@fluentui/react/lib/Icon"
 import { AIModeContext } from "./ai-mode"
 
@@ -24,10 +23,7 @@ export const AIModeMenuContent: React.FC = () => {
         topics,
         topicInput,
         isLoading,
-        apiEndpoint,
-        apiKey,
-        model,
-        summary,
+        filteredArticles,
         handleTimeRangeChange,
         handleTopicInputChange,
         handleTopicInputKeyDown,
@@ -37,7 +33,6 @@ export const AIModeMenuContent: React.FC = () => {
         removeTopic,
         handleGenerateSummary,
         handleClearSummary,
-        handleConfigPanelOpen,
         topicInputRef,
         isComposing
     } = context
@@ -70,7 +65,7 @@ export const AIModeMenuContent: React.FC = () => {
             </div>
 
             <div style={{ marginBottom: '8px' }}>
-                <Label style={{ fontSize: '14px', fontWeight: 600 }}>话题标签（至少一个）</Label>
+                <Label style={{ fontSize: '14px', fontWeight: 600 }}>话题标签</Label>
                 {/* 标签显示区域 */}
                 {topics.length > 0 && (
                     <div style={{
@@ -171,44 +166,28 @@ export const AIModeMenuContent: React.FC = () => {
                     />
                 </div>
                 <Label styles={{ root: { fontSize: '11px', color: 'var(--neutralSecondary)', marginTop: '4px', fontWeight: 'normal' } }}>
-                    输入标签后点击加号或按Enter添加。至少需要一个标签。
+                    输入标签后点击加号或按Enter添加。（暂未实现筛选功能）
                 </Label>
             </div>
 
             <div style={{ display: 'flex', gap: '8px', flexDirection: 'column', marginTop: '8px' }}>
                 <PrimaryButton
-                    iconProps={{ iconName: 'Sparkle' }}
-                    text="生成总结"
+                    iconProps={{ iconName: 'Search' }}
+                    text="查询文章"
                     onClick={handleGenerateSummary}
-                    disabled={isLoading || topics.length === 0 || !timeRange}
+                    disabled={isLoading || !timeRange}
                     styles={{ root: { width: '100%' } }}
                 />
-                {summary && (
+                {filteredArticles && filteredArticles.length > 0 && (
                     <DefaultButton
                         iconProps={{ iconName: 'Clear' }}
-                        text="清空总结"
+                        text="清空结果"
                         onClick={handleClearSummary}
                         disabled={isLoading}
                         styles={{ root: { width: '100%' } }}
                     />
                 )}
             </div>
-
-            {(!apiEndpoint.trim() || !apiKey.trim() || !model.trim()) && (
-                <MessageBar
-                    messageBarType={MessageBarType.warning}
-                    styles={{ root: { marginTop: '8px', fontSize: '12px' } }}
-                    actions={
-                        <DefaultButton
-                            text="配置API"
-                            onClick={handleConfigPanelOpen}
-                            styles={{ root: { fontSize: '12px', minWidth: 'auto' } }}
-                        />
-                    }
-                >
-                    请先配置API才能使用
-                </MessageBar>
-            )}
         </>
     )
 }
