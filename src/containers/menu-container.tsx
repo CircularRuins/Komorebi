@@ -18,16 +18,18 @@ const getSources = (state: RootState) => state.sources
 const getGroups = (state: RootState) => state.groups
 const getItemOn = (state: RootState) =>
     state.page.itemId !== null && state.page.viewType !== ViewType.List
+const getIsAIMode = (state: RootState) => state.page.feedId === "ai-mode"
 
 const mapStateToProps = createSelector(
-    [getApp, getSources, getGroups, getItemOn],
-    (app, sources, groups, itemOn) => ({
+    [getApp, getSources, getGroups, getItemOn, getIsAIMode],
+    (app, sources, groups, itemOn, isAIMode) => ({
         status: app.sourceInit && !app.settings.display,
         display: app.menu,
         selected: app.menuKey,
         sources: sources,
         groups: groups.map((g, i) => ({ ...g, index: i })),
         itemOn: itemOn,
+        isAIMode: isAIMode,
     })
 )
 

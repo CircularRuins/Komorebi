@@ -1083,3 +1083,58 @@ nav .btn-group .btn.ai-mode-btn {
     visibility: visible !important;
     opacity: 1 !important;
 }
+
+/* AI文章总结模式样式 */
+.ai-mode-container.has-summary {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.ai-mode-container.no-summary {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    justify-content: flex-start;
+    align-items: stretch;
+}
+
+.ai-input-section {
+    flex-shrink: 0;
+}
+
+.ai-summary-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+}
+
+.ai-summary-container.has-summary {
+    background-color: var(--neutralLighterAlt);
+}
+
+.ai-summary-container.no-summary {
+    background-color: var(--neutralLighterAlt);
+}
+
+.ai-mode-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.ai-mode-placeholder p {
+    margin: 8px 0;
+    color: var(--neutralSecondary);
+}
+
+.ai-mode-description {
+    font-size: 14px;
+    color: var(--neutralTertiary);
+}

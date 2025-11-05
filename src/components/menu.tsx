@@ -6,6 +6,7 @@ import { SourceGroup } from "../schema-types"
 import { SourceState, RSSSource } from "../scripts/models/source"
 import { ALL } from "../scripts/models/feed"
 import { AnimationClassNames, Stack, FocusZone } from "@fluentui/react"
+import { AIModeMenuContent } from "./ai-mode-menu-content"
 
 export type MenuProps = {
     status: boolean
@@ -14,6 +15,7 @@ export type MenuProps = {
     sources: SourceState
     groups: SourceGroup[]
     itemOn: boolean
+    isAIMode: boolean
     allArticles: (init?: boolean) => void
     selectSourceGroup: (group: SourceGroup, menuKey: string) => void
     selectSource: (source: RSSSource) => void
@@ -134,6 +136,20 @@ export class Menu extends React.Component<MenuProps> {
     }
 
     render() {
+        // 如果是AI模式，渲染AI模式的菜单（通过全局状态访问）
+        if (this.props.isAIMode) {
+            return (
+                this.props.status && (
+                    <div className="menu-container show">
+                        <div className={"menu" + (this.props.itemOn ? " item-on" : "")}>
+                            <AIModeMenu />
+                        </div>
+                    </div>
+                )
+            )
+        }
+
+        // 普通模式的菜单
         return (
             this.props.status && (
                 <div className="menu-container show">
@@ -162,6 +178,17 @@ export class Menu extends React.Component<MenuProps> {
                     </div>
                 </div>
             )
+        )
+    }
+}
+
+// AI模式的菜单组件
+class AIModeMenu extends React.Component {
+    render() {
+        return (
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', overflowY: 'auto' }}>
+                <AIModeMenuContent />
+            </div>
         )
     }
 }
