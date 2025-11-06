@@ -1138,3 +1138,23 @@ nav .btn-group .btn.ai-mode-btn {
     font-size: 14px;
     color: var(--neutralTertiary);
 }
+
+/* AI模式卡片边框样式 */
+.ai-mode-card-wrapper {
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: var(--white);
+    border: 1px solid var(--neutralLight);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ai-mode-card-wrapper:hover {
+    border-color: var(--neutralTertiary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.ai-mode-card-wrapper .list-card {
+    border-bottom: none;  /* 移除默认的底部边框 */
+    background-color: transparent;
+    border-radius: 6px;
+}

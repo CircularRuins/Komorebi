@@ -488,10 +488,11 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         }).join('\n\n')
 
         const topicText = topic ? `，这些文章都与话题"${topic}"相关` : ''
+        const topicFilterText = topic ? `\n\n重要：如果文章内容与话题"${topic}"完全无关，请将其放入unrelatedArticleIndices数组中，这些文章将不会被展示。` : ''
 
         const prompt = `请分析以下RSS文章，将讲同一件事情或相关主题的文章归类到一起。
 
-${topicText}
+${topicText}${topicFilterText}
 
 要求：
 1. 仔细阅读每篇文章的标题和摘要
@@ -499,7 +500,8 @@ ${topicText}
 3. 将讨论同一件事情或相关主题的文章归为一组
 4. 为每个分组提供一个简洁的标题（说明这些文章讲的是什么，不超过20字）
 5. 为每个分组提供一段简要描述（说明这些文章的共同主题或事件，不超过100字）
-6. 返回JSON格式，格式如下：
+6. ${topic ? '如果文章内容与话题无关，请将其索引放入unrelatedArticleIndices数组中' : ''}
+7. 返回JSON格式，格式如下：
 {
   "clusters": [
     {
@@ -507,14 +509,16 @@ ${topicText}
       "description": "分组描述",
       "articleIndices": [0, 2, 5]
     }
-  ]
+  ],
+  ${topic ? '"unrelatedArticleIndices": [3, 7]' : ''}
 }
 
 注意：
 - articleIndices是文章在列表中的索引（从0开始）
 - 每个分组至少包含1篇文章
-- 所有文章都应该被分配到某个分组中
-- 如果某篇文章无法归类，可以单独成组
+- ${topic ? '只有与话题相关的文章才应该被分配到分组中' : '所有文章都应该被分配到某个分组中'}
+- ${topic ? '与话题无关的文章应放入unrelatedArticleIndices数组中' : '如果某篇文章无法归类，可以单独成组'}
+- unrelatedArticleIndices是可选的，如果没有无关文章，可以省略此字段或设为空数组
 
 文章列表：
 ${articlesText}
@@ -581,6 +585,17 @@ ${articlesText}
                     throw new Error('聚类结果格式不正确：缺少clusters数组')
                 }
 
+                // 提取与话题无关的文章索引
+                const unrelatedIndices = new Set<number>()
+                if (responseData.unrelatedArticleIndices && Array.isArray(responseData.unrelatedArticleIndices)) {
+                    responseData.unrelatedArticleIndices.forEach((idx: number) => {
+                        if (typeof idx === 'number' && idx >= 0 && idx < articlesToAnalyze.length) {
+                            unrelatedIndices.add(idx)
+                        }
+                    })
+                    console.log('发现与话题无关的文章，数量:', unrelatedIndices.size, '索引:', Array.from(unrelatedIndices))
+                }
+
                 // 用于跟踪每个文章被分配到哪个聚类（确保每个文章只属于一个聚类）
                 const articleToClusterMap = new Map<number, number>() // 文章索引 -> 聚类索引
 
@@ -589,10 +604,10 @@ ${articlesText}
                         throw new Error(`聚类${index}格式不正确：缺少articleIndices数组`)
                     }
 
-                    // 过滤无效的索引，并去重
+                    // 过滤无效的索引，并去重，同时排除与话题无关的文章
                     const validIndicesSet = new Set<number>()
                     cluster.articleIndices.forEach((idx: number) => {
-                        if (typeof idx === 'number' && idx >= 0 && idx < articlesToAnalyze.length) {
+                        if (typeof idx === 'number' && idx >= 0 && idx < articlesToAnalyze.length && !unrelatedIndices.has(idx)) {
                             validIndicesSet.add(idx)
                         }
                     })
@@ -620,11 +635,11 @@ ${articlesText}
                     }
                 }).filter((cluster: ArticleCluster | null) => cluster !== null) as ArticleCluster[]
 
-                // 处理未被分配的文章（如果有）
+                // 处理未被分配的文章（如果有），但排除与话题无关的文章
                 const assignedIndices = new Set(articleToClusterMap.keys())
                 const unassignedArticles: RSSItem[] = []
                 articlesToAnalyze.forEach((article, idx) => {
-                    if (!assignedIndices.has(idx)) {
+                    if (!assignedIndices.has(idx) && !unrelatedIndices.has(idx)) {
                         unassignedArticles.push(article)
                     }
                 })
@@ -640,7 +655,7 @@ ${articlesText}
                     })
                 }
 
-                // 验证：确保没有重复的文章
+                // 验证：确保没有重复的文章，并统计过滤掉的文章
                 const allArticleIds = new Set<number>()
                 clusters.forEach(cluster => {
                     cluster.articles.forEach(article => {
@@ -650,7 +665,9 @@ ${articlesText}
                         allArticleIds.add(article._id)
                     })
                 })
-                console.log('验证完成：总文章数', allArticleIds.size, '，期望文章数', articlesToAnalyze.length)
+                const filteredCount = unrelatedIndices.size
+                const displayedCount = allArticleIds.size
+                console.log('验证完成：显示文章数', displayedCount, '，过滤掉无关文章数', filteredCount, '，原始文章数', articlesToAnalyze.length)
 
                 console.log('最终聚类结果:', clusters.length, '个分组，总文章数:', clusters.reduce((sum, c) => sum + c.articles.length, 0))
                 return clusters
@@ -1061,7 +1078,7 @@ ${articlesText}
                                 fontWeight: 600,
                                 color: 'var(--neutralPrimary)'
                             }}>
-                                文章聚类结果 ({filteredArticles.length} 篇文章，{clusters.length} 个分组)
+                                总结
                             </h3>
                         </div>
                         
@@ -1119,18 +1136,19 @@ ${articlesText}
                                         if (!source) return null
                                         const filter = new FeedFilter()
                                         return (
-                                            <ListCard
-                                                key={item._id}
-                                                feedId="ai-mode"
-                                                item={item}
-                                                source={source}
-                                                filter={filter}
-                                                viewConfigs={ViewConfigs.ShowSnippet}
-                                                shortcuts={shortcuts}
-                                                markRead={markRead}
-                                                contextMenu={contextMenu}
-                                                showItem={showItem}
-                                            />
+                                            <div key={item._id} className="ai-mode-card-wrapper">
+                                                <ListCard
+                                                    feedId="ai-mode"
+                                                    item={item}
+                                                    source={source}
+                                                    filter={filter}
+                                                    viewConfigs={ViewConfigs.ShowSnippet}
+                                                    shortcuts={shortcuts}
+                                                    markRead={markRead}
+                                                    contextMenu={contextMenu}
+                                                    showItem={showItem}
+                                                />
+                                            </div>
                                         )
                                     })}
                                 </div>
@@ -1179,18 +1197,19 @@ ${articlesText}
                                     if (!source) return null
                                     const filter = new FeedFilter()
                                     return (
-                                        <ListCard
-                                            key={item._id}
-                                            feedId="ai-mode"
-                                            item={item}
-                                            source={source}
-                                            filter={filter}
-                                            viewConfigs={ViewConfigs.ShowSnippet}
-                                            shortcuts={shortcuts}
-                                            markRead={markRead}
-                                            contextMenu={contextMenu}
-                                            showItem={showItem}
-                                        />
+                                        <div key={item._id} className="ai-mode-card-wrapper">
+                                            <ListCard
+                                                feedId="ai-mode"
+                                                item={item}
+                                                source={source}
+                                                filter={filter}
+                                                viewConfigs={ViewConfigs.ShowSnippet}
+                                                shortcuts={shortcuts}
+                                                markRead={markRead}
+                                                contextMenu={contextMenu}
+                                                showItem={showItem}
+                                            />
+                                        </div>
                                     )
                                 })}
                             </div>
