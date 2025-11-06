@@ -251,28 +251,14 @@ class Nav extends React.Component<NavProps, NavState> {
                         <Icon iconName="Refresh" />
                     </a>
                     <a
-                        className="btn"
-                        title={intl.get("settings.sources")}
-                        onClick={this.props.openSourcesSettings}>
-                        <Icon iconName="Source" />
-                    </a>
-                    {(!this.props.isAIModeEnabled || !this.state.hasAIMessages) && (
-                        <a
-                            className="btn"
-                            title={intl.get("settings.ai")}
-                            onClick={() => {
-                                if (typeof window !== 'undefined' && (window as any).openAIConfigPanel) {
-                                    (window as any).openAIConfigPanel()
-                                }
-                            }}>
-                            <Icon iconName="Cloud" />
-                        </a>
-                    )}
-                    <a
-                        className="btn"
-                        title={intl.get("settings.grouping")}
-                        onClick={this.props.openGroupingSettings}>
-                        <Icon iconName="GroupList" />
+                        className="btn ai-config-btn"
+                        title={intl.get("settings.ai")}
+                        onClick={() => {
+                            if (typeof window !== 'undefined' && (window as any).openAIConfigPanel) {
+                                (window as any).openAIConfigPanel()
+                            }
+                        }}>
+                        <Icon iconName="Cloud" />
                     </a>
                     <a
                         className="btn"

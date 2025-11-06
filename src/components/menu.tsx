@@ -5,7 +5,7 @@ import { Nav, INavLink, INavLinkGroup } from "office-ui-fabric-react/lib/Nav"
 import { SourceGroup } from "../schema-types"
 import { SourceState, RSSSource } from "../scripts/models/source"
 import { ALL } from "../scripts/models/feed"
-import { AnimationClassNames, Stack, FocusZone } from "@fluentui/react"
+import { AnimationClassNames, Stack, FocusZone, DefaultButton } from "@fluentui/react"
 import { AIModeMenuContent } from "./ai-mode-menu-content"
 
 export type MenuProps = {
@@ -25,9 +25,28 @@ export type MenuProps = {
         key: string,
         selected: string
     ) => void
+    openSourcesSettings: () => void
+    openGroupingSettings: () => void
+    addSourceToGroup: (groupIndex: number, sid: number) => void
+    removeSourceFromGroup: (groupIndex: number, sids: number[]) => void
+    updateSourceGroup: (group: SourceGroup) => void
+    reorderSourceGroups: (groups: SourceGroup[]) => void
 }
 
-export class Menu extends React.Component<MenuProps> {
+type MenuState = {
+    // 分组和拖拽功能已移除，状态保留为空对象以保持兼容性
+}
+
+export class Menu extends React.Component<MenuProps, MenuState> {
+    constructor(props: MenuProps) {
+        super(props)
+        this.state = {}
+    }
+    
+    componentDidUpdate() {
+        // 分组功能已移除，无需处理
+    }
+
     countOverflow = (count: number) => (count >= 1000 ? " 999+" : ` ${count}`)
 
     getLinkGroups = (): INavLinkGroup[] => [
@@ -53,31 +72,10 @@ export class Menu extends React.Component<MenuProps> {
         },
         {
             name: intl.get("menu.subscriptions"),
-            links: this.props.groups
-                .filter(g => g.sids.length > 0)
-                .map(g => {
-                    if (g.isMultiple) {
-                        let sources = g.sids.map(sid => this.props.sources[sid])
-                        return {
-                            name: g.name,
-                            ariaLabel:
-                                g.name +
-                                this.countOverflow(
-                                    sources
-                                        .map(s => s.unreadCount)
-                                        .reduce((a, b) => a + b, 0)
-                                ),
-                            key: "g-" + g.index,
-                            url: null,
-                            isExpanded: g.expanded,
-                            onClick: () =>
-                                this.props.selectSourceGroup(g, "g-" + g.index),
-                            links: sources.map(this.getSource),
-                        }
-                    } else {
-                        return this.getSource(this.props.sources[g.sids[0]])
-                    }
-                }),
+            links: Object.values(this.props.sources)
+                .filter(s => !s.hidden)
+                .sort((a, b) => a.sid - b.sid)
+                .map(this.getSource),
         },
     ]
 
@@ -99,20 +97,36 @@ export class Menu extends React.Component<MenuProps> {
     })
 
     onContext = (item: INavLink, event: React.MouseEvent) => {
-        let sids: number[]
         let [type, index] = item.key.split("-")
         if (type === "s") {
-            sids = [parseInt(index)]
-        } else if (type === "g") {
-            sids = this.props.groups[parseInt(index)].sids
-        } else {
-            return
+            const sids = [parseInt(index)]
+            this.props.groupContextMenu(sids, event)
         }
-        this.props.groupContextMenu(sids, event)
+    }
+
+    handleDragStart = () => {
+        // 拖拽功能已移除
+    }
+
+    handleDragOver = () => {
+        // 拖拽功能已移除
+    }
+
+    handleDragLeave = () => {
+        // 拖拽功能已移除
+    }
+
+    handleDrop = () => {
+        // 拖拽功能已移除
+    }
+
+    handleDragEnd = () => {
+        // 拖拽功能已移除
     }
 
     _onRenderLink = (link: INavLink): JSX.Element => {
         let count = link.ariaLabel.split(" ").pop()
+
         return (
             <Stack
                 className="link-stack"
@@ -157,6 +171,34 @@ export class Menu extends React.Component<MenuProps> {
                         className={
                             "menu" + (this.props.itemOn ? " item-on" : "")
                         }>
+                        {/* 添加订阅源和分组的按钮 */}
+                        <div style={{ 
+                            padding: '8px 12px', 
+                            borderBottom: '1px solid var(--neutralLight)',
+                            display: 'flex',
+                            gap: '8px'
+                        }}>
+                            <DefaultButton
+                                text="添加源"
+                                iconProps={{ iconName: "Add" }}
+                                onClick={this.props.openSourcesSettings}
+                                styles={{
+                                    root: {
+                                        flex: 1,
+                                        minWidth: 0,
+                                        height: '28px',
+                                        padding: '0 8px'
+                                    },
+                                    label: {
+                                        fontSize: '12px',
+                                        fontWeight: 400
+                                    },
+                                    icon: {
+                                        fontSize: '12px'
+                                    }
+                                }}
+                            />
+                        </div>
                         <FocusZone
                             as="div"
                             disabled={false}

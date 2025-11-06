@@ -250,7 +250,8 @@ body.darwin.not-fullscreen #root > nav .btn-group:first-of-type {
 nav.hide-btns .btn-group .btn {
     display: none;
 }
-nav.hide-btns .btn-group .btn.system {
+nav.hide-btns .btn-group .btn.system,
+nav.hide-btns .btn-group .btn.ai-config-btn {
     display: inline-block;
 }
 nav.item-on .btn-group .btn.system {
@@ -259,9 +260,11 @@ nav.item-on .btn-group .btn.system {
 nav.item-on .btn-group .btn {
     display: none;
 }
-nav.ai-mode-on .btn-group .btn:first-child,
-nav.ai-mode-on .btn-group .btn:nth-child(2) {
+nav.ai-mode-on .btn-group .btn:first-child {
     display: none;
+}
+nav.ai-mode-on .btn-group .btn.ai-config-btn {
+    display: inline-block !important;
 }
 .btn-group .btn:hover,
 .ms-Nav-compositeLink:hover {

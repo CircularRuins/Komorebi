@@ -2,8 +2,14 @@ import { connect } from "react-redux"
 import { createSelector } from "reselect"
 import { RootState } from "../scripts/reducer"
 import { Menu } from "../components/menu"
-import { toggleMenu, openGroupMenu } from "../scripts/models/app"
-import { toggleGroupExpansion } from "../scripts/models/group"
+import { toggleMenu, openGroupMenu, openSettingsTab } from "../scripts/models/app"
+import { 
+    toggleGroupExpansion, 
+    addSourceToGroup, 
+    removeSourceFromGroup, 
+    updateSourceGroup,
+    reorderSourceGroups 
+} from "../scripts/models/group"
 import { SourceGroup } from "../schema-types"
 import {
     selectAllArticles,
@@ -58,6 +64,12 @@ const mapDispatchToProps = dispatch => ({
             if (type === "g") dispatch(toggleGroupExpansion(parseInt(index)))
         }
     },
+    openSourcesSettings: () => dispatch(openSettingsTab("sources")),
+    openGroupingSettings: () => dispatch(openSettingsTab("grouping")),
+    addSourceToGroup: (groupIndex: number, sid: number) => dispatch(addSourceToGroup(groupIndex, sid)),
+    removeSourceFromGroup: (groupIndex: number, sids: number[]) => dispatch(removeSourceFromGroup(groupIndex, sids)),
+    updateSourceGroup: (group: SourceGroup) => dispatch(updateSourceGroup(group)),
+    reorderSourceGroups: (groups: SourceGroup[]) => dispatch(reorderSourceGroups(groups)),
 })
 
 const MenuContainer = connect(mapStateToProps, mapDispatchToProps)(Menu)
