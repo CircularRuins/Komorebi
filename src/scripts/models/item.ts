@@ -40,6 +40,7 @@ export class RSSItem {
     hidden: boolean
     notify: boolean
     serviceRef?: string
+    embedding?: number[]  // 文章embedding向量
 
     constructor(item: MyParserItem, source: RSSSource) {
         for (let field of ["title", "link", "creator"]) {

@@ -18,7 +18,7 @@ sdbSchema
     .addNullable(["iconurl", "serviceRef", "rules"])
     .addIndex("idxURL", ["url"], true)
 
-const idbSchema = lf.schema.create("itemsDB", 1)
+const idbSchema = lf.schema.create("itemsDB", 2)
 idbSchema
     .createTable("items")
     .addColumn("_id", lf.Type.INTEGER)
@@ -37,7 +37,8 @@ idbSchema
     .addColumn("hidden", lf.Type.BOOLEAN)
     .addColumn("notify", lf.Type.BOOLEAN)
     .addColumn("serviceRef", lf.Type.STRING)
-    .addNullable(["thumb", "creator", "serviceRef"])
+    .addColumn("embedding", lf.Type.OBJECT)
+    .addNullable(["thumb", "creator", "serviceRef", "embedding"])
     .addIndex("idxDate", ["date"], false, lf.Order.DESC)
     .addIndex("idxService", ["serviceRef"], false)
 
@@ -56,10 +57,18 @@ async function onUpgradeSourceDB(rawDb: lf.raw.BackStore) {
     }
 }
 
+async function onUpgradeItemsDB(rawDb: lf.raw.BackStore) {
+    const version = rawDb.getVersion()
+    if (version < 2) {
+        // 添加embedding字段，初始值为null
+        await rawDb.addTableColumn("items", "embedding", null)
+    }
+}
+
 export async function init() {
     sourcesDB = await sdbSchema.connect({ onUpgrade: onUpgradeSourceDB })
     sources = sourcesDB.getSchema().table("sources")
-    itemsDB = await idbSchema.connect()
+    itemsDB = await idbSchema.connect({ onUpgrade: onUpgradeItemsDB })
     items = itemsDB.getSchema().table("items")
 }
 

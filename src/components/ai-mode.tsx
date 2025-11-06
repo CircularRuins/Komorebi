@@ -91,10 +91,12 @@ type AIModeState = {
     apiEndpoint: string
     apiKey: string
     model: string
+    embeddingModel: string
     showConfigPanel: boolean
     tempApiEndpoint: string
     tempApiKey: string
     tempModel: string
+    tempEmbeddingModel: string
     showErrorDialog: boolean
     errorDialogMessage: string
     articleCount: number  // 筛选到的文章数量
@@ -116,6 +118,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         const savedEndpoint = localStorage.getItem('ai-api-endpoint') || 'https://api.openai.com/v1/chat/completions'
         const savedKey = localStorage.getItem('ai-api-key') || ''
         const savedModel = localStorage.getItem('ai-model') || ''
+        const savedEmbeddingModel = localStorage.getItem('ai-embedding-model') || 'text-embedding-ada-002'
         // 从localStorage加载最近话题
         const savedRecentTopics = localStorage.getItem('ai-recent-topics')
         const recentTopics = savedRecentTopics ? JSON.parse(savedRecentTopics) : []
@@ -133,10 +136,12 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             apiEndpoint: savedEndpoint,
             apiKey: savedKey,
             model: savedModel,
+            embeddingModel: savedEmbeddingModel,
             showConfigPanel: false,
             tempApiEndpoint: savedEndpoint,
             tempApiKey: savedKey,
             tempModel: savedModel,
+            tempEmbeddingModel: savedEmbeddingModel,
             showErrorDialog: false,
             errorDialogMessage: '',
             articleCount: 0,
@@ -323,39 +328,49 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         this.setState({ tempModel: value })
     }
 
+    handleEmbeddingModelChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+        const value = newValue || ''
+        this.setState({ tempEmbeddingModel: value })
+    }
+
     handleConfigConfirm = () => {
-        const { tempApiEndpoint, tempApiKey, tempModel } = this.state
+        const { tempApiEndpoint, tempApiKey, tempModel, tempEmbeddingModel } = this.state
         // 保存到localStorage和state
         localStorage.setItem('ai-api-endpoint', tempApiEndpoint)
         localStorage.setItem('ai-api-key', tempApiKey)
         localStorage.setItem('ai-model', tempModel)
+        localStorage.setItem('ai-embedding-model', tempEmbeddingModel)
+        console.log('保存embedding模型配置:', tempEmbeddingModel)
         this.setState({
             apiEndpoint: tempApiEndpoint,
             apiKey: tempApiKey,
             model: tempModel,
+            embeddingModel: tempEmbeddingModel,
             showConfigPanel: false
         })
     }
 
     handleConfigCancel = () => {
         // 恢复临时状态为已保存的值
-        const { apiEndpoint, apiKey, model } = this.state
+        const { apiEndpoint, apiKey, model, embeddingModel } = this.state
         this.setState({
             tempApiEndpoint: apiEndpoint,
             tempApiKey: apiKey,
             tempModel: model,
+            tempEmbeddingModel: embeddingModel,
             showConfigPanel: false
         })
     }
 
     handleConfigPanelOpen = () => {
         // 打开面板时，初始化临时状态为当前保存的值
-        const { apiEndpoint, apiKey, model } = this.state
+        const { apiEndpoint, apiKey, model, embeddingModel } = this.state
         this.setState({
             showConfigPanel: true,
             tempApiEndpoint: apiEndpoint,
             tempApiKey: apiKey,
-            tempModel: model
+            tempModel: model,
+            tempEmbeddingModel: embeddingModel
         })
     }
 
@@ -434,6 +449,114 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         }
 
         return items
+    }
+
+    // 计算文章的embedding并存储
+    computeAndStoreEmbeddings = async (articles: RSSItem[]): Promise<void> => {
+        const { apiEndpoint, apiKey, embeddingModel } = this.state
+        console.log('computeAndStoreEmbeddings - 当前embeddingModel配置:', embeddingModel)
+
+        if (articles.length === 0) {
+            return
+        }
+
+        // 验证API配置
+        if (!apiEndpoint || !apiEndpoint.trim()) {
+            console.warn('API Endpoint未配置，跳过embedding计算')
+            return
+        }
+        if (!apiKey || !apiKey.trim()) {
+            console.warn('API Key未配置，跳过embedding计算')
+            return
+        }
+
+        // 规范化endpoint URL
+        let normalizedEndpoint = apiEndpoint.trim()
+        if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
+            console.warn('API Endpoint格式不正确，跳过embedding计算')
+            return
+        }
+
+        // 提取base URL（用于embedding API）
+        let baseURL = normalizedEndpoint
+        try {
+            const url = new URL(normalizedEndpoint)
+            if (url.pathname.includes('/v1/chat/completions')) {
+                baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
+            } else {
+                baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
+            }
+        } catch (error) {
+            console.warn('无效的API Endpoint URL，跳过embedding计算:', normalizedEndpoint)
+            return
+        }
+
+        // 过滤出还没有embedding的文章
+        const articlesNeedingEmbedding = articles.filter(article => {
+            const embedding = article.embedding
+            return !embedding || !Array.isArray(embedding) || embedding.length === 0
+        })
+        
+        if (articlesNeedingEmbedding.length === 0) {
+            console.log('所有文章都已计算过embedding')
+            return
+        }
+
+        console.log(`开始计算${articlesNeedingEmbedding.length}篇文章的embedding`)
+
+        try {
+            const openai = new OpenAI({
+                apiKey: apiKey,
+                baseURL: baseURL,
+                dangerouslyAllowBrowser: true
+            })
+
+            // 批量计算embedding（OpenAI API支持批量）
+            const texts = articlesNeedingEmbedding.map(article => {
+                // 拼接标题和摘要
+                const title = article.title || ''
+                const snippet = article.snippet || ''
+                return `${title}\n${snippet}`.trim()
+            })
+
+            // 验证embedding模型配置
+            if (!embeddingModel || !embeddingModel.trim()) {
+                console.warn('Embedding模型未配置，跳过embedding计算')
+                return
+            }
+
+            const modelToUse = embeddingModel.trim()
+            console.log('使用embedding模型:', modelToUse, '文章数量:', texts.length)
+
+            // 调用embedding API
+            const response = await openai.embeddings.create({
+                model: modelToUse, // 使用配置的embedding模型
+                input: texts,
+            })
+
+            // 存储embedding到数据库
+            const embeddings = response.data.map(item => item.embedding)
+            
+            for (let i = 0; i < articlesNeedingEmbedding.length; i++) {
+                const article = articlesNeedingEmbedding[i]
+                const embedding = embeddings[i]
+                
+                // 更新数据库
+                await db.itemsDB
+                    .update(db.items)
+                    .where(db.items._id.eq(article._id))
+                    .set(db.items.embedding, embedding)
+                    .exec()
+                
+                // 更新内存中的对象
+                article.embedding = embedding
+            }
+
+            console.log(`成功计算并存储了${articlesNeedingEmbedding.length}篇文章的embedding`)
+        } catch (error: any) {
+            console.error('计算embedding失败:', error)
+            // 不抛出错误，避免影响主流程
+        }
     }
 
     // 对文章进行聚类分析
@@ -840,6 +963,14 @@ ${articlesText}
                 return
             }
 
+            // 计算并存储文章的embedding（如果还没有计算过）
+            try {
+                await this.computeAndStoreEmbeddings(articles)
+            } catch (embeddingError) {
+                console.error('计算embedding时出错:', embeddingError)
+                // 不阻止主流程，继续执行
+            }
+
             // 将文章添加到 Redux store，确保可以点击查看
             const { dispatch, items, sources } = this.props
             
@@ -963,7 +1094,8 @@ ${articlesText}
             showConfigPanel, 
             tempApiEndpoint, 
             tempApiKey, 
-            tempModel, 
+            tempModel,
+            tempEmbeddingModel,
             showErrorDialog, 
             errorDialogMessage,
             articleCount,
@@ -1016,6 +1148,14 @@ ${articlesText}
                             onChange={this.handleModelChange}
                             placeholder="请输入模型名称"
                             description="要使用的模型名称，例如：gpt-3.5-turbo, gpt-4, claude-3-opus 等"
+                            styles={{ root: { marginBottom: '20px' } }}
+                        />
+                        <TextField
+                            label="Embedding模型名称"
+                            value={tempEmbeddingModel}
+                            onChange={this.handleEmbeddingModelChange}
+                            placeholder="text-embedding-ada-002"
+                            description="用于计算文章embedding的模型名称，例如：text-embedding-ada-002, text-embedding-3-small 等"
                             styles={{ root: { marginBottom: '20px' } }}
                         />
                         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
@@ -1270,10 +1410,10 @@ ${articlesText}
                     }}>
                         <Icon iconName="Sparkle" style={{ fontSize: 64, color: 'var(--neutralTertiary)' }} />
                         <p style={{ fontSize: '18px', fontWeight: 600, color: 'var(--neutralPrimary)' }}>
-                            AI文章总结助手
+                            AI总结助手
                         </p>
                         <p style={{ fontSize: '14px', color: 'var(--neutralSecondary)', maxWidth: '500px' }}>
-                            在上方选择文章发布时间，然后点击"查询文章"按钮筛选RSS文章
+                            在左侧菜单栏选择文章发布时间，和感兴趣的话题，然后点击"查询文章"按钮生成总结
                         </p>
                     </div>
                 )}
