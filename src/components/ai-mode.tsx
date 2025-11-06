@@ -22,6 +22,14 @@ import { ViewConfigs } from "../schema-types"
 import { ActionStatus } from "../scripts/utils"
 import { AIModeMenuContent } from "./ai-mode-menu-content"
 
+// 文章聚类结果类型
+export type ArticleCluster = {
+    id: string  // 聚类ID
+    title: string  // 聚类标题（说明这些文章讲的是什么）
+    description: string  // 聚类描述
+    articles: RSSItem[]  // 该聚类中的文章列表
+}
+
 // AIMode Context 类型定义
 export type AIModeContextType = {
     timeRange: string | null
@@ -30,6 +38,7 @@ export type AIModeContextType = {
     recentTopics: string[]  // 最近使用的话题（最多5个）
     isComposing: boolean
     isLoading: boolean
+    isClustering: boolean  // 是否正在聚类
     summary: string
     apiEndpoint: string
     apiKey: string
@@ -38,6 +47,7 @@ export type AIModeContextType = {
     articleCount: number
     error: string | null
     filteredArticles: RSSItem[]  // 筛选后的文章列表
+    clusters: ArticleCluster[]  // 文章聚类结果
     setTimeRange: (timeRange: string | null) => void
     setTopic: (topic: string) => void
     setTopicInput: (topicInput: string) => void
@@ -76,6 +86,7 @@ type AIModeState = {
     isComposing: boolean  // 是否正在使用输入法输入
     summary: string    // AI生成的总结
     isLoading: boolean
+    isClustering: boolean  // 是否正在聚类
     error: string | null
     apiEndpoint: string
     apiKey: string
@@ -88,6 +99,7 @@ type AIModeState = {
     errorDialogMessage: string
     articleCount: number  // 筛选到的文章数量
     filteredArticles: RSSItem[]  // 筛选后的文章列表
+    clusters: ArticleCluster[]  // 文章聚类结果
 }
 
 export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
@@ -116,6 +128,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             isComposing: false,
             summary: '',
             isLoading: false,
+            isClustering: false,
             error: null,
             apiEndpoint: savedEndpoint,
             apiKey: savedKey,
@@ -127,7 +140,8 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             showErrorDialog: false,
             errorDialogMessage: '',
             articleCount: 0,
-            filteredArticles: []
+            filteredArticles: [],
+            clusters: []
         }
     }
 
@@ -152,11 +166,13 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             prevState.topic !== this.state.topic ||
             prevState.summary !== this.state.summary ||
             prevState.isLoading !== this.state.isLoading ||
+            prevState.isClustering !== this.state.isClustering ||
             prevState.showConfigPanel !== this.state.showConfigPanel ||
             prevState.apiEndpoint !== this.state.apiEndpoint ||
             prevState.apiKey !== this.state.apiKey ||
             prevState.model !== this.state.model ||
             prevState.filteredArticles.length !== this.state.filteredArticles.length ||
+            prevState.clusters.length !== this.state.clusters.length ||
             prevState.articleCount !== this.state.articleCount ||
             prevState.error !== this.state.error
         ) {
@@ -187,6 +203,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             recentTopics: this.state.recentTopics,
             isComposing: this.state.isComposing,
             isLoading: this.state.isLoading,
+            isClustering: this.state.isClustering,
             summary: this.state.summary,
             apiEndpoint: this.state.apiEndpoint,
             apiKey: this.state.apiKey,
@@ -195,6 +212,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             articleCount: this.state.articleCount,
             error: this.state.error,
             filteredArticles: this.state.filteredArticles,
+            clusters: this.state.clusters,
             setTimeRange: (timeRange: string | null) => this.setState({ timeRange }),
             setTopic: (topic: string) => this.setState({ topic }),
             setTopicInput: (topicInput: string) => this.setState({ topicInput }),
@@ -418,6 +436,244 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         return items
     }
 
+    // 对文章进行聚类分析
+    clusterArticles = async (articles: RSSItem[], topic: string | null): Promise<ArticleCluster[]> => {
+        const { apiEndpoint, apiKey, model } = this.state
+
+        if (articles.length === 0) {
+            return []
+        }
+
+        // 验证API配置
+        if (!apiEndpoint || !apiEndpoint.trim()) {
+            throw new Error('请先配置API Endpoint（在设置中配置）')
+        }
+        if (!apiKey || !apiKey.trim()) {
+            throw new Error('请先配置API Key（在设置中配置）')
+        }
+        if (!model || !model.trim()) {
+            throw new Error('请先配置模型名称（在设置中配置）')
+        }
+
+        console.log('开始聚类分析，文章数量:', articles.length, '话题:', topic)
+
+        // 规范化endpoint URL
+        let normalizedEndpoint = apiEndpoint.trim()
+        if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
+            throw new Error('API Endpoint必须以http://或https://开头')
+        }
+
+        // 提取base URL
+        let baseURL = normalizedEndpoint
+        try {
+            const url = new URL(normalizedEndpoint)
+            if (url.pathname.includes('/v1/chat/completions')) {
+                baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
+            } else {
+                baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
+            }
+        } catch (error) {
+            throw new Error(`无效的API Endpoint URL: ${normalizedEndpoint}`)
+        }
+
+        // 准备文章内容（限制数量以避免token过多）
+        const articlesToAnalyze = articles.slice(0, 100)  // 最多分析100篇文章
+        const articlesText = articlesToAnalyze.map((article, index) => {
+            const dateStr = article.date.toLocaleDateString('zh-CN')
+            const snippet = article.snippet || (article.content ? article.content.substring(0, 300) : '')
+            return `文章${index + 1}:
+标题: ${article.title}
+发布时间: ${dateStr}
+摘要: ${snippet}`
+        }).join('\n\n')
+
+        const topicText = topic ? `，这些文章都与话题"${topic}"相关` : ''
+
+        const prompt = `请分析以下RSS文章，将讲同一件事情或相关主题的文章归类到一起。
+
+${topicText}
+
+要求：
+1. 仔细阅读每篇文章的标题和摘要
+2. 识别文章讨论的核心主题或事件
+3. 将讨论同一件事情或相关主题的文章归为一组
+4. 为每个分组提供一个简洁的标题（说明这些文章讲的是什么，不超过20字）
+5. 为每个分组提供一段简要描述（说明这些文章的共同主题或事件，不超过100字）
+6. 返回JSON格式，格式如下：
+{
+  "clusters": [
+    {
+      "title": "分组标题",
+      "description": "分组描述",
+      "articleIndices": [0, 2, 5]
+    }
+  ]
+}
+
+注意：
+- articleIndices是文章在列表中的索引（从0开始）
+- 每个分组至少包含1篇文章
+- 所有文章都应该被分配到某个分组中
+- 如果某篇文章无法归类，可以单独成组
+
+文章列表：
+${articlesText}
+
+请返回JSON格式的聚类结果：`
+
+        try {
+            const openai = new OpenAI({
+                apiKey: apiKey,
+                baseURL: baseURL,
+                dangerouslyAllowBrowser: true
+            })
+
+            // 尝试使用JSON格式，如果不支持则回退到普通格式
+            const completionParams: any = {
+                model: model,
+                messages: [
+                    {
+                        role: 'system',
+                        content: '你是一个专业的文章分析助手，擅长识别文章主题并进行分类。请严格按照JSON格式返回结果，只返回JSON对象，不要包含任何其他文本。'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.3,  // 降低温度以获得更稳定的聚类结果
+                max_tokens: 4000
+            }
+            
+            // 某些模型可能不支持response_format，尝试添加但不强制
+            try {
+                completionParams.response_format = { type: "json_object" }
+            } catch (e) {
+                // 忽略错误，继续使用普通格式
+            }
+            
+            console.log('发送聚类请求到API，模型:', model, '文章数量:', articlesToAnalyze.length)
+            const completion = await openai.chat.completions.create(completionParams)
+            console.log('收到API响应')
+
+            if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
+                const responseText = completion.choices[0].message.content || ''
+                console.log('API返回的原始文本长度:', responseText.length)
+                console.log('API返回的原始文本前500字符:', responseText.substring(0, 500))
+                
+                // 解析JSON响应
+                let responseData
+                try {
+                    // 尝试提取JSON（可能包含markdown代码块）
+                    const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
+                    const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
+                    console.log('提取的JSON文本长度:', jsonText.length)
+                    responseData = JSON.parse(jsonText)
+                    console.log('解析JSON成功，clusters数量:', responseData.clusters?.length)
+                } catch (parseError) {
+                    console.error('解析聚类结果失败:', parseError)
+                    console.error('原始响应文本:', responseText)
+                    throw new Error(`LLM返回的聚类结果格式不正确，无法解析JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`)
+                }
+
+                // 验证并转换聚类结果
+                if (!responseData.clusters || !Array.isArray(responseData.clusters)) {
+                    throw new Error('聚类结果格式不正确：缺少clusters数组')
+                }
+
+                // 用于跟踪每个文章被分配到哪个聚类（确保每个文章只属于一个聚类）
+                const articleToClusterMap = new Map<number, number>() // 文章索引 -> 聚类索引
+
+                const clusters: ArticleCluster[] = responseData.clusters.map((cluster: any, index: number) => {
+                    if (!cluster.articleIndices || !Array.isArray(cluster.articleIndices)) {
+                        throw new Error(`聚类${index}格式不正确：缺少articleIndices数组`)
+                    }
+
+                    // 过滤无效的索引，并去重
+                    const validIndicesSet = new Set<number>()
+                    cluster.articleIndices.forEach((idx: number) => {
+                        if (typeof idx === 'number' && idx >= 0 && idx < articlesToAnalyze.length) {
+                            validIndicesSet.add(idx)
+                        }
+                    })
+
+                    // 过滤掉已经被分配到其他聚类的文章（如果LLM返回了重复分配，优先使用第一个聚类）
+                    const uniqueIndices: number[] = []
+                    validIndicesSet.forEach(idx => {
+                        if (!articleToClusterMap.has(idx)) {
+                            articleToClusterMap.set(idx, index)
+                            uniqueIndices.push(idx)
+                        } else {
+                            console.warn(`文章索引 ${idx} 被重复分配到聚类 ${index}，已忽略（已属于聚类 ${articleToClusterMap.get(idx)}）`)
+                        }
+                    })
+
+                    if (uniqueIndices.length === 0) {
+                        return null
+                    }
+
+                    return {
+                        id: `cluster-${index}`,
+                        title: cluster.title || `分组 ${index + 1}`,
+                        description: cluster.description || '',
+                        articles: uniqueIndices.map((idx: number) => articlesToAnalyze[idx])
+                    }
+                }).filter((cluster: ArticleCluster | null) => cluster !== null) as ArticleCluster[]
+
+                // 处理未被分配的文章（如果有）
+                const assignedIndices = new Set(articleToClusterMap.keys())
+                const unassignedArticles: RSSItem[] = []
+                articlesToAnalyze.forEach((article, idx) => {
+                    if (!assignedIndices.has(idx)) {
+                        unassignedArticles.push(article)
+                    }
+                })
+
+                // 如果有未分配的文章，创建一个"其他"分组
+                if (unassignedArticles.length > 0) {
+                    console.log('发现未分配的文章，数量:', unassignedArticles.length)
+                    clusters.push({
+                        id: `cluster-other`,
+                        title: '其他文章',
+                        description: '这些文章暂时无法归类到其他分组中',
+                        articles: unassignedArticles
+                    })
+                }
+
+                // 验证：确保没有重复的文章
+                const allArticleIds = new Set<number>()
+                clusters.forEach(cluster => {
+                    cluster.articles.forEach(article => {
+                        if (allArticleIds.has(article._id)) {
+                            console.error('发现重复的文章:', article._id, article.title)
+                        }
+                        allArticleIds.add(article._id)
+                    })
+                })
+                console.log('验证完成：总文章数', allArticleIds.size, '，期望文章数', articlesToAnalyze.length)
+
+                console.log('最终聚类结果:', clusters.length, '个分组，总文章数:', clusters.reduce((sum, c) => sum + c.articles.length, 0))
+                return clusters
+            } else {
+                throw new Error('API返回格式不正确，未找到choices数组或message内容')
+            }
+        } catch (error: any) {
+            console.error('聚类分析失败:', error)
+            
+            if (error instanceof OpenAI.APIError) {
+                let errorMessage = error.message
+                if (error.status === 404) {
+                    errorMessage = `404错误: 请求的URL不存在\n${error.message}\n\n请检查:\n1. API Endpoint是否正确（完整的URL路径）\n2. 是否需要包含特定的路径（如 /v1/chat/completions）\n3. API服务是否正常运行\n当前请求URL: ${normalizedEndpoint}`
+                }
+                throw new Error(errorMessage)
+            } else if (error instanceof Error) {
+                throw error
+            } else {
+                throw new Error(`聚类分析失败: ${String(error)}`)
+            }
+        }
+    }
+
     // 生成总结
     generateSummary = async (articles: RSSItem[], topic: string): Promise<string> => {
         const { apiEndpoint, apiKey, model } = this.state
@@ -594,13 +850,52 @@ ${articlesText}
             this.setState({ 
                 articleCount: articlesWithValidSources.length, 
                 filteredArticles: articlesWithValidSources,
-                isLoading: false
+                clusters: [],
+                isLoading: false,
+                isClustering: true
             }, () => {
                 if (typeof window !== 'undefined') {
                     const event = new CustomEvent('aiModeUpdated')
                     window.dispatchEvent(event)
                 }
             })
+
+            // 使用LLM对文章进行聚类分析
+            try {
+                console.log('开始调用聚类分析，文章数量:', articlesWithValidSources.length)
+                const clusters = await this.clusterArticles(articlesWithValidSources, currentTopic)
+                console.log('聚类分析完成，聚类数量:', clusters.length, clusters)
+                
+                if (clusters.length === 0) {
+                    console.warn('聚类分析返回空结果')
+                }
+                
+                this.setState({ 
+                    clusters: clusters,
+                    isClustering: false
+                }, () => {
+                    console.log('状态已更新，clusters:', this.state.clusters.length)
+                    if (typeof window !== 'undefined') {
+                        const event = new CustomEvent('aiModeUpdated')
+                        window.dispatchEvent(event)
+                    }
+                })
+            } catch (clusterError) {
+                console.error('聚类分析失败:', clusterError)
+                const errorMsg = clusterError instanceof Error ? clusterError.message : '聚类分析失败，已显示原始文章列表'
+                console.error('错误详情:', errorMsg)
+                // 聚类失败时仍然显示文章列表，但不进行分组
+                this.setState({ 
+                    clusters: [],
+                    isClustering: false,
+                    error: errorMsg
+                }, () => {
+                    if (typeof window !== 'undefined') {
+                        const event = new CustomEvent('aiModeUpdated')
+                        window.dispatchEvent(event)
+                    }
+                })
+            }
         } catch (error) {
             console.error('查询文章失败:', error)
             const errorMessage = error instanceof Error ? error.message : '查询失败，请稍后重试'
@@ -623,7 +918,8 @@ ${articlesText}
             summary: '',
             error: null,
             articleCount: 0,
-            filteredArticles: []
+            filteredArticles: [],
+            clusters: []
         })
     }
 
@@ -642,6 +938,7 @@ ${articlesText}
             topicInput,
             summary, 
             isLoading, 
+            isClustering,
             error, 
             apiEndpoint, 
             apiKey, 
@@ -653,14 +950,17 @@ ${articlesText}
             showErrorDialog, 
             errorDialogMessage,
             articleCount,
-            filteredArticles
+            filteredArticles,
+            clusters
         } = useContext ? {
             ...this.state,
             summary: context.summary !== undefined ? context.summary : this.state.summary,
             filteredArticles: context.filteredArticles !== undefined ? context.filteredArticles : this.state.filteredArticles,
             articleCount: context.articleCount !== undefined ? context.articleCount : this.state.articleCount,
             isLoading: context.isLoading !== undefined ? context.isLoading : this.state.isLoading,
-            error: context.error !== undefined ? context.error : this.state.error
+            isClustering: context.isClustering !== undefined ? context.isClustering : this.state.isClustering,
+            error: context.error !== undefined ? context.error : this.state.error,
+            clusters: context.clusters !== undefined ? context.clusters : this.state.clusters
         } : this.state
         
         const { sources, markRead, contextMenu, showItem, shortcuts } = this.props
@@ -714,15 +1014,140 @@ ${articlesText}
                     </div>
                 </Panel>
 
-                {/* 筛选后的文章列表 */}
-                {filteredArticles.length > 0 && (
+                {/* 聚类分析中的提示 */}
+                {isClustering && filteredArticles.length > 0 && (
+                    <div style={{ 
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        zIndex: 100
+                    }}>
+                        <Spinner label="正在分析文章内容并进行聚类..." />
+                    </div>
+                )}
+
+                {/* 按聚类分组的文章列表 */}
+                {filteredArticles.length > 0 && clusters.length > 0 && !isClustering && (
                     <div 
                         ref={this.summaryContainerRef}
                         className="ai-summary-container has-summary"
                         style={{
                             flex: 1,
                             overflow: 'auto',
-                            padding: '20px',
+                            padding: 'calc(16px + var(--navHeight, 32px)) 20px 20px 20px',  // 顶部间距 = 16px + 导航栏高度
+                            display: 'flex',
+                            flexDirection: 'column',
+                            backgroundColor: 'var(--neutralLighterAlt)',
+                            minHeight: 0,
+                            gap: '20px'
+                        }}
+                    >
+                        <div style={{
+                            backgroundColor: 'var(--white)',
+                            borderRadius: '8px',
+                            padding: '16px 24px',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                        }}>
+                            <h3 style={{
+                                margin: '0',
+                                fontSize: '18px',
+                                fontWeight: 600,
+                                color: 'var(--neutralPrimary)'
+                            }}>
+                                文章聚类结果 ({filteredArticles.length} 篇文章，{clusters.length} 个分组)
+                            </h3>
+                        </div>
+                        
+                        {clusters.map((cluster) => (
+                            <div
+                                key={cluster.id}
+                                style={{
+                                    backgroundColor: 'var(--white)',
+                                    borderRadius: '8px',
+                                    padding: '24px',
+                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '12px'
+                                }}
+                            >
+                                <div style={{
+                                    borderBottom: '1px solid var(--neutralLight)',
+                                    paddingBottom: '12px',
+                                    marginBottom: '8px'
+                                }}>
+                                    <h4 style={{
+                                        margin: '0 0 8px 0',
+                                        fontSize: '16px',
+                                        fontWeight: 600,
+                                        color: 'var(--neutralPrimary)'
+                                    }}>
+                                        {cluster.title}
+                                    </h4>
+                                    {cluster.description && (
+                                        <p style={{
+                                            margin: '0',
+                                            fontSize: '14px',
+                                            color: 'var(--neutralSecondary)',
+                                            lineHeight: '1.5'
+                                        }}>
+                                            {cluster.description}
+                                        </p>
+                                    )}
+                                    <div style={{
+                                        marginTop: '8px',
+                                        fontSize: '12px',
+                                        color: 'var(--neutralTertiary)'
+                                    }}>
+                                        共 {cluster.articles.length} 篇文章
+                                    </div>
+                                </div>
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '8px'
+                                }}>
+                                    {cluster.articles.map((item) => {
+                                        const source = sources[item.source]
+                                        if (!source) return null
+                                        const filter = new FeedFilter()
+                                        return (
+                                            <ListCard
+                                                key={item._id}
+                                                feedId="ai-mode"
+                                                item={item}
+                                                source={source}
+                                                filter={filter}
+                                                viewConfigs={ViewConfigs.ShowSnippet}
+                                                shortcuts={shortcuts}
+                                                markRead={markRead}
+                                                contextMenu={contextMenu}
+                                                showItem={showItem}
+                                            />
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* 如果没有聚类结果，显示原始文章列表 */}
+                {filteredArticles.length > 0 && clusters.length === 0 && !isClustering && (
+                    <div 
+                        ref={this.summaryContainerRef}
+                        className="ai-summary-container has-summary"
+                        style={{
+                            flex: 1,
+                            overflow: 'auto',
+                            padding: 'calc(16px + var(--navHeight, 32px)) 20px 20px 20px',  // 顶部间距 = 16px + 导航栏高度
                             display: 'flex',
                             flexDirection: 'column',
                             backgroundColor: 'var(--neutralLighterAlt)',
