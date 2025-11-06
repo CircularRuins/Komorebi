@@ -92,11 +92,13 @@ type AIModeState = {
     apiKey: string
     model: string
     embeddingModel: string
+    similarityThreshold: number  // 相似度阈值
     showConfigPanel: boolean
     tempApiEndpoint: string
     tempApiKey: string
     tempModel: string
     tempEmbeddingModel: string
+    tempSimilarityThreshold: string  // 临时相似度阈值（字符串，用于输入框）
     showErrorDialog: boolean
     errorDialogMessage: string
     articleCount: number  // 筛选到的文章数量
@@ -119,6 +121,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         const savedKey = localStorage.getItem('ai-api-key') || ''
         const savedModel = localStorage.getItem('ai-model') || ''
         const savedEmbeddingModel = localStorage.getItem('ai-embedding-model') || 'text-embedding-ada-002'
+        const savedSimilarityThreshold = parseFloat(localStorage.getItem('ai-similarity-threshold') || '0.7')
         // 从localStorage加载最近话题
         const savedRecentTopics = localStorage.getItem('ai-recent-topics')
         const recentTopics = savedRecentTopics ? JSON.parse(savedRecentTopics) : []
@@ -137,11 +140,13 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             apiKey: savedKey,
             model: savedModel,
             embeddingModel: savedEmbeddingModel,
+            similarityThreshold: savedSimilarityThreshold,
             showConfigPanel: false,
             tempApiEndpoint: savedEndpoint,
             tempApiKey: savedKey,
             tempModel: savedModel,
             tempEmbeddingModel: savedEmbeddingModel,
+            tempSimilarityThreshold: savedSimilarityThreshold.toString(),
             showErrorDialog: false,
             errorDialogMessage: '',
             articleCount: 0,
@@ -333,44 +338,65 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         this.setState({ tempEmbeddingModel: value })
     }
 
+    handleSimilarityThresholdChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+        const value = newValue || ''
+        this.setState({ tempSimilarityThreshold: value })
+    }
+
     handleConfigConfirm = () => {
-        const { tempApiEndpoint, tempApiKey, tempModel, tempEmbeddingModel } = this.state
+        const { tempApiEndpoint, tempApiKey, tempModel, tempEmbeddingModel, tempSimilarityThreshold } = this.state
+        
+        // 验证相似度阈值
+        const similarityThreshold = parseFloat(tempSimilarityThreshold)
+        if (isNaN(similarityThreshold) || similarityThreshold < 0 || similarityThreshold > 1) {
+            this.setState({
+                showErrorDialog: true,
+                errorDialogMessage: '相似度阈值必须是0到1之间的数字'
+            })
+            return
+        }
+        
         // 保存到localStorage和state
         localStorage.setItem('ai-api-endpoint', tempApiEndpoint)
         localStorage.setItem('ai-api-key', tempApiKey)
         localStorage.setItem('ai-model', tempModel)
         localStorage.setItem('ai-embedding-model', tempEmbeddingModel)
+        localStorage.setItem('ai-similarity-threshold', similarityThreshold.toString())
         console.log('保存embedding模型配置:', tempEmbeddingModel)
+        console.log('保存相似度阈值配置:', similarityThreshold)
         this.setState({
             apiEndpoint: tempApiEndpoint,
             apiKey: tempApiKey,
             model: tempModel,
             embeddingModel: tempEmbeddingModel,
+            similarityThreshold: similarityThreshold,
             showConfigPanel: false
         })
     }
 
     handleConfigCancel = () => {
         // 恢复临时状态为已保存的值
-        const { apiEndpoint, apiKey, model, embeddingModel } = this.state
+        const { apiEndpoint, apiKey, model, embeddingModel, similarityThreshold } = this.state
         this.setState({
             tempApiEndpoint: apiEndpoint,
             tempApiKey: apiKey,
             tempModel: model,
             tempEmbeddingModel: embeddingModel,
+            tempSimilarityThreshold: similarityThreshold.toString(),
             showConfigPanel: false
         })
     }
 
     handleConfigPanelOpen = () => {
         // 打开面板时，初始化临时状态为当前保存的值
-        const { apiEndpoint, apiKey, model, embeddingModel } = this.state
+        const { apiEndpoint, apiKey, model, embeddingModel, similarityThreshold } = this.state
         this.setState({
             showConfigPanel: true,
             tempApiEndpoint: apiEndpoint,
             tempApiKey: apiKey,
             tempModel: model,
-            tempEmbeddingModel: embeddingModel
+            tempEmbeddingModel: embeddingModel,
+            tempSimilarityThreshold: similarityThreshold.toString()
         })
     }
 
@@ -395,6 +421,188 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             { key: '7', text: '1周内' },
             { key: '30', text: '1月内' }
         ]
+    }
+
+    // 获取话题embedding的缓存key
+    getTopicEmbeddingCacheKey = (topic: string, embeddingModel: string): string => {
+        const normalizedTopic = topic.trim().toLowerCase()
+        const normalizedModel = embeddingModel.trim()
+        return `topic-embedding-${normalizedModel}-${normalizedTopic}`
+    }
+
+    // 从缓存加载话题embedding
+    loadTopicEmbeddingFromCache = (topic: string, embeddingModel: string): number[] | null => {
+        try {
+            const cacheKey = this.getTopicEmbeddingCacheKey(topic, embeddingModel)
+            const cached = localStorage.getItem(cacheKey)
+            if (cached) {
+                const embedding = JSON.parse(cached)
+                if (Array.isArray(embedding) && embedding.length > 0) {
+                    console.log('从缓存加载话题embedding，话题:', topic)
+                    return embedding
+                }
+            }
+        } catch (error) {
+            console.warn('加载话题embedding缓存失败:', error)
+        }
+        return null
+    }
+
+    // 保存话题embedding到缓存
+    saveTopicEmbeddingToCache = (topic: string, embeddingModel: string, embedding: number[]): void => {
+        const cacheKey = this.getTopicEmbeddingCacheKey(topic, embeddingModel)
+        try {
+            localStorage.setItem(cacheKey, JSON.stringify(embedding))
+            console.log('保存话题embedding到缓存，话题:', topic)
+            
+            // 限制缓存数量，避免localStorage过大（最多保留100个话题的embedding）
+            this.cleanupTopicEmbeddingCache(embeddingModel, 100)
+        } catch (error) {
+            console.warn('保存话题embedding缓存失败:', error)
+            // 如果localStorage满了，尝试清理一些旧的缓存
+            if (error instanceof DOMException && error.code === 22) {
+                console.log('localStorage已满，尝试清理旧缓存...')
+                this.cleanupTopicEmbeddingCache(embeddingModel, 50)
+                try {
+                    localStorage.setItem(cacheKey, JSON.stringify(embedding))
+                } catch (retryError) {
+                    console.warn('清理后仍无法保存缓存:', retryError)
+                }
+            }
+        }
+    }
+
+    // 清理话题embedding缓存，保留最新的N个
+    cleanupTopicEmbeddingCache = (embeddingModel: string, keepCount: number): void => {
+        try {
+            const prefix = `topic-embedding-${embeddingModel.trim()}-`
+            const keys: string[] = []
+            
+            // 收集所有相关缓存key
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i)
+                if (key && key.startsWith(prefix)) {
+                    keys.push(key)
+                }
+            }
+            
+            // 如果超过限制，删除最旧的（按key排序，删除前面的）
+            if (keys.length > keepCount) {
+                keys.sort() // 按字母顺序排序，删除旧的
+                const toDelete = keys.slice(0, keys.length - keepCount)
+                for (const key of toDelete) {
+                    localStorage.removeItem(key)
+                }
+                console.log(`清理了${toDelete.length}个旧的话题embedding缓存`)
+            }
+        } catch (error) {
+            console.warn('清理话题embedding缓存失败:', error)
+        }
+    }
+
+    // 计算话题的embedding
+    computeTopicEmbedding = async (topic: string): Promise<number[]> => {
+        const { apiEndpoint, apiKey, embeddingModel } = this.state
+
+        // 验证API配置
+        if (!apiEndpoint || !apiEndpoint.trim()) {
+            throw new Error('请先配置API Endpoint（在设置中配置）')
+        }
+        if (!apiKey || !apiKey.trim()) {
+            throw new Error('请先配置API Key（在设置中配置）')
+        }
+        if (!embeddingModel || !embeddingModel.trim()) {
+            throw new Error('请先配置Embedding模型名称（在设置中配置）')
+        }
+
+        const modelToUse = embeddingModel.trim()
+        const trimmedTopic = topic.trim()
+
+        // 先尝试从缓存加载
+        const cachedEmbedding = this.loadTopicEmbeddingFromCache(trimmedTopic, modelToUse)
+        if (cachedEmbedding) {
+            return cachedEmbedding
+        }
+
+        // 缓存中没有，需要计算
+        console.log('计算话题embedding，话题:', trimmedTopic, '模型:', modelToUse)
+
+        // 规范化endpoint URL
+        let normalizedEndpoint = apiEndpoint.trim()
+        if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
+            throw new Error('API Endpoint必须以http://或https://开头')
+        }
+
+        // 提取base URL（用于embedding API）
+        let baseURL = normalizedEndpoint
+        try {
+            const url = new URL(normalizedEndpoint)
+            if (url.pathname.includes('/v1/chat/completions')) {
+                baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
+            } else {
+                baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
+            }
+        } catch (error) {
+            throw new Error(`无效的API Endpoint URL: ${normalizedEndpoint}`)
+        }
+
+        try {
+            const openai = new OpenAI({
+                apiKey: apiKey,
+                baseURL: baseURL,
+                dangerouslyAllowBrowser: true
+            })
+
+            // 调用embedding API
+            const response = await openai.embeddings.create({
+                model: modelToUse,
+                input: trimmedTopic,
+            })
+
+            if (response.data && response.data.length > 0 && response.data[0].embedding) {
+                const embedding = response.data[0].embedding
+                
+                // 保存到缓存
+                this.saveTopicEmbeddingToCache(trimmedTopic, modelToUse, embedding)
+                
+                return embedding
+            } else {
+                throw new Error('API返回的embedding格式不正确')
+            }
+        } catch (error: any) {
+            console.error('计算话题embedding失败:', error)
+            if (error instanceof OpenAI.APIError) {
+                throw new Error(`计算话题embedding失败: ${error.message}`)
+            } else if (error instanceof Error) {
+                throw error
+            } else {
+                throw new Error(`计算话题embedding失败: ${String(error)}`)
+            }
+        }
+    }
+
+    // 计算余弦相似度
+    cosineSimilarity = (vecA: number[], vecB: number[]): number => {
+        if (vecA.length !== vecB.length) {
+            throw new Error('向量维度不匹配')
+        }
+
+        let dotProduct = 0
+        let normA = 0
+        let normB = 0
+
+        for (let i = 0; i < vecA.length; i++) {
+            dotProduct += vecA[i] * vecB[i]
+            normA += vecA[i] * vecA[i]
+            normB += vecB[i] * vecB[i]
+        }
+
+        const denominator = Math.sqrt(normA) * Math.sqrt(normB)
+        if (denominator === 0) {
+            return 0
+        }
+
+        return dotProduct / denominator
     }
 
     // 查询符合条件的文章（根据时间范围和话题筛选）
@@ -427,25 +635,152 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             .select()
             .from(db.items)
             .orderBy(db.items.date, lf.Order.DESC)
-            .limit(1000)  // 增加限制以支持话题筛选（先查询更多，然后在内存中过滤）
+            .limit(1000)  // 先查询更多文章，然后使用向量相似度筛选
 
         const items = query 
             ? await queryBuilder.where(query).exec() as RSSItem[]
             : await queryBuilder.exec() as RSSItem[]
 
-        // 如果有话题，在内存中过滤标题和内容
+        // 如果有话题，使用向量相似度筛选
         if (topic && topic.trim()) {
             const trimmedTopic = topic.trim()
-            const topicRegex = new RegExp(trimmedTopic.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') // 转义特殊字符，不区分大小写
             
-            return items.filter(item => {
-                // 搜索标题、snippet 和 content
-                return (
-                    topicRegex.test(item.title) ||
-                    topicRegex.test(item.snippet || '') ||
-                    topicRegex.test(item.content || '')
-                )
+            // 从localStorage读取最新的相似度阈值（确保使用最新配置）
+            const savedThreshold = localStorage.getItem('ai-similarity-threshold')
+            const similarityThreshold = savedThreshold ? parseFloat(savedThreshold) : (this.state.similarityThreshold || 0.7)
+            
+            console.log('开始使用向量相似度筛选文章，话题:', trimmedTopic, '阈值:', similarityThreshold)
+
+            // 计算话题的embedding
+            let topicEmbedding: number[]
+            try {
+                topicEmbedding = await this.computeTopicEmbedding(trimmedTopic)
+            } catch (error) {
+                console.error('计算话题embedding失败，回退到全文匹配:', error)
+                // 如果计算embedding失败，回退到全文匹配
+                const topicRegex = new RegExp(trimmedTopic.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+                return items.filter(item => {
+                    return (
+                        topicRegex.test(item.title) ||
+                        topicRegex.test(item.snippet || '') ||
+                        topicRegex.test(item.content || '')
+                    )
+                })
+            }
+
+            // 检查哪些文章需要计算embedding
+            // 先从数据库批量重新加载embedding字段，确保获取最新数据
+            const itemIds = items.map(item => item._id)
+            if (itemIds.length > 0) {
+                try {
+                    // 批量查询所有文章的embedding
+                    const dbItems = await db.itemsDB
+                        .select(db.items._id, db.items.embedding)
+                        .from(db.items)
+                        .where(db.items._id.in(itemIds))
+                        .exec() as Array<{ _id: number, embedding?: number[] }>
+                    
+                    // 创建embedding映射
+                    const embeddingMap = new Map<number, number[]>()
+                    for (const dbItem of dbItems) {
+                        if (dbItem.embedding && Array.isArray(dbItem.embedding) && dbItem.embedding.length > 0) {
+                            embeddingMap.set(dbItem._id, dbItem.embedding)
+                        }
+                    }
+                    
+                    // 更新内存中的embedding
+                    let loadedCount = 0
+                    for (const item of items) {
+                        const embedding = embeddingMap.get(item._id)
+                        if (embedding) {
+                            item.embedding = embedding
+                            loadedCount++
+                        }
+                    }
+                    
+                    console.log(`从数据库加载了${loadedCount}篇文章的embedding，共${items.length}篇文章`)
+                } catch (error) {
+                    console.warn('批量加载embedding失败:', error)
+                }
+            }
+
+            // 过滤出还没有embedding的文章
+            const articlesNeedingEmbedding = items.filter(item => {
+                const embedding = item.embedding
+                const hasEmbedding = embedding && Array.isArray(embedding) && embedding.length > 0
+                return !hasEmbedding
             })
+
+            console.log(`总共${items.length}篇文章，其中${items.length - articlesNeedingEmbedding.length}篇已有embedding，${articlesNeedingEmbedding.length}篇需要计算`)
+
+            if (articlesNeedingEmbedding.length > 0) {
+                console.log(`发现${articlesNeedingEmbedding.length}篇文章没有embedding，开始计算...`)
+                try {
+                    await this.computeAndStoreEmbeddings(articlesNeedingEmbedding)
+                    
+                    // 计算完成后，批量重新加载这些文章的embedding
+                    const computedIds = articlesNeedingEmbedding.map(a => a._id)
+                    if (computedIds.length > 0) {
+                        try {
+                            const dbItems = await db.itemsDB
+                                .select(db.items._id, db.items.embedding)
+                                .from(db.items)
+                                .where(db.items._id.in(computedIds))
+                                .exec() as Array<{ _id: number, embedding?: number[] }>
+                            
+                            const embeddingMap = new Map<number, number[]>()
+                            for (const dbItem of dbItems) {
+                                if (dbItem.embedding && Array.isArray(dbItem.embedding) && dbItem.embedding.length > 0) {
+                                    embeddingMap.set(dbItem._id, dbItem.embedding)
+                                }
+                            }
+                            
+                            for (const article of articlesNeedingEmbedding) {
+                                const embedding = embeddingMap.get(article._id)
+                                if (embedding) {
+                                    article.embedding = embedding
+                                }
+                            }
+                            
+                            console.log(`重新加载了${embeddingMap.size}篇新计算的文章的embedding`)
+                        } catch (error) {
+                            console.warn('重新加载embedding失败:', error)
+                        }
+                    }
+                } catch (error) {
+                    console.error('计算文章embedding失败:', error)
+                    // 继续执行，只使用已有embedding的文章
+                }
+            }
+
+            // 计算每篇文章与话题的相似度
+            const articlesWithSimilarity: Array<{ article: RSSItem, similarity: number }> = []
+            
+            for (const item of items) {
+                if (item.embedding && Array.isArray(item.embedding) && item.embedding.length > 0) {
+                    try {
+                        const similarity = this.cosineSimilarity(topicEmbedding, item.embedding)
+                        if (similarity >= similarityThreshold) {
+                            articlesWithSimilarity.push({ article: item, similarity })
+                        }
+                    } catch (error) {
+                        console.warn(`计算文章 ${item._id} 的相似度失败:`, error)
+                    }
+                }
+            }
+
+            // 按相似度降序排序
+            articlesWithSimilarity.sort((a, b) => b.similarity - a.similarity)
+
+            // 选择相似度最高的100篇（如果没有100篇就全选）
+            const maxArticles = 100
+            const selectedArticles = articlesWithSimilarity
+                .slice(0, maxArticles)
+                .map(item => item.article)
+
+            console.log(`向量相似度筛选完成: 找到${articlesWithSimilarity.length}篇相似度>=${similarityThreshold}的文章，选择了前${selectedArticles.length}篇`)
+
+            return selectedArticles
         }
 
         return items
@@ -511,14 +846,6 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                 dangerouslyAllowBrowser: true
             })
 
-            // 批量计算embedding（OpenAI API支持批量）
-            const texts = articlesNeedingEmbedding.map(article => {
-                // 拼接标题和摘要
-                const title = article.title || ''
-                const snippet = article.snippet || ''
-                return `${title}\n${snippet}`.trim()
-            })
-
             // 验证embedding模型配置
             if (!embeddingModel || !embeddingModel.trim()) {
                 console.warn('Embedding模型未配置，跳过embedding计算')
@@ -526,30 +853,46 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             }
 
             const modelToUse = embeddingModel.trim()
-            console.log('使用embedding模型:', modelToUse, '文章数量:', texts.length)
-
-            // 调用embedding API
-            const response = await openai.embeddings.create({
-                model: modelToUse, // 使用配置的embedding模型
-                input: texts,
-            })
-
-            // 存储embedding到数据库
-            const embeddings = response.data.map(item => item.embedding)
+            const batchSize = 10  // API限制：每批最多10篇
             
-            for (let i = 0; i < articlesNeedingEmbedding.length; i++) {
-                const article = articlesNeedingEmbedding[i]
-                const embedding = embeddings[i]
+            // 将文章分批处理
+            for (let batchStart = 0; batchStart < articlesNeedingEmbedding.length; batchStart += batchSize) {
+                const batchEnd = Math.min(batchStart + batchSize, articlesNeedingEmbedding.length)
+                const batch = articlesNeedingEmbedding.slice(batchStart, batchEnd)
                 
-                // 更新数据库
-                await db.itemsDB
-                    .update(db.items)
-                    .where(db.items._id.eq(article._id))
-                    .set(db.items.embedding, embedding)
-                    .exec()
+                // 准备当前批次的文本
+                const texts = batch.map(article => {
+                    // 拼接标题和摘要
+                    const title = article.title || ''
+                    const snippet = article.snippet || ''
+                    return `${title}\n${snippet}`.trim()
+                })
+
+                console.log(`处理第 ${Math.floor(batchStart / batchSize) + 1} 批，共 ${batch.length} 篇文章`)
+
+                // 调用embedding API
+                const response = await openai.embeddings.create({
+                    model: modelToUse,
+                    input: texts,
+                })
+
+                // 存储embedding到数据库
+                const embeddings = response.data.map(item => item.embedding)
                 
-                // 更新内存中的对象
-                article.embedding = embedding
+                for (let i = 0; i < batch.length; i++) {
+                    const article = batch[i]
+                    const embedding = embeddings[i]
+                    
+                    // 更新数据库
+                    await db.itemsDB
+                        .update(db.items)
+                        .where(db.items._id.eq(article._id))
+                        .set(db.items.embedding, embedding)
+                        .exec()
+                    
+                    // 更新内存中的对象
+                    article.embedding = embedding
+                }
             }
 
             console.log(`成功计算并存储了${articlesNeedingEmbedding.length}篇文章的embedding`)
@@ -947,6 +1290,10 @@ ${articlesText}
             const currentTopic = trimmedTopic || this.state.topic || null
 
             // 查询文章（根据时间范围和话题）
+            // queryArticles内部已经处理了：
+            // 1. 先通过时间范围筛选文章
+            // 2. 如果有话题，只对时间范围内的文章计算embedding（如果还没有的话）
+            // 3. 然后进行向量相似度筛选
             const articles = await this.queryArticles(timeRangeDays, currentTopic)
             
             if (articles.length === 0) {
@@ -961,14 +1308,6 @@ ${articlesText}
                     }
                 })
                 return
-            }
-
-            // 计算并存储文章的embedding（如果还没有计算过）
-            try {
-                await this.computeAndStoreEmbeddings(articles)
-            } catch (embeddingError) {
-                console.error('计算embedding时出错:', embeddingError)
-                // 不阻止主流程，继续执行
             }
 
             // 将文章添加到 Redux store，确保可以点击查看
@@ -1096,6 +1435,7 @@ ${articlesText}
             tempApiKey, 
             tempModel,
             tempEmbeddingModel,
+            tempSimilarityThreshold,
             showErrorDialog, 
             errorDialogMessage,
             articleCount,
@@ -1156,6 +1496,18 @@ ${articlesText}
                             onChange={this.handleEmbeddingModelChange}
                             placeholder="text-embedding-ada-002"
                             description="用于计算文章embedding的模型名称，例如：text-embedding-ada-002, text-embedding-3-small 等"
+                            styles={{ root: { marginBottom: '20px' } }}
+                        />
+                        <TextField
+                            label="相似度阈值"
+                            value={tempSimilarityThreshold}
+                            onChange={this.handleSimilarityThresholdChange}
+                            placeholder="0.7"
+                            description="话题筛选的相似度阈值，范围0-1。值越高，筛选出的文章与话题越相关。建议值：0.6-0.8"
+                            type="number"
+                            min={0}
+                            max={1}
+                            step={0.01}
                             styles={{ root: { marginBottom: '20px' } }}
                         />
                         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
@@ -1408,7 +1760,7 @@ ${articlesText}
                         width: 'calc(100% - 40px)',
                         margin: '0 auto'
                     }}>
-                        <Icon iconName="Sparkle" style={{ fontSize: 64, color: 'var(--neutralTertiary)' }} />
+                        <Icon iconName="Robot" style={{ fontSize: 64, color: 'var(--neutralTertiary)' }} />
                         <p style={{ fontSize: '18px', fontWeight: 600, color: 'var(--neutralPrimary)' }}>
                             AI总结助手
                         </p>

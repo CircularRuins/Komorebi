@@ -307,7 +307,10 @@ const markUnreadDone = (item: RSSItem): ItemActionTypes => ({
 
 export function markRead(item: RSSItem): AppThunk {
     return (dispatch, getState) => {
-        item = getState().items[item._id]
+        // 尝试从 store 获取最新的 item，如果不存在则使用传入的 item
+        const stateItem = getState().items[item._id]
+        item = stateItem || item
+        
         if (!item.hasRead) {
             db.itemsDB
                 .update(db.items)
@@ -373,7 +376,10 @@ export function markAllRead(
 
 export function markUnread(item: RSSItem): AppThunk {
     return (dispatch, getState) => {
-        item = getState().items[item._id]
+        // 尝试从 store 获取最新的 item，如果不存在则使用传入的 item
+        const stateItem = getState().items[item._id]
+        item = stateItem || item
+        
         if (item.hasRead) {
             db.itemsDB
                 .update(db.items)

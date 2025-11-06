@@ -9,8 +9,9 @@ import {
     INIT_FEED,
 } from "./feed"
 import { getWindowBreakpoint, AppThunk, ActionStatus } from "../utils"
-import { RSSItem, markRead } from "./item"
-import { SourceActionTypes, DELETE_SOURCE } from "./source"
+import { RSSItem, markRead, fetchItemsSuccess } from "./item"
+import { SourceActionTypes, DELETE_SOURCE, updateSourceDone, RSSSource } from "./source"
+import * as db from "../db"
 import { toggleMenu } from "./app"
 import { ViewType, ViewConfigs } from "../../schema-types"
 
@@ -142,11 +143,11 @@ export function setViewConfigs(configs: ViewConfigs): AppThunk {
     }
 }
 
-export function showItem(feedId: string, item: RSSItem): AppThunk {
-    return (dispatch, getState) => {
+export function showItem(feedId: string, item: RSSItem): AppThunk<Promise<void>> {
+    return async (dispatch, getState) => {
         const state = getState()
-        const hasItem = state.items.hasOwnProperty(item._id)
-        const hasSource = state.sources.hasOwnProperty(item.source)
+        let hasItem = state.items.hasOwnProperty(item._id)
+        let hasSource = state.sources.hasOwnProperty(item.source)
         
         // 调试日志
         if (feedId === "ai-mode") {
@@ -159,6 +160,48 @@ export function showItem(feedId: string, item: RSSItem): AppThunk {
                 itemKeys: Object.keys(state.items).slice(0, 5),
                 sourceKeys: Object.keys(state.sources).slice(0, 5)
             })
+        }
+        
+        // 如果是AI模式且source不在store中，从数据库加载
+        if (feedId === "ai-mode" && !hasSource) {
+            console.log('AI模式：source不在store中，从数据库加载，sourceId:', item.source)
+            try {
+                // 等待数据库初始化
+                let retries = 0
+                while ((!db.sourcesDB || !db.sources) && retries < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100))
+                    retries++
+                }
+                
+                if (db.sourcesDB && db.sources) {
+                    const sources = await db.sourcesDB
+                        .select()
+                        .from(db.sources)
+                        .where(db.sources.sid.eq(item.source))
+                        .exec() as RSSSource[]
+                    
+                    if (sources && sources.length > 0) {
+                        const source = sources[0]
+                        source.unreadCount = 0  // 初始化未读数
+                        // 添加到store
+                        dispatch(updateSourceDone(source))
+                        hasSource = true
+                        console.log('AI模式：成功加载source到store，sourceId:', source.sid)
+                    } else {
+                        console.warn('AI模式：数据库中找不到source，sourceId:', item.source)
+                    }
+                }
+            } catch (error) {
+                console.error('AI模式：加载source失败:', error)
+            }
+        }
+        
+        // 如果是AI模式且item不在store中，临时添加到store
+        if (feedId === "ai-mode" && !hasItem && hasSource) {
+            console.log('AI模式：临时添加item到store，itemId:', item._id)
+            // 使用fetchItemsSuccess来添加item到store
+            dispatch(fetchItemsSuccess([item], { ...state.items, [item._id]: item }))
+            hasItem = true
         }
         
         if (hasItem && hasSource) {
