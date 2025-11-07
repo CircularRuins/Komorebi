@@ -31,7 +31,7 @@ type SourcesTabProps = {
     addSource: (url: string) => Promise<number>
     updateSourceName: (source: RSSSource, name: string) => void
     updateSourceIcon: (source: RSSSource, iconUrl: string) => Promise<void>
-    updateFetchFrequency: (source: RSSSource, frequency: number) => void
+    clearSourceIcon: (source: RSSSource) => void
     deleteSource: (source: RSSSource) => void
     deleteSources: (sources: RSSSource[]) => void
     importOPML: () => void
@@ -106,7 +106,16 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             minWidth: 16,
             maxWidth: 16,
             onRender: (s: RSSSource) =>
-                s.iconurl && <img src={s.iconurl} className="favicon" />,
+                s.iconurl && (
+                    <img
+                        src={s.iconurl}
+                        className="favicon"
+                        onError={() => {
+                            // 图标加载失败时，清除iconurl
+                            this.props.clearSourceIcon(s)
+                        }}
+                    />
+                ),
         },
         {
             key: "name",
@@ -135,28 +144,6 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         this.setState({ sourceEditOption: option.key as string })
     }
 
-    fetchFrequencyOptions = (): IDropdownOption[] => [
-        { key: "0", text: intl.get("sources.unlimited") },
-        { key: "15", text: intl.get("time.minute", { m: 15 }) },
-        { key: "30", text: intl.get("time.minute", { m: 30 }) },
-        { key: "60", text: intl.get("time.hour", { h: 1 }) },
-        { key: "120", text: intl.get("time.hour", { h: 2 }) },
-        { key: "180", text: intl.get("time.hour", { h: 3 }) },
-        { key: "360", text: intl.get("time.hour", { h: 6 }) },
-        { key: "720", text: intl.get("time.hour", { h: 12 }) },
-        { key: "1440", text: intl.get("time.day", { d: 1 }) },
-    ]
-
-    onFetchFrequencyChange = (_, option: IDropdownOption) => {
-        let frequency = parseInt(option.key as string)
-        this.props.updateFetchFrequency(this.state.selectedSource, frequency)
-        this.setState({
-            selectedSource: {
-                ...this.state.selectedSource,
-                fetchFrequency: frequency,
-            } as RSSSource,
-        })
-    }
 
 
     updateSourceName = () => {
@@ -460,29 +447,6 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                             </>
                         )}
                     </Stack>
-                    {!this.state.selectedSource.serviceRef && (
-                        <>
-                            <Label>{intl.get("sources.fetchFrequency")}</Label>
-                            <Stack>
-                                <Stack.Item>
-                                    <Dropdown
-                                        options={this.fetchFrequencyOptions()}
-                                        selectedKey={
-                                            this.state.selectedSource
-                                                .fetchFrequency
-                                                ? String(
-                                                      this.state.selectedSource
-                                                          .fetchFrequency
-                                                  )
-                                                : "0"
-                                        }
-                                        onChange={this.onFetchFrequencyChange}
-                                        style={{ width: 200 }}
-                                    />
-                                </Stack.Item>
-                            </Stack>
-                        </>
-                    )}
                     {!this.state.selectedSource.serviceRef && (
                         <Stack horizontal>
                             <Stack.Item>

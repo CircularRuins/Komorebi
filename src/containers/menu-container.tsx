@@ -13,11 +13,12 @@ import {
 import { SourceGroup } from "../schema-types"
 import {
     selectAllArticles,
+    selectAllArticlesTotal,
     selectSources,
 } from "../scripts/models/page"
 import { ViewType } from "../schema-types"
 import { initFeeds } from "../scripts/models/feed"
-import { RSSSource } from "../scripts/models/source"
+import { RSSSource, updateSource } from "../scripts/models/source"
 
 const getApp = (state: RootState) => state.app
 const getSources = (state: RootState) => state.sources
@@ -42,6 +43,9 @@ const mapStateToProps = createSelector(
 const mapDispatchToProps = dispatch => ({
     allArticles: (init = false) => {
         dispatch(selectAllArticles(init)), dispatch(initFeeds())
+    },
+    allArticlesTotal: (init = false) => {
+        dispatch(selectAllArticlesTotal(init)), dispatch(initFeeds())
     },
     selectSourceGroup: (group: SourceGroup, menuKey: string) => {
         dispatch(selectSources(group.sids, menuKey, ""))
@@ -70,6 +74,9 @@ const mapDispatchToProps = dispatch => ({
     removeSourceFromGroup: (groupIndex: number, sids: number[]) => dispatch(removeSourceFromGroup(groupIndex, sids)),
     updateSourceGroup: (group: SourceGroup) => dispatch(updateSourceGroup(group)),
     reorderSourceGroups: (groups: SourceGroup[]) => dispatch(reorderSourceGroups(groups)),
+    clearSourceIcon: (source: RSSSource) => {
+        dispatch(updateSource({ ...source, iconurl: "" }))
+    },
 })
 
 const MenuContainer = connect(mapStateToProps, mapDispatchToProps)(Menu)

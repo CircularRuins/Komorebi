@@ -47,9 +47,7 @@ export class WindowManager {
                 backgroundColor:
                     process.platform === "darwin"
                         ? "#00000000"
-                        : nativeTheme.shouldUseDarkColors
-                        ? "#282828"
-                        : "#faf9f8",
+                        : "#282828",
                 vibrancy: "sidebar",
                 x: this.mainWindowState.x,
                 y: this.mainWindowState.y,

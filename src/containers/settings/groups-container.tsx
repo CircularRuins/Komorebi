@@ -10,9 +10,11 @@ import {
     removeSourceFromGroup,
     reorderSourceGroups,
 } from "../../scripts/models/group"
+import { updateSource } from "../../scripts/models/source"
 import { SourceGroup, SyncService } from "../../schema-types"
 import { importGroups } from "../../scripts/models/service"
 import { AppDispatch } from "../../scripts/utils"
+import { RSSSource } from "../../scripts/models/source"
 
 const getSources = (state: RootState) => state.sources
 const getGroups = (state: RootState) => state.groups
@@ -41,6 +43,9 @@ const mapDispatchToProps = (dispatch: AppDispatch) => ({
     reorderGroups: (groups: SourceGroup[]) =>
         dispatch(reorderSourceGroups(groups)),
     importGroups: () => dispatch(importGroups()),
+    clearSourceIcon: (source: RSSSource) => {
+        dispatch(updateSource({ ...source, iconurl: "" }))
+    },
 })
 
 const GroupsTabContainer = connect(

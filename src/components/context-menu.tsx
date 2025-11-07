@@ -19,7 +19,6 @@ import {
     markRead,
     markUnread,
     RSSItem,
-    toggleHidden,
     toggleStarred,
 } from "../scripts/models/item"
 import { deleteSource, deleteSources, RSSSource } from "../scripts/models/source"
@@ -158,18 +157,6 @@ function ItemContextMenu() {
             },
             onClick: () => {
                 dispatch(toggleStarred(item))
-            },
-        },
-        {
-            key: "toggleHidden",
-            text: item.hidden
-                ? intl.get("article.unhide")
-                : intl.get("article.hide"),
-            iconProps: {
-                iconName: item.hidden ? "View" : "Hide3",
-            },
-            onClick: () => {
-                dispatch(toggleHidden(item))
             },
         },
         {

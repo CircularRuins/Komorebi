@@ -31,7 +31,6 @@ type ArticleProps = {
     offsetItem: (offset: number) => void
     toggleHasRead: (item: RSSItem) => void
     toggleStarred: (item: RSSItem) => void
-    toggleHidden: (item: RSSItem) => void
     textMenu: (position: [number, number], text: string, url: string) => void
     imageMenu: (position: [number, number]) => void
     dismissContextMenu: () => void
@@ -39,6 +38,7 @@ type ArticleProps = {
         source: RSSSource,
         direction: SourceTextDirection
     ) => void
+    clearSourceIcon: (source: RSSSource) => void
 }
 
 type ArticleState = {
@@ -185,18 +185,6 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 },
             },
             {
-                key: "toggleHidden",
-                text: this.props.item.hidden
-                    ? intl.get("article.unhide")
-                    : intl.get("article.hide"),
-                iconProps: {
-                    iconName: this.props.item.hidden ? "View" : "Hide3",
-                },
-                onClick: () => {
-                    this.props.toggleHidden(this.props.item)
-                },
-            },
-            {
                 key: "fontMenu",
                 text: intl.get("article.font"),
                 iconProps: { iconName: "Font" },
@@ -251,10 +239,6 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 case "w":
                 case "W":
                     this.toggleFull()
-                    break
-                case "H":
-                case "h":
-                    if (!input.meta) this.props.toggleHidden(this.props.item)
                     break
                 default:
                     const keyboardEvent = new KeyboardEvent("keydown", {
@@ -427,6 +411,10 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                                     <img
                                         className="favicon"
                                         src={this.props.source.iconurl}
+                                        onError={() => {
+                                            // 图标加载失败时，清除iconurl
+                                            this.props.clearSourceIcon(this.props.source)
+                                        }}
                                     />
                                 )
                             ) : (

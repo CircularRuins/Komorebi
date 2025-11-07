@@ -6,10 +6,8 @@ import {
     calculateItemSize,
     getSearchEngineName,
 } from "../../scripts/utils"
-import { ThemeSettings, SearchEngines } from "../../schema-types"
+import { SearchEngines } from "../../schema-types"
 import {
-    getThemeSettings,
-    setThemeSettings,
     exportAll,
 } from "../../scripts/settings"
 import {
@@ -18,8 +16,6 @@ import {
     Toggle,
     TextField,
     DefaultButton,
-    ChoiceGroup,
-    IChoiceGroupOption,
     Dropdown,
     IDropdownOption,
     PrimaryButton,
@@ -36,7 +32,6 @@ type AppTabProps = {
 type AppTabState = {
     pacStatus: boolean
     pacUrl: string
-    themeSettings: ThemeSettings
     itemSize: string
     cacheSize: string
     deleteIndex: string
@@ -48,7 +43,6 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
         this.state = {
             pacStatus: window.settings.getProxyStatus(),
             pacUrl: window.settings.getProxy(),
-            themeSettings: getThemeSettings(),
             itemSize: null,
             cacheSize: null,
             deleteIndex: null,
@@ -62,10 +56,29 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
             this.setState({ cacheSize: byteToMB(size) })
         })
     }
-    getItemSize = () => {
-        calculateItemSize().then(size => {
-            this.setState({ itemSize: byteToMB(size) })
-        })
+    getItemSize = async () => {
+        // 如果数据库还没初始化，等待一下再重试
+        const db = await import("../../scripts/db")
+        if (!db.itemsDB || !db.items) {
+            console.log("等待数据库初始化...")
+            // 等待最多5秒
+            for (let i = 0; i < 50; i++) {
+                await new Promise(resolve => setTimeout(resolve, 100))
+                if (db.itemsDB && db.items) {
+                    break
+                }
+            }
+        }
+        
+        calculateItemSize()
+            .then(size => {
+                console.log("计算完成，大小:", size, "MB:", byteToMB(size))
+                this.setState({ itemSize: byteToMB(size) })
+            })
+            .catch(error => {
+                console.error("获取文章大小失败:", error)
+                this.setState({ itemSize: "0MB" })
+            })
     }
 
     clearCache = () => {
@@ -73,12 +86,6 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
             this.getCacheSize()
         })
     }
-
-    themeChoices = (): IChoiceGroupOption[] => [
-        { key: ThemeSettings.Default, text: intl.get("followSystem") },
-        { key: ThemeSettings.Light, text: intl.get("app.lightTheme") },
-        { key: ThemeSettings.Dark, text: intl.get("app.darkTheme") },
-    ]
 
     fetchIntervalOptions = (): IDropdownOption[] => [
         { key: 0, text: intl.get("app.never") },
@@ -168,11 +175,6 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
             window.settings.setProxy(this.state.pacUrl)
     }
 
-    onThemeChange = (_, option: IChoiceGroupOption) => {
-        setThemeSettings(option.key as ThemeSettings)
-        this.setState({ themeSettings: option.key as ThemeSettings })
-    }
-
     render = () => (
         <div className="tab-body">
             <Label>{intl.get("app.language")}</Label>
@@ -189,12 +191,6 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
                 </Stack.Item>
             </Stack>
 
-            <ChoiceGroup
-                label={intl.get("app.theme")}
-                options={this.themeChoices()}
-                onChange={this.onThemeChange}
-                selectedKey={this.state.themeSettings}
-            />
 
             <Label>{intl.get("app.fetchInterval")}</Label>
             <Stack horizontal>

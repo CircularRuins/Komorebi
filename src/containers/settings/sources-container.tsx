@@ -41,17 +41,14 @@ const mapDispatchToProps = (dispatch: AppDispatch) => {
             if (await validateFavicon(iconUrl)) {
                 dispatch(updateSource({ ...source, iconurl: iconUrl }))
             } else {
+                // 图标无效时，设置为空字符串
+                dispatch(updateSource({ ...source, iconurl: "" }))
                 window.utils.showErrorBox(intl.get("sources.badIcon"), "")
             }
             dispatch(saveSettings())
         },
-        updateFetchFrequency: (source: RSSSource, frequency: number) => {
-            dispatch(
-                updateSource({
-                    ...source,
-                    fetchFrequency: frequency,
-                } as RSSSource)
-            )
+        clearSourceIcon: (source: RSSSource) => {
+            dispatch(updateSource({ ...source, iconurl: "" }))
         },
         deleteSource: (source: RSSSource) => dispatch(deleteSource(source)),
         deleteSources: (sources: RSSSource[]) =>

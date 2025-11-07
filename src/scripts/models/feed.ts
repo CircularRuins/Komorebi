@@ -56,8 +56,7 @@ export class FeedFilter {
             predicates.push(db.items.hasRead.eq(false))
         if (!(type & FilterType.ShowNotStarred))
             predicates.push(db.items.starred.eq(true))
-        if (!(type & FilterType.ShowHidden))
-            predicates.push(db.items.hidden.eq(false))
+        // 隐藏功能已移除，不再过滤隐藏的文章
         if (filter.search !== "") {
             const flags = type & FilterType.CaseInsensitive ? "i" : ""
             const regex = RegExp(filter.search, flags)
@@ -86,7 +85,7 @@ export class FeedFilter {
         let flag = true
         if (!(type & FilterType.ShowRead)) flag = flag && !item.hasRead
         if (!(type & FilterType.ShowNotStarred)) flag = flag && item.starred
-        if (!(type & FilterType.ShowHidden)) flag = flag && !item.hidden
+        // 隐藏功能已移除，不再过滤隐藏的文章
         if (filter.search !== "") {
             const flags = type & FilterType.CaseInsensitive ? "i" : ""
             const regex = RegExp(filter.search, flags)
@@ -110,6 +109,7 @@ export class FeedFilter {
 }
 
 export const ALL = "ALL"
+export const ALL_TOTAL = "ALL_TOTAL"
 export const SOURCE = "SOURCE"
 
 const LOAD_QUANTITY = 50
@@ -328,13 +328,19 @@ export function feedReducer(
         case INIT_SOURCES:
             switch (action.status) {
                 case ActionStatus.Success:
+                    const visibleSids = Object.values(action.sources)
+                        .filter(s => !s.hidden)
+                        .map(s => s.sid)
                     return {
                         ...state,
                         [ALL]: new RSSFeed(
                             ALL,
-                            Object.values(action.sources)
-                                .filter(s => !s.hidden)
-                                .map(s => s.sid)
+                            visibleSids
+                        ),
+                        [ALL_TOTAL]: new RSSFeed(
+                            ALL_TOTAL,
+                            visibleSids,
+                            new FeedFilter(FilterType.StarredOnly | FilterType.CaseInsensitive)
                         ),
                     }
                 default:
@@ -344,12 +350,22 @@ export function feedReducer(
         case UNHIDE_SOURCE:
             switch (action.status) {
                 case ActionStatus.Success:
+                    const allSids = [...state[ALL].sids, action.source.sid]
                     return {
                         ...state,
                         [ALL]: new RSSFeed(
                             ALL,
-                            [...state[ALL].sids, action.source.sid],
+                            allSids,
                             state[ALL].filter
+                        ),
+                        [ALL_TOTAL]: state[ALL_TOTAL] ? new RSSFeed(
+                            ALL_TOTAL,
+                            [...state[ALL_TOTAL].sids, action.source.sid],
+                            state[ALL_TOTAL].filter
+                        ) : new RSSFeed(
+                            ALL_TOTAL,
+                            allSids,
+                            new FeedFilter(FilterType.StarredOnly | FilterType.CaseInsensitive)
                         ),
                     }
                 default:
@@ -370,9 +386,22 @@ export function feedReducer(
         case APPLY_FILTER: {
             let nextState = {}
             for (let [id, feed] of Object.entries(state)) {
-                nextState[id] = {
-                    ...feed,
-                    filter: action.filter,
+                if (id === ALL_TOTAL) {
+                    // 对于 ALL_TOTAL，确保 filter 始终包含 StarredOnly，同时保留其他设置
+                    const mergedFilter = new FeedFilter(
+                        (action.filter.type & ~FilterType.ShowNotStarred) | FilterType.StarredOnly | FilterType.CaseInsensitive,
+                        action.filter.search,
+                        action.filter.timeRange
+                    )
+                    nextState[id] = {
+                        ...feed,
+                        filter: mergedFilter,
+                    }
+                } else {
+                    nextState[id] = {
+                        ...feed,
+                        filter: action.filter,
+                    }
                 }
             }
             return nextState
@@ -508,6 +537,29 @@ export function feedReducer(
                               },
                           }
                         : state
+                case PageType.AllArticlesTotal:
+                    if (action.init) {
+                        const allTotalFeed = state[ALL_TOTAL] || new RSSFeed(
+                            ALL_TOTAL,
+                            state[ALL]?.sids || [],
+                            new FeedFilter(FilterType.StarredOnly | FilterType.CaseInsensitive)
+                        )
+                        // 确保 filter 始终包含 StarredOnly，同时保留其他设置（搜索、时间范围等）
+                        const mergedFilter = new FeedFilter(
+                            (action.filter.type & ~FilterType.ShowNotStarred) | FilterType.StarredOnly | FilterType.CaseInsensitive,
+                            action.filter.search,
+                            action.filter.timeRange
+                        )
+                        return {
+                            ...state,
+                            [ALL_TOTAL]: {
+                                ...allTotalFeed,
+                                loaded: false,
+                                filter: mergedFilter,
+                            },
+                        }
+                    }
+                    return state
                 default:
                     return state
             }

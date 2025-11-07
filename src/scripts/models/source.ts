@@ -3,6 +3,7 @@ import * as db from "../db"
 import lf from "lovefield"
 import {
     fetchFavicon,
+    validateFavicon,
     ActionStatus,
     AppThunk,
     parseRSS,
@@ -43,7 +44,6 @@ export class RSSSource {
     unreadCount: number
     lastFetched: Date
     serviceRef?: string
-    fetchFrequency: number // in minutes
     rules?: SourceRule[]
     textDir: SourceTextDirection
     hidden: boolean
@@ -53,7 +53,6 @@ export class RSSSource {
         this.name = name
         this.openTarget = SourceOpenTarget.Local
         this.lastFetched = new Date()
-        this.fetchFrequency = 0
         this.textDir = SourceTextDirection.LTR
         this.hidden = false
     }
@@ -63,6 +62,36 @@ export class RSSSource {
         if (!source.name) {
             if (feed.title) source.name = feed.title.trim()
             source.name = source.name || intl.get("sources.untitled")
+        }
+        // 从RSS feed XML中提取图标
+        if (!source.iconurl) {
+            let iconUrl: string | null = null
+            // RSS 2.0: <image><url>
+            if (feed.image?.url) {
+                iconUrl = feed.image.url
+            }
+            // Atom: <logo> 或 <icon>
+            else if (feed.logo) {
+                iconUrl = feed.logo
+            }
+            else if (feed.icon) {
+                iconUrl = feed.icon
+            }
+            // iTunes播客: <itunes:image>
+            else if (feed.itunesImage?.href) {
+                iconUrl = feed.itunesImage.href
+            }
+            else if (typeof feed.itunesImage === "string") {
+                iconUrl = feed.itunesImage
+            }
+            // 验证图标URL是否有效
+            if (iconUrl) {
+                if (await validateFavicon(iconUrl)) {
+                    source.iconurl = iconUrl
+                } else {
+                    source.iconurl = ""
+                }
+            }
         }
         return feed
     }
@@ -210,6 +239,24 @@ async function unreadCount(sources: SourceState): Promise<SourceState> {
     return sources
 }
 
+export async function getStarredCount(sids: number[]): Promise<number> {
+    if (sids.length === 0) return 0
+    // 完全模仿 unreadCount 的实现，查询已收藏（starred）的文章
+    const rows = await db.itemsDB
+        .select(db.items.source, lf.fn.count(db.items._id))
+        .from(db.items)
+        .where(db.items.starred.eq(true))
+        .groupBy(db.items.source)
+        .exec()
+    let total = 0
+    for (let row of rows) {
+        if (sids.includes(row["source"])) {
+            total += row["COUNT(_id)"] || 0
+        }
+    }
+    return total
+}
+
 export function updateUnreadCounts(): AppThunk<Promise<void>> {
     return async (dispatch, getState) => {
         const sources: SourceState = {}
@@ -312,9 +359,15 @@ export function addSource(
                 const feed = await RSSSource.fetchMetaData(source)
                 const inserted = await dispatch(insertSource(source))
                 inserted.unreadCount = feed.items.length
+                // 如果feed中没有图标，再从网站HTML中获取
+                if (!inserted.iconurl) {
+                    dispatch(updateFavicon([inserted.sid]))
+                } else {
+                    // 如果从XML中获取到了图标，需要更新数据库
+                    await dispatch(updateSource(inserted))
+                }
                 dispatch(addSourceSuccess(inserted, batch))
                 window.settings.saveGroups(getState().groups)
-                dispatch(updateFavicon([inserted.sid]))
                 const items = await RSSSource.checkItems(inserted, feed.items)
                 await insertItems(items)
                 return inserted.sid
@@ -427,14 +480,15 @@ export function updateFavicon(
         }
         const promises = sids.map(async sid => {
             const url = initSources[sid].url
-            let favicon = (await fetchFavicon(url)) || ""
+            let favicon = await fetchFavicon(url)
             const source = getState().sources[sid]
             if (
                 source &&
                 source.url === url &&
                 (force || source.iconurl === undefined)
             ) {
-                source.iconurl = favicon
+                // 如果获取失败，设置为空字符串而不是undefined
+                source.iconurl = favicon || ""
                 await dispatch(updateSource(source))
             }
         })

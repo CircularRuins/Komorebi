@@ -4,7 +4,6 @@ import { RSSItem } from "./item"
 export const enum ItemAction {
     Read = "r",
     Star = "s",
-    Hide = "h",
     Notify = "n",
 }
 
@@ -36,9 +35,6 @@ const actionTransform: ActionTransformType = {
     [ItemAction.Star]: (i, f) => {
         i.starred = f
     },
-    [ItemAction.Hide]: (i, f) => {
-        i.hidden = f
-    },
     [ItemAction.Notify]: (i, f) => {
         i.notify = f
     },
@@ -64,7 +60,11 @@ export class SourceRule {
         let result = FeedFilter.testItem(rule.filter, item)
         if (result === rule.match) {
             for (let [action, flag] of Object.entries(rule.actions)) {
-                actionTransform[action](item, flag)
+                // 忽略已移除的Hide action（兼容旧规则）
+                if (action === "h") continue
+                if (actionTransform[action]) {
+                    actionTransform[action](item, flag)
+                }
             }
         }
     }

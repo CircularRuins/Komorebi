@@ -19,7 +19,7 @@ let restarting = false
 
 function init() {
     performUpdate(store)
-    nativeTheme.themeSource = store.get("theme", ThemeSettings.Default)
+    nativeTheme.themeSource = ThemeSettings.Dark
 }
 
 init()
@@ -128,7 +128,7 @@ ipcMain.handle("import-all-settings", (_, configs: SchemaTypes) => {
         store.set(key, value)
     }
     performUpdate(store)
-    nativeTheme.themeSource = store.get("theme", ThemeSettings.Default)
+    nativeTheme.themeSource = ThemeSettings.Dark
     setTimeout(
         () => {
             winManager.mainWindow.close()

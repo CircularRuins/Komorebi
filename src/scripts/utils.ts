@@ -24,6 +24,11 @@ export type AppDispatch = ThunkDispatch<RootState, undefined, AnyAction>
 
 const rssParser = new Parser({
     customFields: {
+        feed: [
+            ["itunes:image", "itunesImage"],
+            ["logo", "logo"],
+            ["icon", "icon"],
+        ] as any,
         item: [
             "thumb",
             "image",
@@ -214,8 +219,16 @@ export function mergeSortedArrays<T>(
 }
 
 export function byteToMB(B: number) {
-    let MB = Math.round(B / 1048576)
-    return MB + "MB"
+    if (B === 0) return "0MB"
+    // 如果小于1MB，显示KB
+    if (B < 1048576) {
+        const KB = Math.round(B / 1024)
+        return KB > 0 ? KB + "KB" : "<1KB"
+    }
+    // 大于等于1MB时，保留1位小数
+    const MB = (B / 1048576).toFixed(1)
+    // 如果小数部分是0，只显示整数部分
+    return MB.endsWith(".0") ? Math.round(B / 1048576) + "MB" : MB + "MB"
 }
 
 function byteLength(str: string) {
@@ -229,27 +242,49 @@ function byteLength(str: string) {
     return s
 }
 
-export function calculateItemSize(): Promise<number> {
-    return new Promise((resolve, reject) => {
-        let result = 0
-        let openRequest = window.indexedDB.open("itemsDB")
-        openRequest.onsuccess = () => {
-            let db = openRequest.result
-            let objectStore = db.transaction("items").objectStore("items")
-            let cursorRequest = objectStore.openCursor()
-            cursorRequest.onsuccess = () => {
-                let cursor = cursorRequest.result
-                if (cursor) {
-                    result += byteLength(JSON.stringify(cursor.value))
-                    cursor.continue()
-                } else {
-                    resolve(result)
-                }
-            }
-            cursorRequest.onerror = () => reject()
+export async function calculateItemSize(): Promise<number> {
+    try {
+        // 使用 Lovefield 查询所有文章
+        const db = await import("./db")
+        // 确保数据库已初始化
+        if (!db.itemsDB || !db.items) {
+            console.log("数据库未初始化，正在初始化...")
+            await db.init()
         }
-        openRequest.onerror = () => reject()
-    })
+        
+        if (!db.itemsDB || !db.items) {
+            console.error("数据库初始化失败，itemsDB:", !!db.itemsDB, "items:", !!db.items)
+            return 0
+        }
+        
+        console.log("开始查询所有文章...")
+        // 隐藏功能已移除，计算所有文章
+        const allItems = (await db.itemsDB.select().from(db.items).exec()) as any[]
+        console.log(`找到 ${allItems.length} 篇文章`)
+        
+        if (allItems.length === 0) {
+            console.log("数据库中没有文章")
+            return 0
+        }
+        
+        let result = 0
+        for (let item of allItems) {
+            try {
+                const itemSize = byteLength(JSON.stringify(item))
+                result += itemSize
+            } catch (e) {
+                console.warn("计算单篇文章大小失败:", e)
+            }
+        }
+        
+        console.log(`文章总大小: ${result} 字节 (${Math.round(result / 1048576)} MB)`)
+        return result
+    } catch (error) {
+        console.error("计算文章大小失败:", error)
+        console.error("错误详情:", error instanceof Error ? error.stack : error)
+        // 如果出错，返回0而不是抛出错误
+        return 0
+    }
 }
 
 export function validateRegex(regex: string, flags = ""): RegExp {

@@ -32,8 +32,6 @@ const actionKeyMap = {
     "r-false": "article.markUnread",
     "s-true": "article.star",
     "s-false": "article.unstar",
-    "h-true": "article.hide",
-    "h-false": "article.unhide",
     "n-true": "article.notify",
     "n-false": "article.dontNotify",
 }
@@ -261,7 +259,7 @@ class RulesTab extends React.Component<RulesTabProps, RulesTabState> {
     }
 
     saveRule = () => {
-        let filterType = FilterType.Default | FilterType.ShowHidden
+        let filterType = FilterType.Default
         if (!this.state.caseSensitive) filterType |= FilterType.CaseInsensitive
         if (this.state.searchType === 1) filterType |= FilterType.FullSearch
         else if (this.state.searchType === 2)
@@ -345,7 +343,6 @@ class RulesTab extends React.Component<RulesTabProps, RulesTabState> {
             intl.get(item.hasRead ? "article.markRead" : "article.markUnread")
         )
         if (item.starred) result.push(intl.get("article.star"))
-        if (item.hidden) result.push(intl.get("article.hide"))
         if (item.notify) result.push(intl.get("article.notify"))
         this.setState({ mockResult: result.join(", ") })
     }

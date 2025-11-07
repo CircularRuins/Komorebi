@@ -7,7 +7,6 @@ import { SourceTextDirection } from "../../scripts/models/source"
 
 const className = (props: Card.Props) => {
     let cn = ["card", "compact-card"]
-    if (props.item.hidden) cn.push("hidden")
     if (props.source.textDir === SourceTextDirection.RTL) cn.push("rtl")
     return cn.join(" ")
 }

@@ -34,6 +34,7 @@ type GroupsTabProps = {
     removeFromGroup: (groupIndex: number, sids: number[]) => void
     reorderGroups: (groups: SourceGroup[]) => void
     importGroups: () => Promise<void>
+    clearSourceIcon: (source: RSSSource) => void
 }
 
 type GroupsTabState = {
@@ -140,7 +141,16 @@ class GroupsTab extends React.Component<GroupsTabProps, GroupsTabState> {
             minWidth: 16,
             maxWidth: 16,
             onRender: (s: RSSSource) =>
-                s.iconurl && <img src={s.iconurl} className="favicon" />,
+                s.iconurl && (
+                    <img
+                        src={s.iconurl}
+                        className="favicon"
+                        onError={() => {
+                            // 图标加载失败时，清除iconurl
+                            this.props.clearSourceIcon(s)
+                        }}
+                    />
+                ),
         },
         {
             key: "name",

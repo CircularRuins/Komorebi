@@ -1,5 +1,8 @@
 {
     "allArticles": "All articles",
+    "allUnread": "All unread",
+    "allRead": "All read",
+    "starred": "Starred",
     "add": "Add",
     "create": "Create",
     "icon": "Icon",

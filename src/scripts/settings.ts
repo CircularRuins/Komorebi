@@ -66,18 +66,19 @@ export function setThemeDefaultFont(locale: string) {
         lightTheme.defaultFontStyle.fontFamily
     applyThemeSettings()
 }
-export function setThemeSettings(theme: ThemeSettings) {
-    window.settings.setThemeSettings(theme)
+export function setThemeSettings(_theme: ThemeSettings) {
+    // Always use dark theme, ignore parameter
+    window.settings.setThemeSettings(ThemeSettings.Dark)
     applyThemeSettings()
 }
 export function getThemeSettings(): ThemeSettings {
-    return window.settings.getThemeSettings()
+    return ThemeSettings.Dark
 }
 export function applyThemeSettings() {
-    loadTheme(window.settings.shouldUseDarkColors() ? darkTheme : lightTheme)
+    loadTheme(darkTheme)
 }
-window.settings.addThemeUpdateListener(shouldDark => {
-    loadTheme(shouldDark ? darkTheme : lightTheme)
+window.settings.addThemeUpdateListener(() => {
+    loadTheme(darkTheme)
 })
 
 export function getCurrentLocale() {

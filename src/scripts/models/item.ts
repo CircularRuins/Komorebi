@@ -221,19 +221,10 @@ export function fetchItems(
                 ).length > 0
             )
                 await dispatch(syncWithService(background))
-            let timenow = new Date().getTime()
             const sourcesState = getState().sources
             let sources =
                 sids === null
-                    ? Object.values(sourcesState).filter(s => {
-                          let last = s.lastFetched ? s.lastFetched.getTime() : 0
-                          return (
-                              !s.serviceRef &&
-                              (last > timenow ||
-                                  last + (s.fetchFrequency || 0) * 60000 <=
-                                      timenow)
-                          )
-                      })
+                    ? Object.values(sourcesState).filter(s => !s.serviceRef)
                     : sids
                           .map(sid => sourcesState[sid])
                           .filter(s => !s.serviceRef)
@@ -448,11 +439,6 @@ export function itemShortcuts(item: RSSItem, e: KeyboardEvent): AppThunk {
             case "s":
             case "S":
                 dispatch(toggleStarred(item))
-                break
-            case "h":
-            case "H":
-                if (!item.hasRead && !item.hidden) dispatch(markRead(item))
-                dispatch(toggleHidden(item))
                 break
         }
     }

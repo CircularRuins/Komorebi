@@ -79,16 +79,14 @@ ipcMain.handle("set-view", (_, viewType: ViewType) => {
     store.set(VIEW_STORE_KEY, viewType)
 })
 
-const THEME_STORE_KEY = "theme"
 ipcMain.on("get-theme", event => {
-    event.returnValue = store.get(THEME_STORE_KEY, ThemeSettings.Default)
+    event.returnValue = ThemeSettings.Dark
 })
-ipcMain.handle("set-theme", (_, theme: ThemeSettings) => {
-    store.set(THEME_STORE_KEY, theme)
-    nativeTheme.themeSource = theme
+ipcMain.handle("set-theme", () => {
+    nativeTheme.themeSource = ThemeSettings.Dark
 })
 ipcMain.on("get-theme-dark-color", event => {
-    event.returnValue = nativeTheme.shouldUseDarkColors
+    event.returnValue = true
 })
 export function setThemeListener(manager: WindowManager) {
     nativeTheme.removeAllListeners()
@@ -96,7 +94,7 @@ export function setThemeListener(manager: WindowManager) {
         if (manager.hasWindow()) {
             let contents = manager.mainWindow.webContents
             if (!contents.isDestroyed()) {
-                contents.send("theme-updated", nativeTheme.shouldUseDarkColors)
+                contents.send("theme-updated", true)
             }
         }
     })

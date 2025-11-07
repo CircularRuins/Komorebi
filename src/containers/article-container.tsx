@@ -6,7 +6,6 @@ import {
     markUnread,
     markRead,
     toggleStarred,
-    toggleHidden,
     itemShortcuts,
 } from "../scripts/models/item"
 import { AppDispatch } from "../scripts/utils"
@@ -76,11 +75,6 @@ const mapDispatchToProps = (dispatch: AppDispatch) => {
         toggleHasRead: (item: RSSItem) =>
             dispatch(item.hasRead ? markUnread(item) : markRead(item)),
         toggleStarred: (item: RSSItem) => dispatch(toggleStarred(item)),
-        toggleHidden: (item: RSSItem) => {
-            if (!item.hidden) dispatch(dismissItem())
-            if (!item.hasRead && !item.hidden) dispatch(markRead(item))
-            dispatch(toggleHidden(item))
-        },
         textMenu: (position: [number, number], text: string, url: string) =>
             dispatch(openTextMenu(position, text, url)),
         imageMenu: (position: [number, number]) =>
@@ -92,6 +86,11 @@ const mapDispatchToProps = (dispatch: AppDispatch) => {
         ) => {
             dispatch(
                 updateSource({ ...source, textDir: direction } as RSSSource)
+            )
+        },
+        clearSourceIcon: (source: RSSSource) => {
+            dispatch(
+                updateSource({ ...source, iconurl: "" } as RSSSource)
             )
         },
     }

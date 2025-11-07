@@ -1,5 +1,8 @@
 {
     "allArticles": "全部文章",
+    "allUnread": "全部未读",
+    "allRead": "全部已读",
+    "starred": "已收藏",
     "add": "添加",
     "create": "新建",
     "icon": "图标",
