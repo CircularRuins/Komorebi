@@ -14,6 +14,7 @@ import {
     Dropdown,
     MessageBar,
     MessageBarType,
+    Icon,
 } from "@fluentui/react"
 import {
     SourceState,
@@ -27,7 +28,7 @@ type SourcesTabProps = {
     serviceOn: boolean
     sids: number[]
     acknowledgeSIDs: () => void
-    addSource: (url: string) => void
+    addSource: (url: string) => Promise<number>
     updateSourceName: (source: RSSSource, name: string) => void
     updateSourceIcon: (source: RSSSource, iconUrl: string) => Promise<void>
     updateFetchFrequency: (source: RSSSource, frequency: number) => void
@@ -38,10 +39,15 @@ type SourcesTabProps = {
 }
 
 type SourcesTabState = {
-    [formName: string]: string
+    [formName: string]: string | RSSSource | RSSSource[] | boolean | null
 } & {
     selectedSource: RSSSource
     selectedSources: RSSSource[]
+    showSuccessMessage: boolean
+    newUrl: string
+    newSourceName: string
+    newSourceIcon?: string
+    sourceEditOption?: string
 }
 
 const enum EditDropdownKeys {
@@ -60,6 +66,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             newSourceName: "",
             selectedSource: null,
             selectedSources: null,
+            showSuccessMessage: false,
         }
         this.selection = new Selection({
             getKey: s => (s as RSSSource).sid,
@@ -87,6 +94,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             this.props.acknowledgeSIDs()
         }
     }
+
 
     columns = (): IColumn[] => [
         {
@@ -175,10 +183,21 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         this.setState({ [name]: event.target.value })
     }
 
-    addSource = (event: React.FormEvent) => {
+    addSource = async (event: React.FormEvent) => {
         event.preventDefault()
         let trimmed = this.state.newUrl.trim()
-        if (urlTest(trimmed)) this.props.addSource(trimmed)
+        if (urlTest(trimmed)) {
+            try {
+                await this.props.addSource(trimmed)
+                // 添加成功，显示提示并清空输入框
+                this.setState({
+                    newUrl: "",
+                    showSuccessMessage: true,
+                })
+            } catch (e) {
+                // 错误已经在 addSource 中处理了，这里不需要额外处理
+            }
+        }
     }
 
 
@@ -189,6 +208,100 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                 <MessageBar messageBarType={MessageBarType.info}>
                     {intl.get("sources.serviceWarning")}
                 </MessageBar>
+            )}
+            {/* 成功提示弹窗 */}
+            {this.state.showSuccessMessage && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 10000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}
+                    onClick={() => this.setState({ showSuccessMessage: false })}>
+                    {/* 背景遮罩 */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            animation: 'fadeIn 0.3s ease-out',
+                        }}
+                    />
+                    {/* 弹窗内容 */}
+                    <div
+                        style={{
+                            position: 'relative',
+                            backgroundColor: 'var(--white)',
+                            borderRadius: '8px',
+                            padding: '24px 28px',
+                            minWidth: '280px',
+                            maxWidth: '90%',
+                            boxShadow: '0 12px 48px rgba(0, 0, 0, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '16px',
+                            border: '1px solid var(--neutralLight)',
+                            animation: 'fadeInScale 0.3s ease-out',
+                        }}
+                        onClick={(e) => e.stopPropagation()}>
+                        {/* 成功图标 */}
+                        <div
+                            style={{
+                                width: '56px',
+                                height: '56px',
+                                borderRadius: '50%',
+                                backgroundColor: '#e8f5e9',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                animation: 'scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both',
+                            }}>
+                            <Icon
+                                iconName="CheckMark"
+                                styles={{
+                                    root: {
+                                        fontSize: '32px',
+                                        color: '#2e7d32',
+                                        fontWeight: 600,
+                                    },
+                                }}
+                            />
+                        </div>
+                        {/* 提示文字 */}
+                        <div
+                            style={{
+                                fontSize: '16px',
+                                fontWeight: 600,
+                                color: 'var(--neutralPrimary)',
+                                textAlign: 'center',
+                                lineHeight: '1.4',
+                            }}>
+                            {intl.get("sources.successAdd")}
+                        </div>
+                        {/* 确认按钮 */}
+                        <PrimaryButton
+                            text={intl.get("confirm")}
+                            onClick={() => this.setState({ showSuccessMessage: false })}
+                            styles={{
+                                root: {
+                                    minWidth: '100px',
+                                    height: '32px',
+                                    borderRadius: '4px',
+                                },
+                            }}
+                        />
+                    </div>
+                </div>
             )}
             <Label>{intl.get("sources.opmlFile")}</Label>
             <Stack horizontal>
@@ -211,11 +324,14 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                 <Stack horizontal>
                     <Stack.Item grow>
                         <TextField
-                            onGetErrorMessage={v =>
-                                urlTest(v.trim())
+                            onGetErrorMessage={v => {
+                                const trimmed = v.trim()
+                                // 空字符串不显示错误（允许清空）
+                                if (trimmed === "") return ""
+                                return urlTest(trimmed)
                                     ? ""
                                     : intl.get("sources.badUrl")
-                            }
+                            }}
                             validateOnLoad={false}
                             placeholder={intl.get("sources.inputUrl")}
                             value={this.state.newUrl}

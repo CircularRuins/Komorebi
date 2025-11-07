@@ -13,7 +13,7 @@ import {
     ContextualMenuItemType,
     DirectionalHint,
 } from "office-ui-fabric-react/lib/ContextualMenu"
-import { closeContextMenu, ContextMenuType } from "../scripts/models/app"
+import { closeContextMenu, ContextMenuType, toggleSettings } from "../scripts/models/app"
 import {
     markAllRead,
     markRead,
@@ -22,6 +22,7 @@ import {
     toggleHidden,
     toggleStarred,
 } from "../scripts/models/item"
+import { deleteSource, deleteSources, RSSSource } from "../scripts/models/source"
 import { ViewType, ImageCallbackTypes, ViewConfigs } from "../schema-types"
 import { FilterType } from "../scripts/models/feed"
 import { useAppDispatch, useAppSelector } from "../scripts/reducer"
@@ -363,31 +364,33 @@ function GroupContextMenu() {
     const sids = useAppSelector(
         state => state.app.contextMenu.target
     ) as number[]
+    const sources = useAppSelector(state => state.sources)
+
+    const handleDeleteSource = () => {
+        const sourcesToDelete = sids
+            .map(sid => sources[sid])
+            .filter(source => source !== undefined) as RSSSource[]
+        
+        if (sourcesToDelete.length === 1) {
+            dispatch(deleteSource(sourcesToDelete[0])).then(() => {
+                // 删除后关闭设置页面
+                dispatch(toggleSettings(false))
+            })
+        } else if (sourcesToDelete.length > 1) {
+            dispatch(deleteSources(sourcesToDelete)).then(() => {
+                // 删除后关闭设置页面
+                dispatch(toggleSettings(false))
+            })
+        }
+        dispatch(closeContextMenu())
+    }
 
     const menuItems: IContextualMenuItem[] = [
         {
-            key: "markAllRead",
-            text: intl.get("nav.markAllRead"),
-            iconProps: { iconName: "CheckMark" },
-            onClick: () => {
-                dispatch(markAllRead(sids))
-            },
-        },
-        {
-            key: "refresh",
-            text: intl.get("nav.refresh"),
-            iconProps: { iconName: "Sync" },
-            onClick: () => {
-                dispatch(markAllRead(sids))
-            },
-        },
-        {
-            key: "manage",
-            text: intl.get("context.manageSources"),
-            iconProps: { iconName: "Settings" },
-            onClick: () => {
-                dispatch(markAllRead(sids))
-            },
+            key: "delete",
+            text: intl.get("sources.delete"),
+            iconProps: { iconName: "Delete" },
+            onClick: handleDeleteSource,
         },
     ]
     return <ContextMenuBase menuItems={menuItems} />
