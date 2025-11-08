@@ -4,7 +4,7 @@ import { Icon } from "@fluentui/react/lib/Icon"
 import { Nav, INavLink, INavLinkGroup } from "office-ui-fabric-react/lib/Nav"
 import { SourceGroup } from "../schema-types"
 import { SourceState, RSSSource } from "../scripts/models/source"
-import { ALL, ALL_TOTAL } from "../scripts/models/feed"
+import { ALL, ALL_TOTAL, ALL_TODAY } from "../scripts/models/feed"
 import { AnimationClassNames, Stack, FocusZone, DefaultButton } from "@fluentui/react"
 import { AIModeMenuContent } from "./ai-mode-menu-content"
 
@@ -16,8 +16,10 @@ export type MenuProps = {
     groups: SourceGroup[]
     itemOn: boolean
     isAIMode: boolean
+    todayUnreadCount: number
     allArticles: (init?: boolean) => void
     allArticlesTotal: (init?: boolean) => void
+    todayArticles: (init?: boolean) => void
     selectSourceGroup: (group: SourceGroup, menuKey: string) => void
     selectSource: (source: RSSSource) => void
     groupContextMenu: (sids: number[], event: React.MouseEvent) => void
@@ -55,6 +57,17 @@ export class Menu extends React.Component<MenuProps, MenuState> {
         return [
             {
                 links: [
+                    {
+                        name: intl.get("todayArticles"),
+                        ariaLabel:
+                            intl.get("todayArticles") +
+                            this.countOverflow(this.props.todayUnreadCount),
+                        key: ALL_TODAY,
+                        icon: "Calendar",
+                        onClick: () =>
+                            this.props.todayArticles(this.props.selected !== ALL_TODAY),
+                        url: null,
+                    },
                     {
                         name: intl.get("allArticles"),
                         ariaLabel:
@@ -141,12 +154,13 @@ export class Menu extends React.Component<MenuProps, MenuState> {
         const parts = link.ariaLabel.split(" ")
         let count = parts.length > 1 ? parts[parts.length - 1] : null
         
-        // 对于"全部文章"（ALL），总是显示数字（包括0）
+        // 对于"全部文章"（ALL）和"今日文章"（ALL_TODAY），总是显示数字（包括0）
         // 对于"已收藏"（ALL_TOTAL），不显示数量
         // 对于其他项，只有当数字不为0时才显示
         const isAllArticles = link.key === ALL
+        const isTodayArticles = link.key === ALL_TODAY
         const isStarred = link.key === ALL_TOTAL
-        const shouldShowCount = !isStarred && count && (isAllArticles || count !== "0")
+        const shouldShowCount = !isStarred && count && (isAllArticles || isTodayArticles || count !== "0")
 
         return (
             <Stack

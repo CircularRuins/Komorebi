@@ -14,10 +14,11 @@ import { SourceGroup } from "../schema-types"
 import {
     selectAllArticles,
     selectAllArticlesTotal,
+    selectTodayArticles,
     selectSources,
 } from "../scripts/models/page"
 import { ViewType } from "../schema-types"
-import { initFeeds } from "../scripts/models/feed"
+import { initFeeds, ALL_TODAY } from "../scripts/models/feed"
 import { RSSSource, updateSource } from "../scripts/models/source"
 
 const getApp = (state: RootState) => state.app
@@ -26,10 +27,59 @@ const getGroups = (state: RootState) => state.groups
 const getItemOn = (state: RootState) =>
     state.page.itemId !== null && state.page.viewType !== ViewType.List
 const getIsAIMode = (state: RootState) => state.page.feedId === "ai-mode"
+const getItems = (state: RootState) => state.items
+const getFeeds = (state: RootState) => state.feeds
+
+// 计算今日文章的未读数量
+const getTodayUnreadCount = createSelector(
+    [getItems, getFeeds, getSources],
+    (items, feeds, sources) => {
+        const todayFeed = feeds[ALL_TODAY]
+        if (!todayFeed) return 0
+        
+        // 获取今天的开始和结束时间
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+        const todayEnd = new Date()
+        todayEnd.setHours(23, 59, 59, 999)
+        
+        // 获取所有可见的源ID
+        const visibleSids = Object.values(sources)
+            .filter(s => !s.hidden)
+            .map(s => s.sid)
+        
+        // 如果 feed 已加载，使用 iids 计算（更高效）
+        if (todayFeed.loaded && todayFeed.iids && todayFeed.iids.length > 0) {
+            return todayFeed.iids.filter(iid => {
+                const item = items[iid]
+                if (!item || item.hasRead) return false
+                // 检查是否是今天的文章
+                const itemDate = item.date.getTime()
+                return itemDate >= todayStart.getTime() && itemDate <= todayEnd.getTime()
+            }).length
+        }
+        
+        // 如果 feed 未加载，遍历所有 items 计算
+        let count = 0
+        for (const item of Object.values(items)) {
+            if (
+                visibleSids.includes(item.source) &&
+                !item.hasRead
+            ) {
+                // 检查是否是今天的文章
+                const itemDate = item.date.getTime()
+                if (itemDate >= todayStart.getTime() && itemDate <= todayEnd.getTime()) {
+                    count++
+                }
+            }
+        }
+        return count
+    }
+)
 
 const mapStateToProps = createSelector(
-    [getApp, getSources, getGroups, getItemOn, getIsAIMode],
-    (app, sources, groups, itemOn, isAIMode) => ({
+    [getApp, getSources, getGroups, getItemOn, getIsAIMode, getTodayUnreadCount],
+    (app, sources, groups, itemOn, isAIMode, todayUnreadCount) => ({
         status: app.sourceInit && !app.settings.display,
         display: app.menu,
         selected: app.menuKey,
@@ -37,6 +87,7 @@ const mapStateToProps = createSelector(
         groups: groups.map((g, i) => ({ ...g, index: i })),
         itemOn: itemOn,
         isAIMode: isAIMode,
+        todayUnreadCount: todayUnreadCount,
     })
 )
 
@@ -46,6 +97,9 @@ const mapDispatchToProps = dispatch => ({
     },
     allArticlesTotal: (init = false) => {
         dispatch(selectAllArticlesTotal(init)), dispatch(initFeeds())
+    },
+    todayArticles: (init = false) => {
+        dispatch(selectTodayArticles(init)), dispatch(initFeeds())
     },
     selectSourceGroup: (group: SourceGroup, menuKey: string) => {
         dispatch(selectSources(group.sids, menuKey, ""))

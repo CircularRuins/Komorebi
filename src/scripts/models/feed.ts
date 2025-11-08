@@ -77,6 +77,19 @@ export class FeedFilter {
             cutoffDate.setDate(cutoffDate.getDate() - filter.timeRange)
             predicates.push(db.items.date.gte(cutoffDate))
         }
+        // 特殊值 0 表示"今天"
+        if (filter.timeRange === 0) {
+            const todayStart = new Date()
+            todayStart.setHours(0, 0, 0, 0)
+            const todayEnd = new Date()
+            todayEnd.setHours(23, 59, 59, 999)
+            predicates.push(
+                lf.op.and(
+                    db.items.date.gte(todayStart),
+                    db.items.date.lte(todayEnd)
+                )
+            )
+        }
         return predicates
     }
 
@@ -104,12 +117,21 @@ export class FeedFilter {
             cutoffDate.setDate(cutoffDate.getDate() - filter.timeRange)
             flag = flag && item.date.getTime() >= cutoffDate.getTime()
         }
+        // 特殊值 0 表示"今天"
+        if (filter.timeRange === 0) {
+            const todayStart = new Date()
+            todayStart.setHours(0, 0, 0, 0)
+            const todayEnd = new Date()
+            todayEnd.setHours(23, 59, 59, 999)
+            flag = flag && item.date.getTime() >= todayStart.getTime() && item.date.getTime() <= todayEnd.getTime()
+        }
         return Boolean(flag)
     }
 }
 
 export const ALL = "ALL"
 export const ALL_TOTAL = "ALL_TOTAL"
+export const ALL_TODAY = "ALL_TODAY"
 export const SOURCE = "SOURCE"
 
 const LOAD_QUANTITY = 50
@@ -317,7 +339,10 @@ export function loadMore(feed: RSSFeed): AppThunk<Promise<void>> {
 }
 
 export function feedReducer(
-    state: FeedState = { [ALL]: new RSSFeed(ALL) },
+    state: FeedState = { 
+        [ALL]: new RSSFeed(ALL),
+        [ALL_TODAY]: new RSSFeed(ALL_TODAY, [], new FeedFilter(FilterType.Default | FilterType.CaseInsensitive, "", 0))
+    },
     action:
         | SourceActionTypes
         | ItemActionTypes
@@ -341,6 +366,11 @@ export function feedReducer(
                             ALL_TOTAL,
                             visibleSids,
                             new FeedFilter(FilterType.StarredOnly | FilterType.CaseInsensitive)
+                        ),
+                        [ALL_TODAY]: new RSSFeed(
+                            ALL_TODAY,
+                            visibleSids,
+                            new FeedFilter(FilterType.Default | FilterType.CaseInsensitive, "", 0)
                         ),
                     }
                 default:
@@ -367,6 +397,15 @@ export function feedReducer(
                             allSids,
                             new FeedFilter(FilterType.StarredOnly | FilterType.CaseInsensitive)
                         ),
+                        [ALL_TODAY]: state[ALL_TODAY] ? new RSSFeed(
+                            ALL_TODAY,
+                            [...state[ALL_TODAY].sids, action.source.sid],
+                            state[ALL_TODAY].filter
+                        ) : new RSSFeed(
+                            ALL_TODAY,
+                            allSids,
+                            new FeedFilter(FilterType.Default | FilterType.CaseInsensitive, "", 0)
+                        ),
                     }
                 default:
                     return state
@@ -392,6 +431,17 @@ export function feedReducer(
                         (action.filter.type & ~FilterType.ShowNotStarred) | FilterType.StarredOnly | FilterType.CaseInsensitive,
                         action.filter.search,
                         action.filter.timeRange
+                    )
+                    nextState[id] = {
+                        ...feed,
+                        filter: mergedFilter,
+                    }
+                } else if (id === ALL_TODAY) {
+                    // 对于 ALL_TODAY，确保 filter 始终包含 timeRange: 0（今天），同时保留其他设置
+                    const mergedFilter = new FeedFilter(
+                        action.filter.type | FilterType.CaseInsensitive,
+                        action.filter.search,
+                        0  // 强制设置为今天
                     )
                     nextState[id] = {
                         ...feed,
@@ -554,6 +604,29 @@ export function feedReducer(
                             ...state,
                             [ALL_TOTAL]: {
                                 ...allTotalFeed,
+                                loaded: false,
+                                filter: mergedFilter,
+                            },
+                        }
+                    }
+                    return state
+                case PageType.AllArticlesToday:
+                    if (action.init) {
+                        const todayFeed = state[ALL_TODAY] || new RSSFeed(
+                            ALL_TODAY,
+                            state[ALL]?.sids || [],
+                            new FeedFilter(FilterType.Default | FilterType.CaseInsensitive, "", 0)
+                        )
+                        // 确保 filter 始终包含 timeRange: 0（今天），同时保留其他设置
+                        const mergedFilter = new FeedFilter(
+                            action.filter.type | FilterType.CaseInsensitive,
+                            action.filter.search,
+                            0  // 强制设置为今天
+                        )
+                        return {
+                            ...state,
+                            [ALL_TODAY]: {
+                                ...todayFeed,
                                 loaded: false,
                                 filter: mergedFilter,
                             },

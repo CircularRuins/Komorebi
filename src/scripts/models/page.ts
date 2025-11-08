@@ -1,6 +1,7 @@
 import {
     ALL,
     ALL_TOTAL,
+    ALL_TODAY,
     SOURCE,
     loadMore,
     FeedFilter,
@@ -28,6 +29,7 @@ export const TOGGLE_SEARCH = "TOGGLE_SEARCH"
 export enum PageType {
     AllArticles,
     AllArticlesTotal,
+    AllArticlesToday,
     Sources,
     Page,
     AIMode,
@@ -100,6 +102,18 @@ export function selectAllArticlesTotal(init = false): AppThunk {
             keepMenu: getWindowBreakpoint(),
             filter: getState().page.filter,
             pageType: PageType.AllArticlesTotal,
+            init: init,
+        } as PageActionTypes)
+    }
+}
+
+export function selectTodayArticles(init = false): AppThunk {
+    return (dispatch, getState) => {
+        dispatch({
+            type: SELECT_PAGE,
+            keepMenu: getWindowBreakpoint(),
+            filter: getState().page.filter,
+            pageType: PageType.AllArticlesToday,
             init: init,
         } as PageActionTypes)
     }
@@ -391,6 +405,12 @@ export function pageReducer(
                     return {
                         ...state,
                         feedId: ALL_TOTAL,
+                        itemId: null,
+                    }
+                case PageType.AllArticlesToday:
+                    return {
+                        ...state,
+                        feedId: ALL_TODAY,
                         itemId: null,
                     }
                 case PageType.Sources:

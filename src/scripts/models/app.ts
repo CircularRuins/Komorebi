@@ -16,7 +16,7 @@ import {
     getWindowBreakpoint,
     initTouchBarWithTexts,
 } from "../utils"
-import { INIT_FEEDS, FeedActionTypes, ALL, ALL_TOTAL, initFeeds } from "./feed"
+import { INIT_FEEDS, FeedActionTypes, ALL, ALL_TOTAL, ALL_TODAY, initFeeds } from "./feed"
 import {
     SourceGroupActionTypes,
     UPDATE_SOURCE_GROUP,
@@ -593,6 +593,13 @@ export function appReducer(
                         ...state,
                         menu: state.menu && action.keepMenu,
                         menuKey: ALL_TOTAL,
+                        title: "",
+                    }
+                case PageType.AllArticlesToday:
+                    return {
+                        ...state,
+                        menu: state.menu && action.keepMenu,
+                        menuKey: ALL_TODAY,
                         title: "",
                     }
                 case PageType.Sources:
