@@ -124,6 +124,8 @@ export async function importAll() {
         s.lastFetched = new Date(s.lastFetched)
         if (!s.textDir) s.textDir = SourceTextDirection.LTR
         if (!s.hidden) s.hidden = false
+        // Remove fetchFrequency if present (no longer used)
+        if (s.fetchFrequency !== undefined) delete s.fetchFrequency
         return db.sources.createRow(s)
     })
     const iRows = configs.lovefield.items.map(i => {

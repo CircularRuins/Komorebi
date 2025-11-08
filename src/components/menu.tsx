@@ -191,13 +191,19 @@ export class Menu extends React.Component<MenuProps, MenuState> {
                     <div
                         className={
                             "menu" + (this.props.itemOn ? " item-on" : "")
-                        }>
+                        }
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            height: '100%'
+                        }}>
                         {/* 添加订阅源和分组的按钮 */}
                         <div style={{ 
                             padding: '8px 12px', 
                             borderBottom: '1px solid var(--neutralLight)',
                             display: 'flex',
-                            gap: '8px'
+                            gap: '8px',
+                            flexShrink: 0
                         }}>
                             <DefaultButton
                                 text="添加源"
@@ -223,7 +229,14 @@ export class Menu extends React.Component<MenuProps, MenuState> {
                         <FocusZone
                             as="div"
                             disabled={false}
-                            className="nav-wrapper">
+                            className="nav-wrapper"
+                            style={{
+                                flex: 1,
+                                minHeight: 0,
+                                overflow: 'auto',
+                                paddingBottom: '16px',
+                                boxSizing: 'border-box'
+                            }}>
                             <Nav
                                 onRenderGroupHeader={this._onRenderGroupHeader}
                                 onRenderLink={this._onRenderLink}

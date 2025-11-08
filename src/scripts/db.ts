@@ -1,6 +1,6 @@
 import lf from "lovefield"
 
-const sdbSchema = lf.schema.create("sourcesDB", 3)
+const sdbSchema = lf.schema.create("sourcesDB", 4)
 sdbSchema
     .createTable("sources")
     .addColumn("sid", lf.Type.INTEGER)
@@ -11,7 +11,6 @@ sdbSchema
     .addColumn("openTarget", lf.Type.NUMBER)
     .addColumn("lastFetched", lf.Type.DATE_TIME)
     .addColumn("serviceRef", lf.Type.STRING)
-    .addColumn("fetchFrequency", lf.Type.NUMBER)
     .addColumn("rules", lf.Type.OBJECT)
     .addColumn("textDir", lf.Type.NUMBER)
     .addColumn("hidden", lf.Type.BOOLEAN)
@@ -55,6 +54,9 @@ async function onUpgradeSourceDB(rawDb: lf.raw.BackStore) {
     if (version < 3) {
         await rawDb.addTableColumn("sources", "hidden", false)
     }
+    // Version 4: Removed fetchFrequency column (no longer used)
+    // If upgrading from version 3, the fetchFrequency column will remain in the database
+    // but won't be used by the application, which is fine
 }
 
 async function onUpgradeItemsDB(rawDb: lf.raw.BackStore) {
