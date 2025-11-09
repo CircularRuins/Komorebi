@@ -3,7 +3,7 @@ import { TextField, ITextField } from "@fluentui/react/lib/TextField"
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown"
 import { Label } from "@fluentui/react/lib/Label"
 import { PrimaryButton, DefaultButton } from "@fluentui/react/lib/Button"
-import { Spinner, MessageBar, MessageBarType, Panel, PanelType } from "@fluentui/react"
+import { Spinner, SpinnerSize, MessageBar, MessageBarType, Panel, PanelType } from "@fluentui/react"
 import { Icon } from "@fluentui/react/lib/Icon"
 import OpenAI from "openai"
 import * as db from "../scripts/db"
@@ -28,6 +28,23 @@ export type ArticleCluster = {
     title: string  // 聚类标题（说明这些文章讲的是什么）
     description: string  // 聚类描述
     articles: RSSItem[]  // 该聚类中的文章列表
+}
+
+// 查询进度步骤类型
+export type QueryProgressStep = {
+    id: string  // 步骤ID
+    title: string  // 步骤标题
+    status: 'pending' | 'in_progress' | 'completed' | 'error'  // 步骤状态
+    message?: string  // 步骤详细信息
+    progress?: number  // 当前步骤的进度百分比（0-100）
+}
+
+// 查询进度类型
+export type QueryProgress = {
+    steps: QueryProgressStep[]
+    currentStepIndex: number
+    overallProgress: number  // 总体进度百分比（0-100）
+    currentMessage: string  // 当前步骤的详细信息
 }
 
 // AIMode Context 类型定义
@@ -104,6 +121,8 @@ type AIModeState = {
     articleCount: number  // 筛选到的文章数量
     filteredArticles: RSSItem[]  // 筛选后的文章列表
     clusters: ArticleCluster[]  // 文章聚类结果
+    queryProgress: QueryProgress | null  // 查询进度
+    showResults: boolean  // 是否显示结果（所有步骤完成后，需要点击按钮才显示）
 }
 
 export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
@@ -151,7 +170,9 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             errorDialogMessage: '',
             articleCount: 0,
             filteredArticles: [],
-            clusters: []
+            clusters: [],
+            queryProgress: null,
+            showResults: false
         }
     }
 
@@ -413,6 +434,94 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         return null
     }
 
+    // 初始化查询进度
+    initializeQueryProgress = (hasTopic: boolean): QueryProgress => {
+        const steps: QueryProgressStep[] = [
+            { id: 'query-db', title: '查询数据库文章', status: 'in_progress', message: '正在从数据库查询文章...' },
+        ]
+        
+        if (hasTopic) {
+            steps.push(
+                { id: 'compute-topic-embedding', title: '计算话题向量', status: 'pending' },
+                { id: 'load-embeddings', title: '加载已有文章向量', status: 'pending' },
+                { id: 'compute-embeddings', title: '计算新文章向量', status: 'pending' },
+                { id: 'calculate-similarity', title: '计算相似度并筛选', status: 'pending' }
+            )
+        }
+        
+        steps.push(
+            { id: 'cluster-articles', title: '分析文章内容并聚类', status: 'pending' }
+        )
+        
+        return {
+            steps,
+            currentStepIndex: 0,
+            overallProgress: 0,
+            currentMessage: '开始查询...'
+        }
+    }
+
+    // 更新查询进度
+    updateQueryProgress = (updates: Partial<QueryProgress>) => {
+        this.setState(prevState => {
+            if (!prevState.queryProgress) return prevState
+            
+            const progress = { ...prevState.queryProgress, ...updates }
+            
+            // 计算总体进度
+            const totalSteps = progress.steps.length
+            const completedSteps = progress.steps.filter(s => s.status === 'completed').length
+            const currentStep = progress.steps[progress.currentStepIndex]
+            const stepProgress = currentStep?.progress || 0
+            const baseProgress = (completedSteps / totalSteps) * 100
+            const currentStepWeight = 1 / totalSteps
+            const currentStepProgress = (stepProgress / 100) * currentStepWeight * 100
+            progress.overallProgress = Math.min(100, baseProgress + currentStepProgress)
+            
+            return { ...prevState, queryProgress: progress }
+        })
+    }
+
+    // 更新步骤状态
+    updateStepStatus = (stepId: string, status: QueryProgressStep['status'], message?: string, progress?: number) => {
+        this.setState(prevState => {
+            if (!prevState.queryProgress) return prevState
+            
+            const steps = prevState.queryProgress.steps.map(step => {
+                if (step.id === stepId) {
+                    return { ...step, status, message, progress }
+                }
+                return step
+            })
+            
+            const currentStepIndex = steps.findIndex(s => s.status === 'in_progress')
+            const currentMessage = steps.find(s => s.status === 'in_progress')?.message || 
+                                   steps.find(s => s.status === 'completed')?.message || 
+                                   prevState.queryProgress.currentMessage
+            
+            // 计算总体进度
+            const totalSteps = steps.length
+            const completedSteps = steps.filter(s => s.status === 'completed').length
+            const currentStep = steps[currentStepIndex >= 0 ? currentStepIndex : prevState.queryProgress.currentStepIndex]
+            const stepProgress = currentStep?.progress || 0
+            const baseProgress = (completedSteps / totalSteps) * 100
+            const currentStepWeight = 1 / totalSteps
+            const currentStepProgress = (stepProgress / 100) * currentStepWeight * 100
+            const overallProgress = Math.min(100, baseProgress + currentStepProgress)
+            
+            return {
+                ...prevState,
+                queryProgress: {
+                    ...prevState.queryProgress,
+                    steps,
+                    currentStepIndex: currentStepIndex >= 0 ? currentStepIndex : prevState.queryProgress.currentStepIndex,
+                    currentMessage,
+                    overallProgress
+                }
+            }
+        })
+    }
+
     // 获取时间范围选项
     getTimeRangeOptions = (): IDropdownOption[] => {
         return [
@@ -607,6 +716,9 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
 
     // 查询符合条件的文章（根据时间范围和话题筛选）
     queryArticles = async (timeRangeDays: number | null, topic: string | null): Promise<RSSItem[]> => {
+        // 更新进度：查询数据库
+        this.updateStepStatus('query-db', 'in_progress', '正在从数据库查询文章...')
+        
         // 等待数据库初始化
         let retries = 0
         while ((!db.itemsDB || !db.items) && retries < 50) {
@@ -615,6 +727,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         }
         
         if (!db.itemsDB || !db.items) {
+            this.updateStepStatus('query-db', 'error', '数据库未初始化')
             throw new Error('数据库未初始化，请稍后再试')
         }
 
@@ -640,6 +753,8 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         const items = query 
             ? await queryBuilder.where(query).exec() as RSSItem[]
             : await queryBuilder.exec() as RSSItem[]
+        
+        this.updateStepStatus('query-db', 'completed', `已查询到 ${items.length} 篇文章`)
 
         // 如果有话题，使用向量相似度筛选
         if (topic && topic.trim()) {
@@ -652,11 +767,14 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             console.log('开始使用向量相似度筛选文章，话题:', trimmedTopic, '阈值:', similarityThreshold)
 
             // 计算话题的embedding
+            this.updateStepStatus('compute-topic-embedding', 'in_progress', `正在计算话题"${trimmedTopic}"的向量...`)
             let topicEmbedding: number[]
             try {
                 topicEmbedding = await this.computeTopicEmbedding(trimmedTopic)
+                this.updateStepStatus('compute-topic-embedding', 'completed', '话题向量计算完成')
             } catch (error) {
                 console.error('计算话题embedding失败，回退到全文匹配:', error)
+                this.updateStepStatus('compute-topic-embedding', 'error', '计算话题向量失败，使用全文匹配')
                 // 如果计算embedding失败，回退到全文匹配
                 const topicRegex = new RegExp(trimmedTopic.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
                 return items.filter(item => {
@@ -670,6 +788,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
 
             // 检查哪些文章需要计算embedding
             // 先从数据库批量重新加载embedding字段，确保获取最新数据
+            this.updateStepStatus('load-embeddings', 'in_progress', '正在从数据库加载已有文章向量...')
             const itemIds = items.map(item => item._id)
             if (itemIds.length > 0) {
                 try {
@@ -699,8 +818,10 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                     }
                     
                     console.log(`从数据库加载了${loadedCount}篇文章的embedding，共${items.length}篇文章`)
+                    this.updateStepStatus('load-embeddings', 'completed', `已加载 ${loadedCount} 篇文章的向量`)
                 } catch (error) {
                     console.warn('批量加载embedding失败:', error)
+                    this.updateStepStatus('load-embeddings', 'error', '加载向量失败')
                 }
             }
 
@@ -715,6 +836,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
 
             if (articlesNeedingEmbedding.length > 0) {
                 console.log(`发现${articlesNeedingEmbedding.length}篇文章没有embedding，开始计算...`)
+                this.updateStepStatus('compute-embeddings', 'in_progress', `需要计算 ${articlesNeedingEmbedding.length} 篇文章的向量...`, 0)
                 try {
                     await this.computeAndStoreEmbeddings(articlesNeedingEmbedding)
                     
@@ -747,14 +869,21 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                             console.warn('重新加载embedding失败:', error)
                         }
                     }
+                    this.updateStepStatus('compute-embeddings', 'completed', `已完成 ${articlesNeedingEmbedding.length} 篇文章的向量计算`)
                 } catch (error) {
                     console.error('计算文章embedding失败:', error)
+                    this.updateStepStatus('compute-embeddings', 'error', '计算向量失败，继续使用已有向量')
                     // 继续执行，只使用已有embedding的文章
                 }
+            } else {
+                this.updateStepStatus('compute-embeddings', 'completed', '所有文章已有向量，跳过计算')
             }
 
             // 计算每篇文章与话题的相似度
+            this.updateStepStatus('calculate-similarity', 'in_progress', '正在计算文章相似度...', 0)
             const articlesWithSimilarity: Array<{ article: RSSItem, similarity: number }> = []
+            const totalItems = items.length
+            let processedCount = 0
             
             for (const item of items) {
                 if (item.embedding && Array.isArray(item.embedding) && item.embedding.length > 0) {
@@ -766,6 +895,12 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                     } catch (error) {
                         console.warn(`计算文章 ${item._id} 的相似度失败:`, error)
                     }
+                }
+                processedCount++
+                // 每处理10%更新一次进度
+                if (processedCount % Math.max(1, Math.floor(totalItems / 10)) === 0) {
+                    const progress = Math.floor((processedCount / totalItems) * 100)
+                    this.updateStepStatus('calculate-similarity', 'in_progress', `正在计算相似度... (${processedCount}/${totalItems})`, progress)
                 }
             }
 
@@ -779,6 +914,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                 .map(item => item.article)
 
             console.log(`向量相似度筛选完成: 找到${articlesWithSimilarity.length}篇相似度>=${similarityThreshold}的文章，选择了前${selectedArticles.length}篇`)
+            this.updateStepStatus('calculate-similarity', 'completed', `找到 ${articlesWithSimilarity.length} 篇相关文章，已选择前 ${selectedArticles.length} 篇`)
 
             return selectedArticles
         }
@@ -854,11 +990,20 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
 
             const modelToUse = embeddingModel.trim()
             const batchSize = 10  // API限制：每批最多10篇
+            const totalArticles = articlesNeedingEmbedding.length
+            const totalBatches = Math.ceil(totalArticles / batchSize)
             
             // 将文章分批处理
             for (let batchStart = 0; batchStart < articlesNeedingEmbedding.length; batchStart += batchSize) {
                 const batchEnd = Math.min(batchStart + batchSize, articlesNeedingEmbedding.length)
                 const batch = articlesNeedingEmbedding.slice(batchStart, batchEnd)
+                const batchNumber = Math.floor(batchStart / batchSize) + 1
+                const progress = Math.floor((batchStart / totalArticles) * 100)
+                
+                // 更新进度
+                this.updateStepStatus('compute-embeddings', 'in_progress', 
+                    `正在计算向量... 第 ${batchNumber}/${totalBatches} 批 (${batchStart + batch.length}/${totalArticles})`, 
+                    progress)
                 
                 // 准备当前批次的文本
                 const texts = batch.map(article => {
@@ -868,7 +1013,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                     return `${title}\n${snippet}`.trim()
                 })
 
-                console.log(`处理第 ${Math.floor(batchStart / batchSize) + 1} 批，共 ${batch.length} 篇文章`)
+                console.log(`处理第 ${batchNumber} 批，共 ${batch.length} 篇文章`)
 
                 // 调用embedding API
                 const response = await openai.embeddings.create({
@@ -922,6 +1067,9 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         }
 
         console.log('开始聚类分析，文章数量:', articles.length, '话题:', topic)
+        
+        // 更新进度：开始聚类
+        this.updateStepStatus('cluster-articles', 'in_progress', `正在分析 ${articles.length} 篇文章的内容并进行聚类...`, 0)
 
         // 规范化endpoint URL
         let normalizedEndpoint = apiEndpoint.trim()
@@ -1023,8 +1171,10 @@ ${articlesText}
             }
             
             console.log('发送聚类请求到API，模型:', model, '文章数量:', articlesToAnalyze.length)
+            this.updateStepStatus('cluster-articles', 'in_progress', '正在调用AI模型分析文章...', 50)
             const completion = await openai.chat.completions.create(completionParams)
             console.log('收到API响应')
+            this.updateStepStatus('cluster-articles', 'in_progress', '正在解析聚类结果...', 80)
 
             if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
                 const responseText = completion.choices[0].message.content || ''
@@ -1136,6 +1286,7 @@ ${articlesText}
                 console.log('验证完成：显示文章数', displayedCount, '，过滤掉无关文章数', filteredCount, '，原始文章数', articlesToAnalyze.length)
 
                 console.log('最终聚类结果:', clusters.length, '个分组，总文章数:', clusters.reduce((sum, c) => sum + c.articles.length, 0))
+                this.updateStepStatus('cluster-articles', 'completed', `聚类完成：共 ${clusters.length} 个分组，${displayedCount} 篇文章`)
                 return clusters
             } else {
                 throw new Error('API返回格式不正确，未找到choices数组或message内容')
@@ -1268,13 +1419,24 @@ ${articlesText}
             this.saveTopicToRecent(trimmedTopic)
         }
 
+        // 获取当前话题（如果有的话）
+        const currentTopic = trimmedTopic || this.state.topic || null
+        
+        // 初始化查询进度
+        const queryProgress = this.initializeQueryProgress(!!currentTopic)
+        console.log('初始化查询进度:', queryProgress)
+
         this.setState({ 
             isLoading: true,
             error: null,
             summary: '',
             articleCount: 0,
-            filteredArticles: []
+            filteredArticles: [],
+            clusters: [],
+            queryProgress: queryProgress,
+            showResults: false
         }, () => {
+            console.log('状态已更新，queryProgress:', this.state.queryProgress)
             // 状态更新后立即通知 Context 更新
             if (typeof window !== 'undefined') {
                 const event = new CustomEvent('aiModeUpdated')
@@ -1285,9 +1447,6 @@ ${articlesText}
         try {
             // 解析时间范围
             const timeRangeDays = this.parseTimeRange(timeRange)
-
-            // 获取当前话题（如果有的话）
-            const currentTopic = trimmedTopic || this.state.topic || null
 
             // 查询文章（根据时间范围和话题）
             // queryArticles内部已经处理了：
@@ -1300,7 +1459,8 @@ ${articlesText}
                 const topicMessage = currentTopic ? `或话题"${currentTopic}"` : ''
                 this.setState({
                     isLoading: false,
-                    error: `没有找到符合条件的文章。请尝试调整时间范围${topicMessage}。`
+                    error: `没有找到符合条件的文章。请尝试调整时间范围${topicMessage}。`,
+                    queryProgress: null
                 }, () => {
                     if (typeof window !== 'undefined') {
                         const event = new CustomEvent('aiModeUpdated')
@@ -1359,7 +1519,9 @@ ${articlesText}
                 
                 this.setState({ 
                     clusters: clusters,
-                    isClustering: false
+                    isClustering: false,
+                    isLoading: false,
+                    showResults: false  // 不自动显示结果，等待用户点击按钮
                 }, () => {
                     console.log('状态已更新，clusters:', this.state.clusters.length)
                     if (typeof window !== 'undefined') {
@@ -1375,7 +1537,9 @@ ${articlesText}
                 this.setState({ 
                     clusters: [],
                     isClustering: false,
-                    error: errorMsg
+                    isLoading: false,
+                    error: errorMsg,
+                    showResults: false  // 不自动显示结果
                 }, () => {
                     if (typeof window !== 'undefined') {
                         const event = new CustomEvent('aiModeUpdated')
@@ -1390,7 +1554,8 @@ ${articlesText}
                 isLoading: false,
                 error: errorMessage,
                 showErrorDialog: true,
-                errorDialogMessage: errorMessage
+                errorDialogMessage: errorMessage,
+                queryProgress: null
             }, () => {
                 if (typeof window !== 'undefined') {
                     const event = new CustomEvent('aiModeUpdated')
@@ -1406,7 +1571,15 @@ ${articlesText}
             error: null,
             articleCount: 0,
             filteredArticles: [],
-            clusters: []
+            clusters: [],
+            showResults: false,
+            queryProgress: null
+        })
+    }
+
+    handleShowResults = () => {
+        this.setState({ 
+            showResults: true
         })
     }
 
@@ -1440,7 +1613,9 @@ ${articlesText}
             errorDialogMessage,
             articleCount,
             filteredArticles,
-            clusters
+            clusters,
+            queryProgress,
+            showResults
         } = useContext ? {
             ...this.state,
             summary: context.summary !== undefined ? context.summary : this.state.summary,
@@ -1449,10 +1624,48 @@ ${articlesText}
             isLoading: context.isLoading !== undefined ? context.isLoading : this.state.isLoading,
             isClustering: context.isClustering !== undefined ? context.isClustering : this.state.isClustering,
             error: context.error !== undefined ? context.error : this.state.error,
-            clusters: context.clusters !== undefined ? context.clusters : this.state.clusters
+            clusters: context.clusters !== undefined ? context.clusters : this.state.clusters,
+            queryProgress: this.state.queryProgress,
+            showResults: this.state.showResults
         } : this.state
         
         const { sources, markRead, contextMenu, showItem, shortcuts } = this.props
+
+        // 统一管理加载界面：只使用深色进度界面
+        const currentProgress = queryProgress || this.state.queryProgress
+        const hasResults = filteredArticles.length > 0
+        
+        // 检查所有步骤是否完成
+        const allStepsCompleted = currentProgress ? 
+            currentProgress.steps.every(step => step.status === 'completed' || step.status === 'error') : 
+            false
+        
+        // 关键逻辑：如果所有步骤完成且有结果但未显示结果，必须显示进度界面（带"查看结果"按钮）
+        // 这个条件优先级最高，确保步骤完成后页面不会消失
+        // 即使没有 currentProgress，只要有结果且不在加载中，也认为步骤已完成
+        const shouldShowProgressForCompleted = !showResults && hasResults && !isLoading && !isClustering && (
+            allStepsCompleted ||  // 有进度且所有步骤完成
+            (!currentProgress && hasResults)  // 没有进度但有结果（说明步骤已完成，只是进度信息丢失了）
+        )
+        
+        // 其他情况显示进度界面：正在加载或聚类中，或有进度但未完成
+        const shouldShowDarkProgress = !showResults && !shouldShowProgressForCompleted && (
+            (isLoading || isClustering) ||  // 正在加载时，即使没有progress也显示（会创建默认的）
+            (currentProgress && !allStepsCompleted)  // 有进度但未完成
+        )
+        
+        console.log('页面显示判断:', {
+            showResults,
+            isLoading,
+            isClustering,
+            allStepsCompleted,
+            hasResults,
+            hasProgress: !!currentProgress,
+            shouldShowDarkProgress,
+            shouldShowProgressForCompleted,
+            filteredArticlesCount: filteredArticles.length,
+            clustersCount: clusters.length
+        })
 
         return (
             <div className={`ai-mode-container ${summary ? 'has-summary' : 'no-summary'}`} style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -1523,27 +1736,9 @@ ${articlesText}
                     </div>
                 </Panel>
 
-                {/* 聚类分析中的提示 */}
-                {isClustering && filteredArticles.length > 0 && (
-                    <div style={{ 
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        display: 'flex', 
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        zIndex: 100
-                    }}>
-                        <Spinner label="正在分析文章内容并进行聚类..." />
-                    </div>
-                )}
 
                 {/* 按聚类分组的文章列表 */}
-                {filteredArticles.length > 0 && clusters.length > 0 && !isClustering && (
+                {filteredArticles.length > 0 && clusters.length > 0 && !isClustering && showResults && (
                     <div 
                         ref={this.summaryContainerRef}
                         className="ai-summary-container has-summary"
@@ -1650,7 +1845,7 @@ ${articlesText}
                 )}
 
                 {/* 如果没有聚类结果，显示原始文章列表 */}
-                {filteredArticles.length > 0 && clusters.length === 0 && !isClustering && (
+                {filteredArticles.length > 0 && clusters.length === 0 && !isClustering && showResults && (
                     <div 
                         ref={this.summaryContainerRef}
                         className="ai-summary-container has-summary"
@@ -1709,24 +1904,393 @@ ${articlesText}
                     </div>
                 )}
 
-                {/* 加载和错误状态 */}
-                {isLoading && (
-                    <div style={{ 
-                        position: 'absolute',
+                {/* 加载和错误状态 - Cursor风格深色界面 */}
+                {(shouldShowDarkProgress || shouldShowProgressForCompleted) && (() => {
+                    // 如果没有进度信息，创建一个完整的默认进度对象
+                    let progress = currentProgress
+                    if (!progress) {
+                        // 获取当前话题来判断是否需要显示话题相关的步骤
+                        const hasTopic = (topicInput || topic || '').trim().length > 0
+                        
+                        // 如果步骤已完成（shouldShowProgressForCompleted为true），所有步骤都应该是完成状态
+                        const defaultStatus = shouldShowProgressForCompleted ? 'completed' as const : 'in_progress' as const
+                        const defaultMessage = shouldShowProgressForCompleted ? '所有步骤已完成' : '正在从数据库查询文章...'
+                        
+                        progress = {
+                            steps: [
+                                { id: 'query-db', title: '查询数据库文章', status: defaultStatus, message: defaultMessage },
+                                ...(hasTopic ? [
+                                    { id: 'compute-topic-embedding', title: '计算话题向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
+                                    { id: 'load-embeddings', title: '加载已有文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
+                                    { id: 'compute-embeddings', title: '计算新文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
+                                    { id: 'calculate-similarity', title: '计算相似度并筛选', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const }
+                                ] : []),
+                                { id: 'cluster-articles', title: '分析文章内容并聚类', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const }
+                            ],
+                            currentStepIndex: shouldShowProgressForCompleted ? (hasTopic ? 5 : 1) : 0,
+                            overallProgress: shouldShowProgressForCompleted ? 100 : 0,
+                            currentMessage: defaultMessage
+                        }
+                    }
+                    
+                    console.log('显示深色进度界面，progress:', progress, 'steps:', progress.steps?.length, 'currentProgress存在:', !!currentProgress)
+                    
+                    return (
+                    <div key="query-progress-dark" style={{ 
+                        position: 'absolute', // 使用absolute只覆盖内容区域，不遮挡菜单栏
                         top: 0,
                         left: 0,
                         right: 0,
                         bottom: 0,
                         display: 'flex', 
                         flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        zIndex: 100
+                        backgroundColor: 'var(--neutralLighterAlt)', // 使用应用背景色
+                        zIndex: 100, // 在内容区域内确保在最上层
+                        overflow: 'auto',
+                        color: 'var(--neutralPrimary)',
+                        pointerEvents: 'auto', // 确保可以交互
+                        boxSizing: 'border-box'
                     }}>
-                        <Spinner label="正在查询文章..." />
+                        <div style={{
+                            width: 'calc(100% - 40px)',
+                            maxWidth: 'min(800px, calc(100% - 40px))',
+                            margin: '0 auto',
+                            padding: `calc(20px + var(--navHeight, 32px)) 20px 20px 20px`, // 顶部间距 = 20px + 导航栏高度
+                            boxSizing: 'border-box',
+                            minHeight: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '20px' // 卡片之间的间距
+                        }}>
+                            {/* 标题区域 - 深色卡片 */}
+                            <div style={{
+                                backgroundColor: '#1e1e1e', // Cursor风格的深色背景
+                                borderRadius: '8px',
+                                padding: '20px 24px',
+                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                flexShrink: 0
+                            }}>
+                                <h2 style={{
+                                    margin: '0 0 8px 0',
+                                    fontSize: '20px',
+                                    fontWeight: 600,
+                                    color: '#ffffff'
+                                }}>
+                                    正在查询文章
+                                </h2>
+                                <div style={{
+                                    fontSize: '13px',
+                                    color: '#858585'
+                                }}>
+                                    正在处理您的请求，请稍候...
+                                </div>
+                            </div>
+
+                            {/* 总体进度条 - 深色卡片 */}
+                            <div style={{ 
+                                padding: '16px',
+                                backgroundColor: '#1e1e1e', // Cursor风格的深色背景
+                                borderRadius: '8px',
+                                border: '1px solid #3e3e3e',
+                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                flexShrink: 0,
+                                boxSizing: 'border-box'
+                            }}>
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    marginBottom: '12px'
+                                }}>
+                                    <span style={{
+                                        fontSize: '14px',
+                                        fontWeight: 500,
+                                        color: '#cccccc'
+                                    }}>
+                                        总体进度
+                                    </span>
+                                    <span style={{
+                                        fontSize: '14px',
+                                        fontWeight: 600,
+                                        color: '#4ec9b0' // Cursor风格的青色
+                                    }}>
+                                        {Math.round(progress.overallProgress)}%
+                                    </span>
+                                </div>
+                                <div style={{
+                                    width: '100%',
+                                    height: '6px',
+                                    backgroundColor: '#3e3e3e',
+                                    borderRadius: '3px',
+                                    overflow: 'hidden',
+                                    position: 'relative'
+                                }}>
+                                    <div style={{
+                                        width: `${progress.overallProgress}%`,
+                                        height: '100%',
+                                        backgroundColor: '#4ec9b0',
+                                        transition: 'width 0.3s ease',
+                                        borderRadius: '3px',
+                                        boxShadow: '0 0 8px rgba(78, 201, 176, 0.4)'
+                                    }} />
+                                </div>
+                            </div>
+
+                            {/* 当前步骤信息 - 深色卡片 */}
+                            {progress.currentMessage && (
+                                <div style={{
+                                    padding: '12px 16px',
+                                    backgroundColor: '#1e1e1e', // Cursor风格的深色背景
+                                    borderRadius: '8px',
+                                    border: '1px solid #3e3e3e',
+                                    borderLeft: '3px solid #4ec9b0',
+                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                    fontSize: '13px',
+                                    color: '#cccccc',
+                                    lineHeight: '1.5',
+                                    flexShrink: 0,
+                                    boxSizing: 'border-box'
+                                }}>
+                                    <Icon iconName="Info" style={{ 
+                                        fontSize: '14px', 
+                                        color: '#4ec9b0',
+                                        marginRight: '8px',
+                                        verticalAlign: 'middle'
+                                    }} />
+                                    {progress.currentMessage}
+                                </div>
+                            )}
+
+                            {/* 步骤列表 - Todo风格 - 深色卡片容器 */}
+                            <div style={{
+                                backgroundColor: '#1e1e1e', // Cursor风格的深色背景
+                                borderRadius: '8px',
+                                padding: '20px',
+                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                flex: 1,
+                                minHeight: 0,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '12px',
+                                overflow: 'visible'
+                            }}>
+                                <div style={{
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    color: '#858585',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px'
+                                }}>
+                                    执行步骤 ({progress.steps.filter(s => s.status === 'completed').length}/{progress.steps.length})
+                                </div>
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '8px',
+                                    flex: 1,
+                                    minHeight: 0,
+                                    overflow: 'visible'
+                                }}>
+                                {progress.steps.map((step, index) => {
+                                    const isActive = step.status === 'in_progress'
+                                    const isCompleted = step.status === 'completed'
+                                    const isError = step.status === 'error'
+                                    const isPending = step.status === 'pending'
+                                    
+                                    return (
+                                        <div
+                                            key={step.id}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'flex-start',
+                                                gap: '12px',
+                                                padding: '14px 16px',
+                                                borderRadius: '6px',
+                                                backgroundColor: isActive 
+                                                    ? '#2a2d2e' 
+                                                    : isCompleted 
+                                                        ? '#1e3a1e' 
+                                                        : isError
+                                                            ? '#3a1e1e'
+                                                            : '#252526',
+                                                border: isActive 
+                                                    ? '1px solid #4ec9b0' 
+                                                    : isCompleted
+                                                        ? '1px solid #4ec9b0'
+                                                        : isError
+                                                            ? '1px solid #f48771'
+                                                            : '1px solid #3e3e3e',
+                                                borderLeft: isActive 
+                                                    ? '3px solid #4ec9b0' 
+                                                    : isCompleted
+                                                        ? '3px solid #4ec9b0'
+                                                        : isError
+                                                            ? '3px solid #f48771'
+                                                            : '3px solid #3e3e3e',
+                                                transition: 'all 0.2s ease',
+                                                opacity: isPending ? 0.6 : 1
+                                            }}
+                                        >
+                                            {/* 步骤图标 - 更明显的状态指示 */}
+                                            <div style={{
+                                                width: '20px',
+                                                height: '20px',
+                                                borderRadius: '4px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexShrink: 0,
+                                                marginTop: '2px',
+                                                backgroundColor: isError 
+                                                    ? '#f48771' 
+                                                    : isCompleted 
+                                                        ? '#4ec9b0' 
+                                                        : isActive 
+                                                            ? '#4ec9b0' 
+                                                            : '#3e3e3e',
+                                                border: isPending ? '1px solid #5a5a5a' : 'none'
+                                            }}>
+                                                {isError ? (
+                                                    <Icon iconName="Error" style={{ fontSize: '12px', color: '#ffffff' }} />
+                                                ) : isCompleted ? (
+                                                    <Icon iconName="CheckMark" style={{ fontSize: '12px', color: '#ffffff' }} />
+                                                ) : isActive ? (
+                                                    <Spinner size={SpinnerSize.small} styles={{ circle: { borderColor: '#ffffff #ffffff transparent' } }} />
+                                                ) : (
+                                                    <span style={{ fontSize: '11px', color: '#858585', fontWeight: 600 }}>{index + 1}</span>
+                                                )}
+                                            </div>
+                                            
+                                            {/* 步骤内容 */}
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{
+                                                    fontSize: '14px',
+                                                    fontWeight: isActive || isCompleted ? 500 : 400,
+                                                    color: isError 
+                                                        ? '#f48771' 
+                                                        : isActive 
+                                                            ? '#ffffff' 
+                                                            : isCompleted 
+                                                                ? '#4ec9b0' 
+                                                                : '#858585',
+                                                    marginBottom: (step.message || step.progress !== undefined) ? '6px' : '0',
+                                                    lineHeight: '1.4'
+                                                }}>
+                                                    {step.title}
+                                                </div>
+                                                {step.message && (
+                                                    <div style={{
+                                                        fontSize: '12px',
+                                                        color: isError 
+                                                            ? '#f48771' 
+                                                            : isCompleted
+                                                                ? '#6a9a6a'
+                                                                : '#a0a0a0',
+                                                        lineHeight: '1.5',
+                                                        marginTop: '4px'
+                                                    }}>
+                                                        {step.message}
+                                                    </div>
+                                                )}
+                                                {step.progress !== undefined && step.status === 'in_progress' && (
+                                                    <div style={{ marginTop: '10px' }}>
+                                                        <div style={{
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            marginBottom: '4px',
+                                                            fontSize: '11px',
+                                                            color: '#858585'
+                                                        }}>
+                                                            <span>处理中...</span>
+                                                            <span>{step.progress}%</span>
+                                                        </div>
+                                                        <div style={{
+                                                            width: '100%',
+                                                            height: '4px',
+                                                            backgroundColor: '#3e3e3e',
+                                                            borderRadius: '2px',
+                                                            overflow: 'hidden'
+                                                        }}>
+                                                            <div style={{
+                                                                width: `${step.progress}%`,
+                                                                height: '100%',
+                                                                backgroundColor: '#4ec9b0',
+                                                                transition: 'width 0.3s ease',
+                                                                borderRadius: '2px',
+                                                                boxShadow: '0 0 4px rgba(78, 201, 176, 0.3)'
+                                                            }} />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                                </div>
+                            </div>
+
+                            {/* 所有步骤完成后的"查看结果"按钮 - 深色卡片 */}
+                            {(() => {
+                                const allStepsCompleted = progress.steps.every(step => 
+                                    step.status === 'completed' || step.status === 'error'
+                                )
+                                const hasResults = filteredArticles.length > 0
+                                
+                                if (allStepsCompleted && hasResults && !showResults) {
+                                    return (
+                                        <div style={{
+                                            backgroundColor: '#1e1e1e', // Cursor风格的深色背景
+                                            borderRadius: '8px',
+                                            padding: '24px',
+                                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                            textAlign: 'center',
+                                            flexShrink: 0
+                                        }}>
+                                            <div style={{
+                                                fontSize: '16px',
+                                                fontWeight: 500,
+                                                color: '#ffffff',
+                                                marginBottom: '12px'
+                                            }}>
+                                                所有步骤已完成！
+                                            </div>
+                                            <div style={{
+                                                fontSize: '13px',
+                                                color: '#858585',
+                                                marginBottom: '20px'
+                                            }}>
+                                                已找到 {filteredArticles.length} 篇文章，{clusters.length > 0 ? `分为 ${clusters.length} 个主题` : '未进行聚类'}
+                                            </div>
+                                            <PrimaryButton
+                                                iconProps={{ iconName: 'View' }}
+                                                text="查看结果"
+                                                onClick={this.handleShowResults}
+                                                styles={{
+                                                    root: {
+                                                        backgroundColor: '#4ec9b0',
+                                                        borderColor: '#4ec9b0',
+                                                        minWidth: '150px'
+                                                    },
+                                                    rootHovered: {
+                                                        backgroundColor: '#5ed9c0',
+                                                        borderColor: '#5ed9c0'
+                                                    },
+                                                    rootPressed: {
+                                                        backgroundColor: '#3eb9a0',
+                                                        borderColor: '#3eb9a0'
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                    )
+                                }
+                                return null
+                            })()}
+                        </div>
                     </div>
-                )}
+                    )
+                })()}
+                
 
                 {error && !isLoading && filteredArticles.length === 0 && (
                     <div style={{ 
@@ -1745,8 +2309,8 @@ ${articlesText}
                     </div>
                 )}
 
-                {/* 占位符文本 - 只在没有文章且没有错误时显示 */}
-                {filteredArticles.length === 0 && !isLoading && !error && (
+                {/* 占位符文本 - 只在没有文章且没有错误且未显示进度界面时显示 */}
+                {filteredArticles.length === 0 && !isLoading && !error && !shouldShowDarkProgress && !showResults && (
                     <div style={{ 
                         display: 'flex', 
                         flexDirection: 'column',
