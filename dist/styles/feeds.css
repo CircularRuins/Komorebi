@@ -39,7 +39,7 @@
 .article webview,
 .article .error-prompt {
     width: 100%;
-    height: calc(100% - 36px);
+    height: calc(100% - 48px);
     border: none;
     color: var(--black);
 }
@@ -52,6 +52,7 @@
 .article .actions {
     color: var(--black);
     border-bottom: 1px solid var(--neutralQuaternaryAlt);
+    padding-bottom: 8px;
 }
 .article .actions .favicon,
 .article .actions .ms-Spinner {

@@ -50,6 +50,7 @@ type ArticleState = {
     loaded: boolean
     error: boolean
     errorDescription: string
+    showCopySuccess: boolean
 }
 
 class Article extends React.Component<ArticleProps, ArticleState> {
@@ -75,6 +76,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 loaded: false,
                 error: false,
                 errorDescription: "",
+                showCopySuccess: false,
             }
             return
         } else {
@@ -89,6 +91,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             loaded: false,
             error: false,
             errorDescription: "",
+            showCopySuccess: false,
         }
         window.utils.addWebviewContextListener(this.contextMenuHandler)
         window.utils.addWebviewKeydownListener(this.keyDownHandler)
@@ -165,25 +168,6 @@ class Article extends React.Component<ArticleProps, ArticleState> {
 
     moreMenuProps = (): IContextualMenuProps => ({
         items: [
-            {
-                key: "openInBrowser",
-                text: intl.get("openExternal"),
-                iconProps: { iconName: "NavigateExternalInline" },
-                onClick: e => {
-                    window.utils.openExternal(
-                        this.props.item.link,
-                        platformCtrl(e)
-                    )
-                },
-            },
-            {
-                key: "copyURL",
-                text: intl.get("context.copyURL"),
-                iconProps: { iconName: "Link" },
-                onClick: () => {
-                    window.utils.writeClipboard(this.props.item.link)
-                },
-            },
             {
                 key: "fontMenu",
                 text: intl.get("article.font"),
@@ -397,7 +381,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
         
         return (
         <FocusZone className="article">
-            <Stack horizontal style={{ height: 36 }}>
+            <Stack horizontal style={{ height: 48, paddingTop: 12 }}>
                 <span style={{ width: 96 }}></span>
                 <Stack
                     className="actions"
@@ -430,27 +414,6 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                     </Stack.Item>
                     <CommandBarButton
                         title={
-                            this.props.item.hasRead
-                                ? intl.get("article.markUnread")
-                                : intl.get("article.markRead")
-                        }
-                        iconProps={
-                            this.props.item.hasRead
-                                ? { iconName: "StatusCircleRing" }
-                                : {
-                                      iconName: "RadioBtnOn",
-                                      style: {
-                                          fontSize: 14,
-                                          textAlign: "center",
-                                      },
-                                  }
-                        }
-                        onClick={() =>
-                            this.props.toggleHasRead(this.props.item)
-                        }
-                    />
-                    <CommandBarButton
-                        title={
                             this.props.item.starred
                                 ? intl.get("article.unstar")
                                 : intl.get("article.star")
@@ -459,35 +422,100 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                             iconName: this.props.item.starred
                                 ? "FavoriteStarFill"
                                 : "FavoriteStar",
+                            style: { fontSize: 16 },
                         }}
                         onClick={() =>
                             this.props.toggleStarred(this.props.item)
                         }
+                        styles={{
+                            root: {
+                                minWidth: 40,
+                                height: 32,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            },
+                            icon: {
+                                fontSize: 16,
+                            },
+                        }}
                     />
                     <CommandBarButton
-                        title={intl.get("article.loadFull")}
-                        className={this.state.loadFull ? "active" : ""}
-                        iconProps={{ iconName: "RawSource" }}
-                        onClick={this.toggleFull}
+                        title={intl.get("openExternal")}
+                        iconProps={{
+                            iconName: "NavigateExternalInline",
+                            style: { fontSize: 16, lineHeight: 1 },
+                        }}
+                        onClick={e => {
+                            window.utils.openExternal(
+                                this.props.item.link,
+                                platformCtrl(e.nativeEvent)
+                            )
+                        }}
+                        styles={{
+                            root: {
+                                minWidth: 40,
+                                height: 32,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            },
+                            icon: {
+                                fontSize: 16,
+                                lineHeight: 1,
+                                marginTop: "-3px",
+                            },
+                        }}
                     />
                     <CommandBarButton
-                        title={intl.get("article.loadWebpage")}
-                        className={this.state.loadWebpage ? "active" : ""}
-                        iconProps={{ iconName: "Globe" }}
-                        onClick={this.toggleWebpage}
-                    />
-                    <CommandBarButton
-                        title={intl.get("more")}
-                        iconProps={{ iconName: "More" }}
-                        menuIconProps={{ style: { display: "none" } }}
-                        menuProps={this.moreMenuProps()}
+                        title={intl.get("context.copyURL")}
+                        iconProps={{
+                            iconName: "Link",
+                            style: { fontSize: 16 },
+                        }}
+                        onClick={() => {
+                            window.utils.writeClipboard(this.props.item.link)
+                            this.setState({ showCopySuccess: true })
+                            setTimeout(() => {
+                                this.setState({ showCopySuccess: false })
+                            }, 1200)
+                        }}
+                        styles={{
+                            root: {
+                                minWidth: 40,
+                                height: 32,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            },
+                            icon: {
+                                fontSize: 16,
+                            },
+                        }}
                     />
                 </Stack>
                 <Stack horizontal horizontalAlign="end" style={{ width: 112 }}>
                     <CommandBarButton
                         title={intl.get("close")}
-                        iconProps={{ iconName: "BackToWindow" }}
+                        iconProps={{
+                            iconName: "BackToWindow",
+                            style: { fontSize: 16 },
+                        }}
                         onClick={this.props.dismiss}
+                        styles={{
+                            root: {
+                                minWidth: 40,
+                                height: 32,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                visibility: "hidden",
+                                pointerEvents: "none",
+                            },
+                            icon: {
+                                fontSize: 16,
+                            },
+                        }}
                     />
                 </Stack>
             </Stack>
@@ -533,6 +561,31 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                     </span>
                 </Stack>
             )}
+            <Stack
+                style={{
+                    position: "fixed",
+                    top: "60px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    zIndex: 10000,
+                    backgroundColor: "var(--neutralDark)",
+                    color: "var(--white)",
+                    padding: "8px 16px",
+                    borderRadius: "4px",
+                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+                    opacity: this.state.showCopySuccess ? 1 : 0,
+                    pointerEvents: this.state.showCopySuccess ? "auto" : "none",
+                    transition: "opacity 0.2s ease-out",
+                }}
+                horizontal
+                tokens={{ childrenGap: 8 }}
+                verticalAlign="center"
+                horizontalAlign="center">
+                <Icon iconName="CheckMark" style={{ fontSize: 16 }} />
+                <span style={{ fontSize: 13 }}>
+                    {intl.get("context.copyURL")} 已复制
+                </span>
+            </Stack>
         </FocusZone>
         )
     }
