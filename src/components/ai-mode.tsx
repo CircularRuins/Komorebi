@@ -123,6 +123,7 @@ type AIModeState = {
     clusters: ArticleCluster[]  // 文章聚类结果
     queryProgress: QueryProgress | null  // 查询进度
     showResults: boolean  // 是否显示结果（所有步骤完成后，需要点击按钮才显示）
+    visibleStepsUpdateCounter: number  // 用于触发重新渲染的计数器
 }
 
 export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
@@ -131,6 +132,8 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
     private summaryContainerRef: React.RefObject<HTMLDivElement>
     private topicInputRef: React.RefObject<ITextField>
     private updateTimeout: NodeJS.Timeout | null = null
+    private visibleStepsRef: Set<string> = new Set() // 跟踪已显示的步骤ID
+    private stepAnimationTimeouts: Map<string, NodeJS.Timeout> = new Map() // 存储动画定时器
 
     constructor(props: AIModeProps) {
         super(props)
@@ -172,7 +175,8 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             filteredArticles: [],
             clusters: [],
             queryProgress: null,
-            showResults: false
+            showResults: false,
+            visibleStepsUpdateCounter: 0
         }
     }
 
@@ -191,6 +195,43 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
     }
 
     componentDidUpdate(prevProps: AIModeProps, prevState: AIModeState) {
+        if (this.state.queryProgress) {
+            // 如果进度是新创建的（之前没有），立即显示第一个步骤
+            if (!prevState.queryProgress && this.state.queryProgress.steps && this.state.queryProgress.steps.length > 0) {
+                const firstStep = this.state.queryProgress.steps[0]
+                if (firstStep && !this.visibleStepsRef.has(firstStep.id)) {
+                    this.visibleStepsRef.add(firstStep.id)
+                }
+            }
+            
+            // 话题必填，总是6个步骤，如果步骤数量不对，重新创建进度
+            const currentStepCount = this.state.queryProgress.steps?.length || 0
+            if (currentStepCount !== 6) {
+                const queryProgress = this.initializeQueryProgress()
+                this.setState({ queryProgress })
+                // 不要重置可见步骤，保持已有的可见步骤
+                // 只在 visibleStepsRef 为空时才添加第一个步骤
+                if (this.visibleStepsRef.size === 0) {
+                    if (queryProgress.steps && queryProgress.steps.length > 0) {
+                        this.visibleStepsRef.add(queryProgress.steps[0].id)
+                    }
+                }
+            }
+            
+            // 管理步骤的逐步显示
+            this.updateVisibleSteps()
+        } else if (prevState.queryProgress && !this.state.queryProgress) {
+            // 如果进度被清空，重置可见步骤
+            // 但只有在确实需要清空时才清空（比如用户主动清空结果）
+            // 不要因为渲染时的临时状态变化而清空
+            // 注意：这里不应该清空，因为可能是渲染时的临时状态变化
+            // 只有在用户主动清空结果时才清空
+            // this.visibleStepsRef.clear()
+            // 清理所有定时器
+            this.stepAnimationTimeouts.forEach(timeout => clearTimeout(timeout))
+            this.stepAnimationTimeouts.clear()
+        }
+        
         // 只在关键状态改变时通知Root组件更新Context（排除输入框变化以避免打断输入）
         if (
             prevState.timeRange !== this.state.timeRange ||
@@ -223,6 +264,78 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         if (this.updateTimeout) {
             clearTimeout(this.updateTimeout)
         }
+        // 清理步骤动画定时器
+        this.stepAnimationTimeouts.forEach(timeout => clearTimeout(timeout))
+        this.stepAnimationTimeouts.clear()
+    }
+
+    // 更新可见步骤：根据步骤状态逐步显示
+    updateVisibleSteps = () => {
+        if (!this.state.queryProgress) return
+        
+        const steps = this.state.queryProgress.steps
+        if (!steps || steps.length === 0) return
+        
+        // 遍历所有步骤，检查哪些应该显示
+        // 重要：即使所有步骤都已完成，也要逐个显示，不要一次性显示所有
+        // 计算已显示的步骤数量，用于计算延迟
+        let visibleCount = 0
+        for (let i = 0; i < steps.length; i++) {
+            if (this.visibleStepsRef.has(steps[i].id)) {
+                visibleCount++
+            }
+        }
+        
+        // 调试信息：检查步骤状态
+        
+        for (let i = 0; i < steps.length; i++) {
+            const step = steps[i]
+            const isFirstStep = i === 0
+            const prevStep = i > 0 ? steps[i - 1] : null
+            
+            // 如果步骤已经显示，跳过
+            if (this.visibleStepsRef.has(step.id)) {
+                continue
+            }
+            
+                // 第一个步骤总是显示
+                if (isFirstStep) {
+                    this.showStepWithAnimation(step.id, 0)
+                    continue
+                }
+            
+                // 只有当前一个步骤完成（completed）时，才显示下一个步骤
+                // 不需要检查前一个步骤是否已显示，因为 showStepWithAnimation 会处理延迟
+                // 即使所有步骤都已完成，也要逐个显示，通过延迟来创建逐步出现的效果
+                if (prevStep && prevStep.status === 'completed') {
+                    // 延迟显示，创建逐步出现的效果
+                    // 使用已显示的步骤数量来计算延迟，确保步骤按顺序显示
+                    // 每个步骤在前一个步骤显示后200ms再显示
+                    const delay = visibleCount * 200 // 基于已显示的步骤数量计算延迟
+                    this.showStepWithAnimation(step.id, delay)
+                    visibleCount++ // 增加已显示的步骤数量
+                }
+        }
+    }
+
+    // 显示步骤并添加动画
+    showStepWithAnimation = (stepId: string, delay: number) => {
+        // 如果已经有定时器，先清除
+        const existingTimeout = this.stepAnimationTimeouts.get(stepId)
+        if (existingTimeout) {
+            clearTimeout(existingTimeout)
+        }
+        
+        const timeout = setTimeout(() => {
+            this.visibleStepsRef.add(stepId)
+            this.stepAnimationTimeouts.delete(stepId)
+            // 使用 setState 触发重新渲染
+            this.setState(prevState => ({
+                visibleStepsUpdateCounter: prevState.visibleStepsUpdateCounter + 1
+            }))
+        }, delay)
+        
+        this.stepAnimationTimeouts.set(stepId, timeout)
     }
 
     // Context value 生成器
@@ -383,8 +496,6 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         localStorage.setItem('ai-model', tempModel)
         localStorage.setItem('ai-embedding-model', tempEmbeddingModel)
         localStorage.setItem('ai-similarity-threshold', similarityThreshold.toString())
-        console.log('保存embedding模型配置:', tempEmbeddingModel)
-        console.log('保存相似度阈值配置:', similarityThreshold)
         this.setState({
             apiEndpoint: tempApiEndpoint,
             apiKey: tempApiKey,
@@ -434,24 +545,16 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         return null
     }
 
-    // 初始化查询进度
-    initializeQueryProgress = (hasTopic: boolean): QueryProgress => {
+    // 初始化查询进度（话题必填，总是6个步骤）
+    initializeQueryProgress = (): QueryProgress => {
         const steps: QueryProgressStep[] = [
             { id: 'query-db', title: '查询数据库文章', status: 'in_progress', message: '正在从数据库查询文章...' },
-        ]
-        
-        if (hasTopic) {
-            steps.push(
-                { id: 'compute-topic-embedding', title: '计算话题向量', status: 'pending' },
-                { id: 'load-embeddings', title: '加载已有文章向量', status: 'pending' },
-                { id: 'compute-embeddings', title: '计算新文章向量', status: 'pending' },
-                { id: 'calculate-similarity', title: '计算相似度并筛选', status: 'pending' }
-            )
-        }
-        
-        steps.push(
+            { id: 'compute-topic-embedding', title: '计算话题向量', status: 'pending' },
+            { id: 'load-embeddings', title: '加载已有文章向量', status: 'pending' },
+            { id: 'compute-embeddings', title: '计算新文章向量', status: 'pending' },
+            { id: 'calculate-similarity', title: '计算相似度并筛选', status: 'pending' },
             { id: 'cluster-articles', title: '分析文章内容并聚类', status: 'pending' }
-        )
+        ]
         
         return {
             steps,
@@ -519,7 +622,13 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                     overallProgress
                 }
             }
-        })
+            }, () => {
+                // 状态更新后，更新可见步骤（确保步骤在执行时能及时显示）
+                // 使用 setTimeout 确保状态已经更新
+                setTimeout(() => {
+                    this.updateVisibleSteps()
+                }, 0)
+            })
     }
 
     // 获取时间范围选项
@@ -547,12 +656,10 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             if (cached) {
                 const embedding = JSON.parse(cached)
                 if (Array.isArray(embedding) && embedding.length > 0) {
-                    console.log('从缓存加载话题embedding，话题:', topic)
                     return embedding
                 }
             }
         } catch (error) {
-            console.warn('加载话题embedding缓存失败:', error)
         }
         return null
     }
@@ -562,20 +669,16 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         const cacheKey = this.getTopicEmbeddingCacheKey(topic, embeddingModel)
         try {
             localStorage.setItem(cacheKey, JSON.stringify(embedding))
-            console.log('保存话题embedding到缓存，话题:', topic)
             
             // 限制缓存数量，避免localStorage过大（最多保留100个话题的embedding）
             this.cleanupTopicEmbeddingCache(embeddingModel, 100)
         } catch (error) {
-            console.warn('保存话题embedding缓存失败:', error)
             // 如果localStorage满了，尝试清理一些旧的缓存
             if (error instanceof DOMException && error.code === 22) {
-                console.log('localStorage已满，尝试清理旧缓存...')
                 this.cleanupTopicEmbeddingCache(embeddingModel, 50)
                 try {
                     localStorage.setItem(cacheKey, JSON.stringify(embedding))
                 } catch (retryError) {
-                    console.warn('清理后仍无法保存缓存:', retryError)
                 }
             }
         }
@@ -602,10 +705,8 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                 for (const key of toDelete) {
                     localStorage.removeItem(key)
                 }
-                console.log(`清理了${toDelete.length}个旧的话题embedding缓存`)
             }
         } catch (error) {
-            console.warn('清理话题embedding缓存失败:', error)
         }
     }
 
@@ -634,7 +735,6 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         }
 
         // 缓存中没有，需要计算
-        console.log('计算话题embedding，话题:', trimmedTopic, '模型:', modelToUse)
 
         // 规范化endpoint URL
         let normalizedEndpoint = apiEndpoint.trim()
@@ -679,7 +779,6 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                 throw new Error('API返回的embedding格式不正确')
             }
         } catch (error: any) {
-            console.error('计算话题embedding失败:', error)
             if (error instanceof OpenAI.APIError) {
                 throw new Error(`计算话题embedding失败: ${error.message}`)
             } else if (error instanceof Error) {
@@ -714,9 +813,8 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         return dotProduct / denominator
     }
 
-    // 查询符合条件的文章（根据时间范围和话题筛选）
-    queryArticles = async (timeRangeDays: number | null, topic: string | null): Promise<RSSItem[]> => {
-        // 更新进度：查询数据库
+    // ==================== 步骤1: 查询数据库文章 ====================
+    stepQueryDatabase = async (timeRangeDays: number | null): Promise<RSSItem[]> => {
         this.updateStepStatus('query-db', 'in_progress', '正在从数据库查询文章...')
         
         // 等待数据库初始化
@@ -755,27 +853,194 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             : await queryBuilder.exec() as RSSItem[]
         
         this.updateStepStatus('query-db', 'completed', `已查询到 ${items.length} 篇文章`)
+        return items
+    }
 
-        // 如果有话题，使用向量相似度筛选
-        if (topic && topic.trim()) {
-            const trimmedTopic = topic.trim()
-            
-            // 从localStorage读取最新的相似度阈值（确保使用最新配置）
-            const savedThreshold = localStorage.getItem('ai-similarity-threshold')
-            const similarityThreshold = savedThreshold ? parseFloat(savedThreshold) : (this.state.similarityThreshold || 0.7)
-            
-            console.log('开始使用向量相似度筛选文章，话题:', trimmedTopic, '阈值:', similarityThreshold)
+    // ==================== 步骤2: 计算话题向量 ====================
+    stepComputeTopicEmbedding = async (topic: string): Promise<number[]> => {
+        const trimmedTopic = topic.trim()
+        this.updateStepStatus('compute-topic-embedding', 'in_progress', `正在计算话题"${trimmedTopic}"的向量...`)
+        
+        try {
+            const topicEmbedding = await this.computeTopicEmbedding(trimmedTopic)
+            this.updateStepStatus('compute-topic-embedding', 'completed', '话题向量计算完成')
+            return topicEmbedding
+        } catch (error) {
+            this.updateStepStatus('compute-topic-embedding', 'error', '计算话题向量失败，使用全文匹配')
+            throw error
+        }
+    }
 
-            // 计算话题的embedding
-            this.updateStepStatus('compute-topic-embedding', 'in_progress', `正在计算话题"${trimmedTopic}"的向量...`)
-            let topicEmbedding: number[]
-            try {
-                topicEmbedding = await this.computeTopicEmbedding(trimmedTopic)
-                this.updateStepStatus('compute-topic-embedding', 'completed', '话题向量计算完成')
-            } catch (error) {
-                console.error('计算话题embedding失败，回退到全文匹配:', error)
-                this.updateStepStatus('compute-topic-embedding', 'error', '计算话题向量失败，使用全文匹配')
-                // 如果计算embedding失败，回退到全文匹配
+    // ==================== 步骤3: 加载已有文章向量 ====================
+    stepLoadEmbeddings = async (items: RSSItem[]): Promise<void> => {
+        this.updateStepStatus('load-embeddings', 'in_progress', '正在从数据库加载已有文章向量...')
+        
+        const itemIds = items.map(item => item._id)
+        if (itemIds.length === 0) {
+            this.updateStepStatus('load-embeddings', 'completed', '没有需要加载的文章')
+            return
+        }
+
+        try {
+            // 批量查询所有文章的embedding
+            const dbItems = await db.itemsDB
+                .select(db.items._id, db.items.embedding)
+                .from(db.items)
+                .where(db.items._id.in(itemIds))
+                .exec() as Array<{ _id: number, embedding?: number[] }>
+            
+            // 创建embedding映射
+            const embeddingMap = new Map<number, number[]>()
+            for (const dbItem of dbItems) {
+                if (dbItem.embedding && Array.isArray(dbItem.embedding) && dbItem.embedding.length > 0) {
+                    embeddingMap.set(dbItem._id, dbItem.embedding)
+                }
+            }
+            
+            // 更新内存中的embedding
+            let loadedCount = 0
+            for (const item of items) {
+                const embedding = embeddingMap.get(item._id)
+                if (embedding) {
+                    item.embedding = embedding
+                    loadedCount++
+                }
+            }
+            
+            this.updateStepStatus('load-embeddings', 'completed', `已加载 ${loadedCount} 篇文章的向量`)
+        } catch (error) {
+            this.updateStepStatus('load-embeddings', 'error', '加载向量失败')
+        }
+    }
+
+    // ==================== 步骤4: 计算新文章向量 ====================
+    stepComputeEmbeddings = async (items: RSSItem[]): Promise<void> => {
+        // 过滤出还没有embedding的文章
+        const articlesNeedingEmbedding = items.filter(item => {
+            const embedding = item.embedding
+            const hasEmbedding = embedding && Array.isArray(embedding) && embedding.length > 0
+            return !hasEmbedding
+        })
+
+        if (articlesNeedingEmbedding.length === 0) {
+            this.updateStepStatus('compute-embeddings', 'completed', '所有文章已有向量，跳过计算')
+            return
+        }
+
+        this.updateStepStatus('compute-embeddings', 'in_progress', `需要计算 ${articlesNeedingEmbedding.length} 篇文章的向量...`, 0)
+        
+        try {
+            await this.computeAndStoreEmbeddings(articlesNeedingEmbedding)
+            
+            // 计算完成后，批量重新加载这些文章的embedding
+            const computedIds = articlesNeedingEmbedding.map(a => a._id)
+            if (computedIds.length > 0) {
+                try {
+                    const dbItems = await db.itemsDB
+                        .select(db.items._id, db.items.embedding)
+                        .from(db.items)
+                        .where(db.items._id.in(computedIds))
+                        .exec() as Array<{ _id: number, embedding?: number[] }>
+                    
+                    const embeddingMap = new Map<number, number[]>()
+                    for (const dbItem of dbItems) {
+                        if (dbItem.embedding && Array.isArray(dbItem.embedding) && dbItem.embedding.length > 0) {
+                            embeddingMap.set(dbItem._id, dbItem.embedding)
+                        }
+                    }
+                    
+                    for (const article of articlesNeedingEmbedding) {
+                        const embedding = embeddingMap.get(article._id)
+                        if (embedding) {
+                            article.embedding = embedding
+                        }
+                    }
+                } catch (error) {
+                    // 忽略重新加载错误，继续执行
+                }
+            }
+            
+            this.updateStepStatus('compute-embeddings', 'completed', `已完成 ${articlesNeedingEmbedding.length} 篇文章的向量计算`)
+        } catch (error) {
+            this.updateStepStatus('compute-embeddings', 'error', '计算向量失败，继续使用已有向量')
+            // 继续执行，只使用已有embedding的文章
+        }
+    }
+
+    // ==================== 步骤5: 计算相似度并筛选 ====================
+    stepCalculateSimilarity = async (items: RSSItem[], topicEmbedding: number[], similarityThreshold: number): Promise<RSSItem[]> => {
+        this.updateStepStatus('calculate-similarity', 'in_progress', '正在计算文章相似度...', 0)
+        
+        const articlesWithSimilarity: Array<{ article: RSSItem, similarity: number }> = []
+        const totalItems = items.length
+        let processedCount = 0
+        
+        for (const item of items) {
+            if (item.embedding && Array.isArray(item.embedding) && item.embedding.length > 0) {
+                try {
+                    const similarity = this.cosineSimilarity(topicEmbedding, item.embedding)
+                    if (similarity >= similarityThreshold) {
+                        articlesWithSimilarity.push({ article: item, similarity })
+                    }
+                } catch (error) {
+                    // 忽略单个文章的计算错误
+                }
+            }
+            processedCount++
+            // 每处理10%更新一次进度
+            if (processedCount % Math.max(1, Math.floor(totalItems / 10)) === 0) {
+                const progress = Math.floor((processedCount / totalItems) * 100)
+                this.updateStepStatus('calculate-similarity', 'in_progress', `正在计算相似度... (${processedCount}/${totalItems})`, progress)
+            }
+        }
+
+        // 按相似度降序排序
+        articlesWithSimilarity.sort((a, b) => b.similarity - a.similarity)
+
+        // 选择相似度最高的100篇（如果没有100篇就全选）
+        const maxArticles = 100
+        const selectedArticles = articlesWithSimilarity
+            .slice(0, maxArticles)
+            .map(item => item.article)
+
+        this.updateStepStatus('calculate-similarity', 'completed', `找到 ${articlesWithSimilarity.length} 篇相关文章，已选择前 ${selectedArticles.length} 篇`)
+
+        return selectedArticles
+    }
+
+    // ==================== 主函数: 查询符合条件的文章（顺序执行各个步骤）====================
+    queryArticles = async (timeRangeDays: number | null, topic: string | null): Promise<RSSItem[]> => {
+        // 步骤1: 查询数据库文章
+        const items = await this.stepQueryDatabase(timeRangeDays)
+
+        // 如果没有话题，直接返回所有文章
+        if (!topic || !topic.trim()) {
+            return items
+        }
+
+        const trimmedTopic = topic.trim()
+        
+        // 从localStorage读取最新的相似度阈值（确保使用最新配置）
+        const savedThreshold = localStorage.getItem('ai-similarity-threshold')
+        const similarityThreshold = savedThreshold ? parseFloat(savedThreshold) : (this.state.similarityThreshold || 0.7)
+
+        try {
+            // 步骤2: 计算话题向量
+            const topicEmbedding = await this.stepComputeTopicEmbedding(trimmedTopic)
+            
+            // 步骤3: 加载已有文章向量
+            await this.stepLoadEmbeddings(items)
+            
+            // 步骤4: 计算新文章向量
+            await this.stepComputeEmbeddings(items)
+            
+            // 步骤5: 计算相似度并筛选
+            const selectedArticles = await this.stepCalculateSimilarity(items, topicEmbedding, similarityThreshold)
+            
+            return selectedArticles
+        } catch (error) {
+            // 如果计算embedding失败，回退到全文匹配
+            if (error instanceof Error && error.message.includes('计算话题向量失败')) {
                 const topicRegex = new RegExp(trimmedTopic.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
                 return items.filter(item => {
                     return (
@@ -785,147 +1050,13 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                     )
                 })
             }
-
-            // 检查哪些文章需要计算embedding
-            // 先从数据库批量重新加载embedding字段，确保获取最新数据
-            this.updateStepStatus('load-embeddings', 'in_progress', '正在从数据库加载已有文章向量...')
-            const itemIds = items.map(item => item._id)
-            if (itemIds.length > 0) {
-                try {
-                    // 批量查询所有文章的embedding
-                    const dbItems = await db.itemsDB
-                        .select(db.items._id, db.items.embedding)
-                        .from(db.items)
-                        .where(db.items._id.in(itemIds))
-                        .exec() as Array<{ _id: number, embedding?: number[] }>
-                    
-                    // 创建embedding映射
-                    const embeddingMap = new Map<number, number[]>()
-                    for (const dbItem of dbItems) {
-                        if (dbItem.embedding && Array.isArray(dbItem.embedding) && dbItem.embedding.length > 0) {
-                            embeddingMap.set(dbItem._id, dbItem.embedding)
-                        }
-                    }
-                    
-                    // 更新内存中的embedding
-                    let loadedCount = 0
-                    for (const item of items) {
-                        const embedding = embeddingMap.get(item._id)
-                        if (embedding) {
-                            item.embedding = embedding
-                            loadedCount++
-                        }
-                    }
-                    
-                    console.log(`从数据库加载了${loadedCount}篇文章的embedding，共${items.length}篇文章`)
-                    this.updateStepStatus('load-embeddings', 'completed', `已加载 ${loadedCount} 篇文章的向量`)
-                } catch (error) {
-                    console.warn('批量加载embedding失败:', error)
-                    this.updateStepStatus('load-embeddings', 'error', '加载向量失败')
-                }
-            }
-
-            // 过滤出还没有embedding的文章
-            const articlesNeedingEmbedding = items.filter(item => {
-                const embedding = item.embedding
-                const hasEmbedding = embedding && Array.isArray(embedding) && embedding.length > 0
-                return !hasEmbedding
-            })
-
-            console.log(`总共${items.length}篇文章，其中${items.length - articlesNeedingEmbedding.length}篇已有embedding，${articlesNeedingEmbedding.length}篇需要计算`)
-
-            if (articlesNeedingEmbedding.length > 0) {
-                console.log(`发现${articlesNeedingEmbedding.length}篇文章没有embedding，开始计算...`)
-                this.updateStepStatus('compute-embeddings', 'in_progress', `需要计算 ${articlesNeedingEmbedding.length} 篇文章的向量...`, 0)
-                try {
-                    await this.computeAndStoreEmbeddings(articlesNeedingEmbedding)
-                    
-                    // 计算完成后，批量重新加载这些文章的embedding
-                    const computedIds = articlesNeedingEmbedding.map(a => a._id)
-                    if (computedIds.length > 0) {
-                        try {
-                            const dbItems = await db.itemsDB
-                                .select(db.items._id, db.items.embedding)
-                                .from(db.items)
-                                .where(db.items._id.in(computedIds))
-                                .exec() as Array<{ _id: number, embedding?: number[] }>
-                            
-                            const embeddingMap = new Map<number, number[]>()
-                            for (const dbItem of dbItems) {
-                                if (dbItem.embedding && Array.isArray(dbItem.embedding) && dbItem.embedding.length > 0) {
-                                    embeddingMap.set(dbItem._id, dbItem.embedding)
-                                }
-                            }
-                            
-                            for (const article of articlesNeedingEmbedding) {
-                                const embedding = embeddingMap.get(article._id)
-                                if (embedding) {
-                                    article.embedding = embedding
-                                }
-                            }
-                            
-                            console.log(`重新加载了${embeddingMap.size}篇新计算的文章的embedding`)
-                        } catch (error) {
-                            console.warn('重新加载embedding失败:', error)
-                        }
-                    }
-                    this.updateStepStatus('compute-embeddings', 'completed', `已完成 ${articlesNeedingEmbedding.length} 篇文章的向量计算`)
-                } catch (error) {
-                    console.error('计算文章embedding失败:', error)
-                    this.updateStepStatus('compute-embeddings', 'error', '计算向量失败，继续使用已有向量')
-                    // 继续执行，只使用已有embedding的文章
-                }
-            } else {
-                this.updateStepStatus('compute-embeddings', 'completed', '所有文章已有向量，跳过计算')
-            }
-
-            // 计算每篇文章与话题的相似度
-            this.updateStepStatus('calculate-similarity', 'in_progress', '正在计算文章相似度...', 0)
-            const articlesWithSimilarity: Array<{ article: RSSItem, similarity: number }> = []
-            const totalItems = items.length
-            let processedCount = 0
-            
-            for (const item of items) {
-                if (item.embedding && Array.isArray(item.embedding) && item.embedding.length > 0) {
-                    try {
-                        const similarity = this.cosineSimilarity(topicEmbedding, item.embedding)
-                        if (similarity >= similarityThreshold) {
-                            articlesWithSimilarity.push({ article: item, similarity })
-                        }
-                    } catch (error) {
-                        console.warn(`计算文章 ${item._id} 的相似度失败:`, error)
-                    }
-                }
-                processedCount++
-                // 每处理10%更新一次进度
-                if (processedCount % Math.max(1, Math.floor(totalItems / 10)) === 0) {
-                    const progress = Math.floor((processedCount / totalItems) * 100)
-                    this.updateStepStatus('calculate-similarity', 'in_progress', `正在计算相似度... (${processedCount}/${totalItems})`, progress)
-                }
-            }
-
-            // 按相似度降序排序
-            articlesWithSimilarity.sort((a, b) => b.similarity - a.similarity)
-
-            // 选择相似度最高的100篇（如果没有100篇就全选）
-            const maxArticles = 100
-            const selectedArticles = articlesWithSimilarity
-                .slice(0, maxArticles)
-                .map(item => item.article)
-
-            console.log(`向量相似度筛选完成: 找到${articlesWithSimilarity.length}篇相似度>=${similarityThreshold}的文章，选择了前${selectedArticles.length}篇`)
-            this.updateStepStatus('calculate-similarity', 'completed', `找到 ${articlesWithSimilarity.length} 篇相关文章，已选择前 ${selectedArticles.length} 篇`)
-
-            return selectedArticles
+            throw error
         }
-
-        return items
     }
 
     // 计算文章的embedding并存储
     computeAndStoreEmbeddings = async (articles: RSSItem[]): Promise<void> => {
         const { apiEndpoint, apiKey, embeddingModel } = this.state
-        console.log('computeAndStoreEmbeddings - 当前embeddingModel配置:', embeddingModel)
 
         if (articles.length === 0) {
             return
@@ -933,18 +1064,15 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
 
         // 验证API配置
         if (!apiEndpoint || !apiEndpoint.trim()) {
-            console.warn('API Endpoint未配置，跳过embedding计算')
             return
         }
         if (!apiKey || !apiKey.trim()) {
-            console.warn('API Key未配置，跳过embedding计算')
             return
         }
 
         // 规范化endpoint URL
         let normalizedEndpoint = apiEndpoint.trim()
         if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-            console.warn('API Endpoint格式不正确，跳过embedding计算')
             return
         }
 
@@ -958,7 +1086,6 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                 baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
             }
         } catch (error) {
-            console.warn('无效的API Endpoint URL，跳过embedding计算:', normalizedEndpoint)
             return
         }
 
@@ -969,11 +1096,9 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         })
         
         if (articlesNeedingEmbedding.length === 0) {
-            console.log('所有文章都已计算过embedding')
             return
         }
 
-        console.log(`开始计算${articlesNeedingEmbedding.length}篇文章的embedding`)
 
         try {
             const openai = new OpenAI({
@@ -984,7 +1109,6 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
 
             // 验证embedding模型配置
             if (!embeddingModel || !embeddingModel.trim()) {
-                console.warn('Embedding模型未配置，跳过embedding计算')
                 return
             }
 
@@ -1013,7 +1137,6 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                     return `${title}\n${snippet}`.trim()
                 })
 
-                console.log(`处理第 ${batchNumber} 批，共 ${batch.length} 篇文章`)
 
                 // 调用embedding API
                 const response = await openai.embeddings.create({
@@ -1040,9 +1163,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                 }
             }
 
-            console.log(`成功计算并存储了${articlesNeedingEmbedding.length}篇文章的embedding`)
         } catch (error: any) {
-            console.error('计算embedding失败:', error)
             // 不抛出错误，避免影响主流程
         }
     }
@@ -1066,7 +1187,6 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             throw new Error('请先配置模型名称（在设置中配置）')
         }
 
-        console.log('开始聚类分析，文章数量:', articles.length, '话题:', topic)
         
         // 更新进度：开始聚类
         this.updateStepStatus('cluster-articles', 'in_progress', `正在分析 ${articles.length} 篇文章的内容并进行聚类...`, 0)
@@ -1170,16 +1290,12 @@ ${articlesText}
                 // 忽略错误，继续使用普通格式
             }
             
-            console.log('发送聚类请求到API，模型:', model, '文章数量:', articlesToAnalyze.length)
             this.updateStepStatus('cluster-articles', 'in_progress', '正在调用AI模型分析文章...', 50)
             const completion = await openai.chat.completions.create(completionParams)
-            console.log('收到API响应')
             this.updateStepStatus('cluster-articles', 'in_progress', '正在解析聚类结果...', 80)
 
             if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
                 const responseText = completion.choices[0].message.content || ''
-                console.log('API返回的原始文本长度:', responseText.length)
-                console.log('API返回的原始文本前500字符:', responseText.substring(0, 500))
                 
                 // 解析JSON响应
                 let responseData
@@ -1187,12 +1303,8 @@ ${articlesText}
                     // 尝试提取JSON（可能包含markdown代码块）
                     const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
                     const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
-                    console.log('提取的JSON文本长度:', jsonText.length)
                     responseData = JSON.parse(jsonText)
-                    console.log('解析JSON成功，clusters数量:', responseData.clusters?.length)
                 } catch (parseError) {
-                    console.error('解析聚类结果失败:', parseError)
-                    console.error('原始响应文本:', responseText)
                     throw new Error(`LLM返回的聚类结果格式不正确，无法解析JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`)
                 }
 
@@ -1209,7 +1321,6 @@ ${articlesText}
                             unrelatedIndices.add(idx)
                         }
                     })
-                    console.log('发现与话题无关的文章，数量:', unrelatedIndices.size, '索引:', Array.from(unrelatedIndices))
                 }
 
                 // 用于跟踪每个文章被分配到哪个聚类（确保每个文章只属于一个聚类）
@@ -1235,7 +1346,6 @@ ${articlesText}
                             articleToClusterMap.set(idx, index)
                             uniqueIndices.push(idx)
                         } else {
-                            console.warn(`文章索引 ${idx} 被重复分配到聚类 ${index}，已忽略（已属于聚类 ${articleToClusterMap.get(idx)}）`)
                         }
                     })
 
@@ -1262,7 +1372,6 @@ ${articlesText}
 
                 // 如果有未分配的文章，创建一个"其他"分组
                 if (unassignedArticles.length > 0) {
-                    console.log('发现未分配的文章，数量:', unassignedArticles.length)
                     clusters.push({
                         id: `cluster-other`,
                         title: '其他文章',
@@ -1276,35 +1385,32 @@ ${articlesText}
                 clusters.forEach(cluster => {
                     cluster.articles.forEach(article => {
                         if (allArticleIds.has(article._id)) {
-                            console.error('发现重复的文章:', article._id, article.title)
                         }
                         allArticleIds.add(article._id)
                     })
                 })
                 const filteredCount = unrelatedIndices.size
                 const displayedCount = allArticleIds.size
-                console.log('验证完成：显示文章数', displayedCount, '，过滤掉无关文章数', filteredCount, '，原始文章数', articlesToAnalyze.length)
-
-                console.log('最终聚类结果:', clusters.length, '个分组，总文章数:', clusters.reduce((sum, c) => sum + c.articles.length, 0))
                 this.updateStepStatus('cluster-articles', 'completed', `聚类完成：共 ${clusters.length} 个分组，${displayedCount} 篇文章`)
                 return clusters
             } else {
                 throw new Error('API返回格式不正确，未找到choices数组或message内容')
             }
         } catch (error: any) {
-            console.error('聚类分析失败:', error)
-            
+            // 更新步骤状态为错误
+            let errorMessage = '聚类分析失败'
             if (error instanceof OpenAI.APIError) {
-                let errorMessage = error.message
+                errorMessage = error.message
                 if (error.status === 404) {
                     errorMessage = `404错误: 请求的URL不存在\n${error.message}\n\n请检查:\n1. API Endpoint是否正确（完整的URL路径）\n2. 是否需要包含特定的路径（如 /v1/chat/completions）\n3. API服务是否正常运行\n当前请求URL: ${normalizedEndpoint}`
                 }
-                throw new Error(errorMessage)
             } else if (error instanceof Error) {
-                throw error
+                errorMessage = error.message
             } else {
-                throw new Error(`聚类分析失败: ${String(error)}`)
+                errorMessage = `聚类分析失败: ${String(error)}`
             }
+            this.updateStepStatus('cluster-articles', 'error', errorMessage)
+            throw new Error(errorMessage)
         }
     }
 
@@ -1384,7 +1490,6 @@ ${articlesText}
                 throw new Error('API返回格式不正确，未找到choices数组或message内容')
             }
         } catch (error: any) {
-            console.error('API调用失败:', error)
             
             if (error instanceof OpenAI.APIError) {
                 let errorMessage = error.message
@@ -1412,21 +1517,39 @@ ${articlesText}
             return
         }
 
-        // 保存当前话题到状态和最近话题列表
-        const trimmedTopic = topicInput.trim()
-        if (trimmedTopic) {
-            this.setState({ topic: trimmedTopic })
-            this.saveTopicToRecent(trimmedTopic)
+        // 验证话题必须输入（话题是必填的）
+        const trimmedTopic = topicInput.trim() || this.state.topic?.trim() || ''
+        if (!trimmedTopic) {
+            this.setState({ 
+                showErrorDialog: true,
+                errorDialogMessage: '请输入话题关键词'
+            })
+            return
         }
 
-        // 获取当前话题（如果有的话）
-        const currentTopic = trimmedTopic || this.state.topic || null
+        // 保存当前话题到状态和最近话题列表
+        const currentTopic = trimmedTopic
+        this.saveTopicToRecent(currentTopic)
         
-        // 初始化查询进度
-        const queryProgress = this.initializeQueryProgress(!!currentTopic)
-        console.log('初始化查询进度:', queryProgress)
+        // 初始化查询进度（话题必填，总是6个步骤）
+        const queryProgress = this.initializeQueryProgress()
+
+        // 重置可见步骤，开始新的进度展示
+        this.visibleStepsRef.clear()
+        this.stepAnimationTimeouts.forEach(timeout => clearTimeout(timeout))
+        this.stepAnimationTimeouts.clear()
+        
+        // 只显示第一个步骤，其他步骤会在执行时通过 updateVisibleSteps 逐步显示
+        if (queryProgress.steps && queryProgress.steps.length > 0) {
+            const firstStep = queryProgress.steps[0]
+            if (firstStep) {
+                this.visibleStepsRef.add(firstStep.id)
+            }
+        }
 
         this.setState({ 
+            topic: currentTopic,
+            topicInput: currentTopic, // 确保 topicInput 和 topic 一致
             isLoading: true,
             error: null,
             summary: '',
@@ -1436,7 +1559,6 @@ ${articlesText}
             queryProgress: queryProgress,
             showResults: false
         }, () => {
-            console.log('状态已更新，queryProgress:', this.state.queryProgress)
             // 状态更新后立即通知 Context 更新
             if (typeof window !== 'undefined') {
                 const event = new CustomEvent('aiModeUpdated')
@@ -1477,14 +1599,12 @@ ${articlesText}
             const articlesWithValidSources = articles.filter(item => {
                 const source = sources[item.source]
                 if (!source) {
-                    console.warn(`文章 ${item._id} 的 source ${item.source} 不存在`)
                     return false
                 }
                 return true
             })
             
             if (articlesWithValidSources.length !== articles.length) {
-                console.warn(`有 ${articles.length - articlesWithValidSources.length} 篇文章的 source 不存在，已过滤`)
             }
             
             // 注意：这些文章已经在数据库和 store 中了（因为我们是从数据库查询的）
@@ -1505,16 +1625,15 @@ ${articlesText}
                     const event = new CustomEvent('aiModeUpdated')
                     window.dispatchEvent(event)
                 }
+                // 确保 cluster-articles 步骤已显示（如果前一个步骤已完成）
+                this.updateVisibleSteps()
             })
 
             // 使用LLM对文章进行聚类分析
             try {
-                console.log('开始调用聚类分析，文章数量:', articlesWithValidSources.length)
                 const clusters = await this.clusterArticles(articlesWithValidSources, currentTopic)
-                console.log('聚类分析完成，聚类数量:', clusters.length, clusters)
                 
                 if (clusters.length === 0) {
-                    console.warn('聚类分析返回空结果')
                 }
                 
                 this.setState({ 
@@ -1523,16 +1642,13 @@ ${articlesText}
                     isLoading: false,
                     showResults: false  // 不自动显示结果，等待用户点击按钮
                 }, () => {
-                    console.log('状态已更新，clusters:', this.state.clusters.length)
                     if (typeof window !== 'undefined') {
                         const event = new CustomEvent('aiModeUpdated')
                         window.dispatchEvent(event)
                     }
                 })
             } catch (clusterError) {
-                console.error('聚类分析失败:', clusterError)
                 const errorMsg = clusterError instanceof Error ? clusterError.message : '聚类分析失败，已显示原始文章列表'
-                console.error('错误详情:', errorMsg)
                 // 聚类失败时仍然显示文章列表，但不进行分组
                 this.setState({ 
                     clusters: [],
@@ -1548,7 +1664,6 @@ ${articlesText}
                 })
             }
         } catch (error) {
-            console.error('查询文章失败:', error)
             const errorMessage = error instanceof Error ? error.message : '查询失败，请稍后重试'
             this.setState({ 
                 isLoading: false,
@@ -1654,18 +1769,6 @@ ${articlesText}
             (currentProgress && !allStepsCompleted)  // 有进度但未完成
         )
         
-        console.log('页面显示判断:', {
-            showResults,
-            isLoading,
-            isClustering,
-            allStepsCompleted,
-            hasResults,
-            hasProgress: !!currentProgress,
-            shouldShowDarkProgress,
-            shouldShowProgressForCompleted,
-            filteredArticlesCount: filteredArticles.length,
-            clustersCount: clusters.length
-        })
 
         return (
             <div className={`ai-mode-container ${summary ? 'has-summary' : 'no-summary'}`} style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -1906,36 +2009,65 @@ ${articlesText}
 
                 {/* 加载和错误状态 - Cursor风格深色界面 */}
                 {(shouldShowDarkProgress || shouldShowProgressForCompleted) && (() => {
-                    // 如果没有进度信息，创建一个完整的默认进度对象
-                    let progress = currentProgress
+                    // 话题必填，总是6个步骤
+                    // 始终使用 this.state.queryProgress，不要使用 currentProgress，因为它可能在某些情况下为 null
+                    // 如果 this.state.queryProgress 存在，直接使用它，不要重新创建
+                    let progress = this.state.queryProgress
                     if (!progress) {
-                        // 获取当前话题来判断是否需要显示话题相关的步骤
-                        const hasTopic = (topicInput || topic || '').trim().length > 0
-                        
-                        // 如果步骤已完成（shouldShowProgressForCompleted为true），所有步骤都应该是完成状态
+                        progress = currentProgress
+                    }
+                    const actualStepCount = progress?.steps?.length || 0
+                    const needsRecreate = !progress || actualStepCount !== 6
+                    
+                    // 只有在确实没有进度时才创建默认进度
+                    // 如果 this.state.queryProgress 存在，即使步骤数量不对，也不要重新创建，因为状态可能正在更新中
+                    if (needsRecreate && !this.state.queryProgress) {
                         const defaultStatus = shouldShowProgressForCompleted ? 'completed' as const : 'in_progress' as const
                         const defaultMessage = shouldShowProgressForCompleted ? '所有步骤已完成' : '正在从数据库查询文章...'
                         
                         progress = {
                             steps: [
                                 { id: 'query-db', title: '查询数据库文章', status: defaultStatus, message: defaultMessage },
-                                ...(hasTopic ? [
-                                    { id: 'compute-topic-embedding', title: '计算话题向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
-                                    { id: 'load-embeddings', title: '加载已有文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
-                                    { id: 'compute-embeddings', title: '计算新文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
-                                    { id: 'calculate-similarity', title: '计算相似度并筛选', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const }
-                                ] : []),
+                                { id: 'compute-topic-embedding', title: '计算话题向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
+                                { id: 'load-embeddings', title: '加载已有文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
+                                { id: 'compute-embeddings', title: '计算新文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
+                                { id: 'calculate-similarity', title: '计算相似度并筛选', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
                                 { id: 'cluster-articles', title: '分析文章内容并聚类', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const }
                             ],
-                            currentStepIndex: shouldShowProgressForCompleted ? (hasTopic ? 5 : 1) : 0,
+                            currentStepIndex: shouldShowProgressForCompleted ? 5 : 0,
                             overallProgress: shouldShowProgressForCompleted ? 100 : 0,
                             currentMessage: defaultMessage
                         }
+                        // 如果重新创建进度，不要重置 visibleStepsRef，保持已有的可见步骤
+                        // 只在 visibleStepsRef 为空时才添加第一个步骤
+                        // 其他步骤会通过 updateVisibleSteps 逐个显示
+                        if (progress.steps && progress.steps.length > 0) {
+                            if (this.visibleStepsRef.size === 0) {
+                                // 如果 visibleStepsRef 为空，只添加第一个步骤
+                                const firstStep = progress.steps[0]
+                                if (firstStep) {
+                                    this.visibleStepsRef.add(firstStep.id)
+                                }
+                            }
+                        }
                     }
                     
-                    console.log('显示深色进度界面，progress:', progress, 'steps:', progress.steps?.length, 'currentProgress存在:', !!currentProgress)
                     
                     return (
+                    <>
+                        {/* 添加CSS动画样式 */}
+                        <style>{`
+                            @keyframes fadeInUp {
+                                from {
+                                    opacity: 0;
+                                    transform: translateY(10px);
+                                }
+                                to {
+                                    opacity: 1;
+                                    transform: translateY(0);
+                                }
+                            }
+                        `}</style>
                     <div key="query-progress-dark" style={{ 
                         position: 'absolute', // 使用absolute只覆盖内容区域，不遮挡菜单栏
                         top: 0,
@@ -1983,56 +2115,6 @@ ${articlesText}
                                     color: '#858585'
                                 }}>
                                     正在处理您的请求，请稍候...
-                                </div>
-                            </div>
-
-                            {/* 总体进度条 - 深色卡片 */}
-                            <div style={{ 
-                                padding: '16px',
-                                backgroundColor: '#1e1e1e', // Cursor风格的深色背景
-                                borderRadius: '8px',
-                                border: '1px solid #3e3e3e',
-                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                                flexShrink: 0,
-                                boxSizing: 'border-box'
-                            }}>
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    marginBottom: '12px'
-                                }}>
-                                    <span style={{
-                                        fontSize: '14px',
-                                        fontWeight: 500,
-                                        color: '#cccccc'
-                                    }}>
-                                        总体进度
-                                    </span>
-                                    <span style={{
-                                        fontSize: '14px',
-                                        fontWeight: 600,
-                                        color: '#4ec9b0' // Cursor风格的青色
-                                    }}>
-                                        {Math.round(progress.overallProgress)}%
-                                    </span>
-                                </div>
-                                <div style={{
-                                    width: '100%',
-                                    height: '6px',
-                                    backgroundColor: '#3e3e3e',
-                                    borderRadius: '3px',
-                                    overflow: 'hidden',
-                                    position: 'relative'
-                                }}>
-                                    <div style={{
-                                        width: `${progress.overallProgress}%`,
-                                        height: '100%',
-                                        backgroundColor: '#4ec9b0',
-                                        transition: 'width 0.3s ease',
-                                        borderRadius: '3px',
-                                        boxShadow: '0 0 8px rgba(78, 201, 176, 0.4)'
-                                    }} />
                                 </div>
                             </div>
 
@@ -2091,7 +2173,16 @@ ${articlesText}
                                     minHeight: 0,
                                     overflow: 'visible'
                                 }}>
-                                {progress.steps.map((step, index) => {
+                                {(() => {
+                                    const filteredSteps = progress.steps.filter(step => {
+                                        // 如果 visibleStepsRef 为空，显示所有步骤（兼容性处理）
+                                        if (this.visibleStepsRef.size === 0) {
+                                            return true
+                                        }
+                                        return this.visibleStepsRef.has(step.id)
+                                    })
+                                    return filteredSteps
+                                })().map((step, index) => {
                                     const isActive = step.status === 'in_progress'
                                     const isCompleted = step.status === 'completed'
                                     const isError = step.status === 'error'
@@ -2127,8 +2218,10 @@ ${articlesText}
                                                         : isError
                                                             ? '3px solid #f48771'
                                                             : '3px solid #3e3e3e',
-                                                transition: 'all 0.2s ease',
-                                                opacity: isPending ? 0.6 : 1
+                                                transition: 'all 0.3s ease',
+                                                opacity: isPending ? 0.6 : 1,
+                                                animation: 'fadeInUp 0.4s ease-out', // 添加淡入动画
+                                                transform: 'translateY(0)'
                                             }}
                                         >
                                             {/* 步骤图标 - 更明显的状态指示 */}
@@ -2288,6 +2381,7 @@ ${articlesText}
                             })()}
                         </div>
                     </div>
+                    </>
                     )
                 })()}
                 

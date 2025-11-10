@@ -65,7 +65,7 @@ export const AIModeMenuContent: React.FC = () => {
             </div>
 
             <div style={{ marginBottom: '8px' }}>
-                <Label style={{ fontSize: '14px', fontWeight: 600 }}>话题</Label>
+                <Label style={{ fontSize: '14px', fontWeight: 600 }}>话题（必填）</Label>
                 <TextField
                     componentRef={topicInputRef}
                     value={topicInput}
@@ -86,9 +86,10 @@ export const AIModeMenuContent: React.FC = () => {
                         }
                     }}
                     disabled={isLoading}
+                    required={true}
                 />
                 <Label styles={{ root: { fontSize: '11px', color: 'var(--neutralSecondary)', marginTop: '4px', fontWeight: 'normal' } }}>
-                    输入话题关键词，按Enter确认。将搜索文章标题和内容中的匹配文本。
+                    输入话题关键词，按Enter确认。将搜索文章标题和内容中的匹配文本。必须输入话题。
                 </Label>
                 
                 {/* 常选话题 */}
@@ -146,7 +147,7 @@ export const AIModeMenuContent: React.FC = () => {
                     iconProps={{ iconName: 'Search' }}
                     text="查询文章"
                     onClick={handleGenerateSummary}
-                    disabled={isLoading || !timeRange}
+                    disabled={isLoading || !timeRange || (!topicInput.trim() && !topic)}
                     styles={{ root: { width: '100%' } }}
                 />
                 {filteredArticles && filteredArticles.length > 0 && (
