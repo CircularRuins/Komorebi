@@ -3,7 +3,7 @@ import { TextField, ITextField } from "@fluentui/react/lib/TextField"
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown"
 import { Label } from "@fluentui/react/lib/Label"
 import { PrimaryButton, DefaultButton } from "@fluentui/react/lib/Button"
-import { Spinner, SpinnerSize, MessageBar, MessageBarType, Panel, PanelType } from "@fluentui/react"
+import { Spinner, SpinnerSize, MessageBar, MessageBarType, Stack } from "@fluentui/react"
 import { Icon } from "@fluentui/react/lib/Icon"
 import OpenAI from "openai"
 import * as db from "../scripts/db"
@@ -1544,74 +1544,6 @@ ${articlesText}
 
         return (
             <div className={`ai-mode-container ${summary ? 'has-summary' : 'no-summary'}`} style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                {/* 配置面板 */}
-                <Panel
-                    isOpen={showConfigPanel}
-                    type={PanelType.smallFixedFar}
-                    onDismiss={this.handleConfigCancel}
-                    headerText="AI API 配置"
-                    closeButtonAriaLabel="关闭"
-                >
-                    <div style={{ padding: '20px 0' }}>
-                        <TextField
-                            label="API Endpoint"
-                            value={tempApiEndpoint}
-                            onChange={this.handleApiEndpointChange}
-                            placeholder="https://api.openai.com/v1/chat/completions"
-                            description="OpenAI兼容的API端点地址。必须是完整的URL，包含协议(https://)和完整路径(如/v1/chat/completions)"
-                            styles={{ root: { marginBottom: '20px' } }}
-                        />
-                        <TextField
-                            label="API Key"
-                            type="password"
-                            value={tempApiKey}
-                            onChange={this.handleApiKeyChange}
-                            placeholder="sk-..."
-                            description="您的API密钥"
-                            styles={{ root: { marginBottom: '20px' } }}
-                        />
-                        <TextField
-                            label="模型名称"
-                            value={tempModel}
-                            onChange={this.handleModelChange}
-                            placeholder="请输入模型名称"
-                            description="要使用的模型名称，例如：gpt-3.5-turbo, gpt-4, claude-3-opus 等"
-                            styles={{ root: { marginBottom: '20px' } }}
-                        />
-                        <TextField
-                            label="Embedding模型名称"
-                            value={tempEmbeddingModel}
-                            onChange={this.handleEmbeddingModelChange}
-                            placeholder="text-embedding-ada-002"
-                            description="用于计算文章embedding的模型名称，例如：text-embedding-ada-002, text-embedding-3-small 等"
-                            styles={{ root: { marginBottom: '20px' } }}
-                        />
-                        <TextField
-                            label="相似度阈值"
-                            value={tempSimilarityThreshold}
-                            onChange={this.handleSimilarityThresholdChange}
-                            placeholder="0.7"
-                            description="话题筛选的相似度阈值，范围0-1。值越高，筛选出的文章与话题越相关。建议值：0.6-0.8"
-                            type="number"
-                            min={0}
-                            max={1}
-                            step={0.01}
-                            styles={{ root: { marginBottom: '20px' } }}
-                        />
-                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-                            <DefaultButton
-                                text="取消"
-                                onClick={this.handleConfigCancel}
-                            />
-                            <PrimaryButton
-                                text="确认"
-                                onClick={this.handleConfigConfirm}
-                            />
-                        </div>
-                    </div>
-                </Panel>
-
-
                 {/* 按聚类分组的文章列表 */}
                 {filteredArticles.length > 0 && clusters.length > 0 && !isClustering && showResults && (
                     <div 

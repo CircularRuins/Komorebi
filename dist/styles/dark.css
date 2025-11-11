@@ -4,7 +4,11 @@
     }
     .btn-group .btn:hover,
     .ms-Nav-compositeLink:hover {
-        background-color: #fff1;
+        background-color: var(--neutralLight);
+    }
+    #root > nav .ai-mode-switch:hover,
+    .ai-mode-switch:hover {
+        background-color: var(--neutralLight);
     }
     .btn-group .btn:active,
     .ms-Nav-compositeLink:active {

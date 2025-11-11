@@ -18,14 +18,17 @@ const getIsAIModeEnabled = (state: RootState) =>
     state.page.feedId === "ai-mode"
 const getSettingsDisplay = (state: RootState) => 
     state.app.settings.display
+const getAIConfigDisplay = (state: RootState) => 
+    state.aiMode.showConfigPanel
 
 const mapStateToProps = createSelector(
-    [getState, getItemShown, getIsAIModeEnabled, getSettingsDisplay],
-    (state, itemShown, isAIModeEnabled, settingsDisplay) => ({
+    [getState, getItemShown, getIsAIModeEnabled, getSettingsDisplay, getAIConfigDisplay],
+    (state, itemShown, isAIModeEnabled, settingsDisplay, aiConfigDisplay) => ({
         state: state,
         itemShown: itemShown,
         isAIModeEnabled: isAIModeEnabled,
         settingsDisplay: settingsDisplay,
+        aiConfigDisplay: aiConfigDisplay,
     })
 )
 

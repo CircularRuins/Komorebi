@@ -44,7 +44,8 @@
         "view": "檢視",
         "settings": "選項",
         "minimize": "最小化",
-        "maximize": "最大化"
+        "maximize": "最大化",
+        "aiMode": "AI模式"
     },
     "menu": {
         "close": "關閉選單",
@@ -111,10 +112,12 @@
         "fetching": "正在更新訂閱源，請稍候…",
         "exit": "退出選項",
         "sources": "訂閱源",
+        "ai": "AI配置",
         "grouping": "分組與排序",
         "rules": "規則",
         "service": "服務",
         "app": "應用偏好",
+        "appPreferences": "應用偏好",
         "about": "關於",
         "version": "版本",
         "shortcuts": "快捷鍵",

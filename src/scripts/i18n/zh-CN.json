@@ -48,7 +48,8 @@
         "view": "视图",
         "settings": "选项",
         "minimize": "最小化",
-        "maximize": "最大化"
+        "maximize": "最大化",
+        "aiMode": "AI模式"
     },
     "menu": {
         "close": "关闭菜单",
@@ -120,6 +121,7 @@
         "rules": "规则",
         "service": "服务",
         "app": "应用偏好",
+        "appPreferences": "应用偏好",
         "about": "关于",
         "version": "版本",
         "shortcuts": "快捷键",

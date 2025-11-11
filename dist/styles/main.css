@@ -1051,52 +1051,89 @@ img.favicon.dropdown {
     transform: translateX(20px);
 }
 
-/* AI模式开关容器样式 */
-.ai-mode-switch-container {
-    display: flex;
+/* AI模式开关容器样式 - 居中显示，只保留图标 */
+#root > nav .ai-mode-switch {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex !important;
     align-items: center;
-    padding: 8px 12px;
-    margin: 0 4px;
-    border-radius: 4px;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    margin-top: calc((var(--navHeight) - 24px) / 2);
+    cursor: pointer;
+    -webkit-app-region: none;
+    user-select: none;
+    z-index: 2;
+    visibility: visible !important;
+    opacity: 1 !important;
+    text-align: center;
     transition: background-color 0.2s ease;
-    border: 2px solid blue; /* 临时调试边框 */
-    background: lightblue; /* 临时调试背景 */
+    border-radius: 4px;
 }
 
-.ai-mode-switch-container:hover {
-    background-color: var(--neutralLighter);
-}
-
-/* AI模式按钮样式 - 确保不被hide-btns隐藏 */
-.ai-mode-btn {
-    display: flex !important;
+/* 兼容性：保留原来的选择器 */
+.ai-mode-switch {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex !important;
     align-items: center;
-    padding: 4px 8px;
-}
-
-/* 确保AI模式按钮在hide-btns状态下仍然显示 */
-nav.hide-btns .btn-group .btn.ai-mode-btn {
-    display: flex !important;
-}
-
-/* 更具体的选择器来覆盖hide-btns规则 */
-nav.hide-btns .btn-group .btn.ai-mode-btn {
-    display: flex !important;
-    visibility: visible !important;
-}
-
-/* 确保AI模式按钮在所有状态下都显示 */
-nav .btn-group .btn.ai-mode-btn {
-    display: flex !important;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    margin-top: calc((var(--navHeight) - 24px) / 2);
+    cursor: pointer;
+    -webkit-app-region: none;
+    user-select: none;
+    z-index: 2;
     visibility: visible !important;
     opacity: 1 !important;
+    text-align: center;
+    transition: background-color 0.2s ease;
+    border-radius: 4px;
 }
 
-/* 覆盖任何可能隐藏AI模式按钮的规则 */
-.btn-group .btn.ai-mode-btn {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
+#root > nav .ai-mode-switch:hover,
+.ai-mode-switch:hover {
+    background-color: var(--neutralLight);
+}
+
+#root > nav .ai-mode-switch:active,
+.ai-mode-switch:active {
+    background-color: #0002;
+}
+
+#root > nav .ai-mode-switch.ai-mode-enabled,
+.ai-mode-switch.ai-mode-enabled {
+    background-color: transparent;
+}
+
+.ai-mode-icon {
+    font-size: 17px !important;
+    width: 17px !important;
+    height: 17px !important;
+    pointer-events: none;
+    color: var(--black);
+    transition: color 0.2s ease;
+    display: block;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+#root > nav .ai-mode-switch.ai-mode-enabled .ai-mode-icon,
+.ai-mode-switch.ai-mode-enabled .ai-mode-icon {
+    color: var(--primary);
+}
+
+/* 确保SVG图标正确显示 */
+.ai-mode-icon svg {
+    width: 17px !important;
+    height: 17px !important;
+    display: block;
 }
 
 /* AI文章总结模式样式 */

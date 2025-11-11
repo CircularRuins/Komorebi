@@ -85,8 +85,43 @@ body.linux {
 .ms-Button,
 .ms-ContextualMenu-item button {
     cursor: default;
-    font-size: 13px;
+    font-size: 12px;
     user-select: none;
+}
+/* 减小设置下拉菜单的尺寸 */
+.ms-ContextualMenu {
+    min-width: 120px !important;
+    min-height: 60px !important;
+    max-height: none !important;
+    overflow: visible !important;
+    height: auto !important;
+}
+/* 移除菜单列表的高度限制 */
+.ms-ContextualMenu-list,
+.ms-ContextualMenu-container,
+.ms-ContextualMenu-listContainer {
+    min-height: 60px !important;
+    max-height: none !important;
+    overflow: visible !important;
+    height: auto !important;
+}
+.ms-ContextualMenu-item {
+    min-height: 28px !important;
+    height: 28px !important;
+}
+.ms-ContextualMenu-link {
+    padding: 4px 6px !important;
+    line-height: 20px !important;
+    height: 28px !important;
+}
+.ms-ContextualMenu-item .ms-Icon {
+    font-size: 10px !important;
+    width: 10px !important;
+    height: 10px !important;
+}
+.ms-ContextualMenu-item .ms-Icon svg {
+    width: 10px !important;
+    height: 10px !important;
 }
 .ms-Nav-link,
 .ms-Nav-chevronButton {
@@ -209,6 +244,7 @@ body.darwin #root > nav span.title {
     display: inline-block;
     user-select: none;
     -webkit-app-region: none;
+    margin-right: 8px;
 }
 .btn-group .seperator {
     display: inline-block;
@@ -226,19 +262,40 @@ body.darwin .btn-group .seperator {
 }
 .btn-group .btn {
     display: inline-block;
-    width: 48px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     text-decoration: none;
     text-align: center;
-    line-height: 32px;
+    line-height: 24px;
     color: var(--black);
     font-size: 14px;
     vertical-align: top;
+    margin: 0 6px;
+    border-radius: 4px;
 }
 #root > nav .btn-group .btn,
 .menu .btn-group .btn {
-    height: var(--navHeight);
-    line-height: var(--navHeight);
+    height: 24px;
+    line-height: 24px;
+    margin-top: calc((var(--navHeight) - 24px) / 2);
+}
+/* 统一导航栏按钮内的图标大小和位置 */
+#root > nav .btn-group .btn .ms-Icon,
+#root > nav .btn-group .btn i[data-icon-name],
+#root > nav .btn-group .btn i.ms-Icon {
+    font-size: 13px !important;
+    width: 16px !important;
+    height: 16px !important;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+}
+/* 确保 SVG 图标也使用正确的大小 */
+#root > nav .btn-group .btn .ms-Icon svg,
+#root > nav .btn-group .btn i[data-icon-name] svg,
+#root > nav .btn-group .btn i.ms-Icon svg {
+    width: 16px !important;
+    height: 16px !important;
 }
 body.darwin.not-fullscreen #root > nav .btn-group:first-of-type {
     margin-left: 72px;
@@ -268,7 +325,7 @@ nav.ai-mode-on .btn-group .btn.ai-config-btn {
 }
 .btn-group .btn:hover,
 .ms-Nav-compositeLink:hover {
-    background-color: #0001;
+    background-color: var(--neutralLight);
 }
 .btn-group .btn:active,
 .ms-Nav-compositeLink:active {

@@ -5,6 +5,7 @@ import PageContainer from "../containers/page-container"
 import MenuContainer from "../containers/menu-container"
 import NavContainer from "../containers/nav-container"
 import SettingsContainer from "../containers/settings-container"
+import AIConfigContainer from "../containers/ai-config-container"
 import { RootState } from "../scripts/reducer"
 import { ContextMenu } from "./context-menu"
 import ResizableLayout from "./resizable-layout"
@@ -98,6 +99,7 @@ class RootWithProvider extends React.Component<{ locale: string; dispatch: any }
                     />
                     {/* <LogMenu /> */}
                     <SettingsContainer />
+                    <AIConfigContainer />
                     <ContextMenu />
                 </AIModeContext.Provider>
             </div>

@@ -48,7 +48,8 @@
         "view": "View",
         "settings": "Settings",
         "minimize": "Minimize",
-        "maximize": "Maximize"
+        "maximize": "Maximize",
+        "aiMode": "AI Mode"
     },
     "menu": {
         "close": "Close menu",

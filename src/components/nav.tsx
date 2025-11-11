@@ -5,6 +5,11 @@ import { AppState } from "../scripts/models/app"
 import { ProgressIndicator, IObjectWithKey } from "@fluentui/react"
 import { getWindowBreakpoint } from "../scripts/utils"
 import { WindowStateListenerType } from "../schema-types"
+import {
+    ContextualMenu,
+    IContextualMenuItem,
+    DirectionalHint,
+} from "office-ui-fabric-react/lib/ContextualMenu"
 // import Switch from "./switch"
 
 // 内联Switch组件
@@ -56,12 +61,15 @@ type NavProps = {
     openAppSettings: () => void
     toggleAIMode: (enabled: boolean) => void
     isAIModeEnabled: boolean
+    aiConfigDisplay: boolean
     settingsDisplay: boolean
 }
 
 type NavState = {
     maximized: boolean
     hasAIMessages: boolean
+    showSettingsMenu: boolean
+    settingsMenuTarget?: HTMLElement | MouseEvent
 }
 
 class Nav extends React.Component<NavProps, NavState> {
@@ -74,7 +82,8 @@ class Nav extends React.Component<NavProps, NavState> {
         window.utils.addWindowStateListener(this.windowStateListener)
         this.state = {
             maximized: window.utils.isMaximized(),
-            hasAIMessages: typeof window !== 'undefined' && (window as any).hasAIMessages === true
+            hasAIMessages: typeof window !== 'undefined' && (window as any).hasAIMessages === true,
+            showSettingsMenu: false
         }
         // 设置定时器检查AI消息状态
         this.aiMessagesCheckInterval = setInterval(() => {
@@ -156,7 +165,7 @@ class Nav extends React.Component<NavProps, NavState> {
     fetching = () => (!this.canFetch() ? " fetching" : "")
     getClassNames = () => {
         const classNames = new Array<string>()
-        if (this.props.state.settings.display) classNames.push("hide-btns")
+        if (this.props.state.settings.display || this.props.aiConfigDisplay) classNames.push("hide-btns")
         classNames.push("menu-on")
         if (this.props.itemShown) classNames.push("item-on")
         if (this.props.isAIModeEnabled) classNames.push("ai-mode-on")
@@ -174,73 +183,98 @@ class Nav extends React.Component<NavProps, NavState> {
             : null
     }
 
+    openSettingsMenu = (event: React.MouseEvent<HTMLElement>) => {
+        event.preventDefault()
+        event.stopPropagation()
+        // 如果菜单已经打开，则关闭；否则打开
+        if (this.state.showSettingsMenu) {
+            this.closeSettingsMenu()
+        } else {
+            this.setState({
+                showSettingsMenu: true,
+                settingsMenuTarget: event.currentTarget
+            })
+        }
+    }
+
+    closeSettingsMenu = () => {
+        this.setState({
+            showSettingsMenu: false,
+            settingsMenuTarget: undefined
+        })
+    }
+
+    handleNavClick = (event: React.MouseEvent<HTMLElement>) => {
+        // 检查点击目标
+        const target = event.target as HTMLElement
+        
+        // 如果点击的是菜单本身，不关闭
+        if (target.closest('.ms-ContextualMenu')) {
+            return
+        }
+        
+        // 如果点击的是按钮组中的任何按钮，不关闭菜单
+        // （按钮有自己的点击处理，包括设置按钮的切换逻辑）
+        if (target.closest('.btn-group .btn')) {
+            return
+        }
+        
+        // 如果点击的是AI模式开关，不关闭菜单
+        if (target.closest('.ai-mode-switch')) {
+            return
+        }
+        
+        // 如果菜单是打开的，关闭它
+        if (this.state.showSettingsMenu) {
+            this.closeSettingsMenu()
+        }
+    }
+
+    handleAppPreferences = () => {
+        this.closeSettingsMenu()
+        this.props.openAppSettings()
+    }
+
+    handleAIConfig = () => {
+        this.closeSettingsMenu()
+        if (typeof window !== 'undefined' && (window as any).openAIConfigPanel) {
+            (window as any).openAIConfigPanel()
+        }
+    }
+
+    getSettingsMenuItems = (): IContextualMenuItem[] => {
+        return [
+            {
+                key: "appPreferences",
+                text: intl.get("settings.appPreferences"),
+                iconProps: { iconName: "Settings" },
+                onClick: this.handleAppPreferences
+            },
+            {
+                key: "aiConfig",
+                text: intl.get("settings.ai"),
+                iconProps: { iconName: "Cloud" },
+                onClick: this.handleAIConfig
+            }
+        ]
+    }
+
     render() {
         return (
-            <nav className={this.getClassNames()}>
+            <nav className={this.getClassNames()} onClick={this.handleNavClick}>
                 <span className="title" style={{ pointerEvents: 'none' }}>{this.props.state.title}</span>
-                {/* AI模式开关 - 使用fixed定位避免被覆盖，设置页面显示或文章显示时隐藏 */}
+                {/* AI模式开关 - 居中显示，只保留图标 */}
                 {!this.props.settingsDisplay && !this.props.itemShown && (
                 <div 
-                    className="ai-mode-switch-center" 
-                    style={{
-                        position: 'fixed',
-                        left: '50%',
-                        top: '0',
-                        transform: 'translateX(-50%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '0 8px',
-                        borderRadius: '4px',
-                        zIndex: 99999,
-                        cursor: 'pointer',
-                        WebkitAppRegion: 'none',
-                        height: 'var(--navHeight)',
-                        lineHeight: 'var(--navHeight)'
-                    } as any}
+                    className={`ai-mode-switch ${this.props.isAIModeEnabled ? 'ai-mode-enabled' : ''}`}
                     onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         this.props.toggleAIMode(!this.props.isAIModeEnabled);
                     }}
+                    title={intl.get("nav.aiMode")}
                 >
-                    <span style={{ 
-                        marginRight: -2, 
-                        fontSize: 12, 
-                        color: 'var(--neutralPrimary)',
-                        pointerEvents: 'none',
-                        userSelect: 'none',
-                        fontFamily: 'var(--fontFamily)',
-                        fontWeight: 'normal',
-                        lineHeight: '32px'
-                    }}>
-                        AI模式
-                    </span>
-                    <Icon iconName="Robot" style={{ marginRight: -2, fontSize: 14, pointerEvents: 'none' }} />
-                    <div
-                        style={{
-                            width: '32px',
-                            height: '18px',
-                            background: this.props.isAIModeEnabled ? '#10b981' : '#d1d5db',
-                            borderRadius: '9px',
-                            position: 'relative',
-                            border: '1px solid #9ca3af',
-                            transition: 'background-color 0.2s',
-                            pointerEvents: 'none'
-                        }}
-                    >
-                        <div style={{
-                            width: '14px',
-                            height: '14px',
-                            background: 'white',
-                            borderRadius: '50%',
-                            position: 'absolute',
-                            top: '1px',
-                            left: this.props.isAIModeEnabled ? '15px' : '1px',
-                            transition: 'left 0.2s ease',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                            pointerEvents: 'none'
-                        }}></div>
-                    </div>
+                    <Icon iconName="AIMode" className="ai-mode-icon" />
                 </div>
                 )}
                 <div className="btn-group" style={{ float: "right" }}>
@@ -251,26 +285,15 @@ class Nav extends React.Component<NavProps, NavState> {
                         <Icon iconName="Refresh" />
                     </a>
                     <a
-                        className="btn ai-config-btn"
-                        title={intl.get("settings.ai")}
-                        onClick={() => {
-                            if (typeof window !== 'undefined' && (window as any).openAIConfigPanel) {
-                                (window as any).openAIConfigPanel()
-                            }
-                        }}>
-                        <Icon iconName="Cloud" />
-                    </a>
-                    <a
                         className="btn"
                         title={intl.get("settings.app")}
-                        onClick={this.props.openAppSettings}>
+                        onClick={this.openSettingsMenu}>
                         <Icon iconName="Settings" />
                     </a>
                     <a
                         className="btn system"
                         title={intl.get("nav.minimize")}
-                        onClick={this.minimize}
-                        style={{ fontSize: 12 }}>
+                        onClick={this.minimize}>
                         <Icon iconName="Remove" />
                     </a>
                     <a
@@ -278,15 +301,9 @@ class Nav extends React.Component<NavProps, NavState> {
                         title={intl.get("nav.maximize")}
                         onClick={this.maximize}>
                         {this.state.maximized ? (
-                            <Icon
-                                iconName="ChromeRestore"
-                                style={{ fontSize: 11 }}
-                            />
+                            <Icon iconName="ChromeRestore" />
                         ) : (
-                            <Icon
-                                iconName="Checkbox"
-                                style={{ fontSize: 10 }}
-                            />
+                            <Icon iconName="Checkbox" />
                         )}
                     </a>
                     <a
@@ -300,6 +317,14 @@ class Nav extends React.Component<NavProps, NavState> {
                     <ProgressIndicator
                         className="progress"
                         percentComplete={this.getProgress()}
+                    />
+                )}
+                {this.state.showSettingsMenu && (
+                    <ContextualMenu
+                        directionalHint={DirectionalHint.bottomRightEdge}
+                        items={this.getSettingsMenuItems()}
+                        target={this.state.settingsMenuTarget}
+                        onDismiss={this.closeSettingsMenu}
                     />
                 )}
             </nav>
