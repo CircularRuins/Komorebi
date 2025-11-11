@@ -5,7 +5,8 @@ import { Nav, INavLink, INavLinkGroup } from "office-ui-fabric-react/lib/Nav"
 import { SourceGroup } from "../schema-types"
 import { SourceState, RSSSource } from "../scripts/models/source"
 import { ALL, ALL_TOTAL, ALL_TODAY } from "../scripts/models/feed"
-import { AnimationClassNames, Stack, FocusZone, DefaultButton } from "@fluentui/react"
+import { AnimationClassNames, Stack, FocusZone } from "@fluentui/react"
+import { IconButton } from "@fluentui/react/lib/Button"
 import { AIModeMenuContent } from "./ai-mode-menu-content"
 
 export type MenuProps = {
@@ -177,10 +178,71 @@ export class Menu extends React.Component<MenuProps, MenuState> {
     }
 
     _onRenderGroupHeader = (group: INavLinkGroup): JSX.Element => {
+        const isSubscriptionsGroup = group.name === intl.get("menu.subscriptions")
+        
         return (
-            <p className={"subs-header " + AnimationClassNames.slideDownIn10}>
-                {group.name}
-            </p>
+            <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'flex-start',
+                margin: '2px 8px',
+                gap: '4px'
+            }}>
+                <p className={"subs-header " + AnimationClassNames.slideDownIn10} style={{ margin: 0 }}>
+                    {group.name}
+                </p>
+                {isSubscriptionsGroup && (
+                    <IconButton
+                        iconProps={{ iconName: "Add" }}
+                        onClick={this.props.openSourcesSettings}
+                        title="添加源"
+                        styles={{
+                            root: {
+                                width: '20px',
+                                height: '20px',
+                                padding: 0,
+                                minWidth: '20px'
+                            },
+                            icon: {
+                                fontSize: '12px'
+                            }
+                        }}
+                    />
+                )}
+            </div>
+        )
+    }
+
+    _renderSubscriptionsHeader = (): JSX.Element => {
+        return (
+            <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'flex-start',
+                margin: '2px 8px',
+                gap: '4px',
+                flexShrink: 0
+            }}>
+                <p className={"subs-header " + AnimationClassNames.slideDownIn10} style={{ margin: 0 }}>
+                    {intl.get("menu.subscriptions")}
+                </p>
+                <IconButton
+                    iconProps={{ iconName: "Add" }}
+                    onClick={this.props.openSourcesSettings}
+                    title="添加源"
+                    styles={{
+                        root: {
+                            width: '20px',
+                            height: '20px',
+                            padding: 0,
+                            minWidth: '20px'
+                        },
+                        icon: {
+                            fontSize: '12px'
+                        }
+                    }}
+                />
+            </div>
         )
     }
 
@@ -199,6 +261,16 @@ export class Menu extends React.Component<MenuProps, MenuState> {
         }
 
         // 普通模式的菜单
+        const linkGroups = this.getLinkGroups()
+        const fixedGroup = linkGroups[0]  // 今日文章等
+        const subscriptionsGroup = linkGroups[1]  // 订阅源
+        
+        // 创建只包含链接的订阅源分组（不包含标题）
+        const subscriptionsLinksOnly = {
+            ...subscriptionsGroup,
+            name: undefined  // 移除 name，标题单独渲染
+        }
+        
         return (
             this.props.status && (
                 <div className="menu-container show">
@@ -211,50 +283,42 @@ export class Menu extends React.Component<MenuProps, MenuState> {
                             flexDirection: 'column',
                             height: '100%'
                         }}>
-                        {/* 添加订阅源和分组的按钮 */}
-                        <div style={{ 
-                            padding: '8px 12px', 
-                            borderBottom: '1px solid var(--neutralLight)',
-                            display: 'flex',
-                            gap: '8px',
-                            flexShrink: 0
-                        }}>
-                            <DefaultButton
-                                text="添加源"
-                                iconProps={{ iconName: "Add" }}
-                                onClick={this.props.openSourcesSettings}
-                                styles={{
-                                    root: {
-                                        flex: 1,
-                                        minWidth: 0,
-                                        height: '28px',
-                                        padding: '0 8px'
-                                    },
-                                    label: {
-                                        fontSize: '12px',
-                                        fontWeight: 400
-                                    },
-                                    icon: {
-                                        fontSize: '12px'
-                                    }
-                                }}
-                            />
-                        </div>
+                        {/* 固定部分1：今日文章、全部文章、已收藏 */}
                         <FocusZone
                             as="div"
                             disabled={false}
-                            className="nav-wrapper"
+                            className="nav-wrapper-fixed"
+                            style={{
+                                flexShrink: 0,
+                                overflow: 'hidden'
+                            }}>
+                            <Nav
+                                onRenderLink={this._onRenderLink}
+                                groups={[fixedGroup]}
+                                selectedKey={this.props.selected}
+                            />
+                        </FocusZone>
+                        
+                        {/* 固定部分2：订阅源标题和添加按钮 */}
+                        {this._renderSubscriptionsHeader()}
+                        
+                        {/* 可滚动部分：订阅源列表 */}
+                        <FocusZone
+                            as="div"
+                            disabled={false}
+                            className="nav-wrapper-scrollable"
                             style={{
                                 flex: 1,
                                 minHeight: 0,
                                 overflow: 'auto',
+                                paddingTop: '0',
                                 paddingBottom: '16px',
+                                paddingRight: '0',
                                 boxSizing: 'border-box'
                             }}>
                             <Nav
-                                onRenderGroupHeader={this._onRenderGroupHeader}
                                 onRenderLink={this._onRenderLink}
-                                groups={this.getLinkGroups()}
+                                groups={[subscriptionsLinksOnly]}
                                 selectedKey={this.props.selected}
                                 onLinkExpandClick={(event, item) =>
                                     this.props.updateGroupExpansion(

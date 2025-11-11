@@ -86,6 +86,21 @@ body.darwin .menu .btn-group {
     max-height: 100%;
     overflow: hidden auto;
 }
+.menu-container .menu .nav-wrapper-scrollable {
+    padding-right: 0;
+    padding-top: 0;
+}
+
+/* 确保 Nav 组件没有右边距 */
+.menu-container .menu .nav-wrapper-scrollable .ms-Nav {
+    padding-right: 0;
+    margin-right: 0;
+}
+
+.menu-container .menu .nav-wrapper-scrollable .ms-Nav-groupContent {
+    margin-right: 0;
+    padding-right: 0;
+}
 .menu-container .menu p.subs-header {
     font-size: 12px;
     color: var(--neutralSecondaryAlt);

@@ -408,7 +408,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     // 初始化查询进度（话题必填，总是6个步骤）
     initializeQueryProgress = (): QueryProgress => {
         const steps: QueryProgressStep[] = [
-            { id: 'query-db', title: '查询数据库文章', status: 'in_progress', message: '正在从数据库查询文章...', visible: true },
+            { id: 'query-db', title: '根据时间范围筛选', status: 'in_progress', message: '正在从数据库查询文章...', visible: true },
             { id: 'compute-topic-embedding', title: '计算话题向量', status: 'pending', visible: false },
             { id: 'load-embeddings', title: '加载已有文章向量', status: 'pending', visible: false },
             { id: 'compute-embeddings', title: '计算新文章向量', status: 'pending', visible: false },
@@ -632,7 +632,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         return dotProduct / denominator
     }
 
-    // ==================== 步骤1: 查询数据库文章 ====================
+    // ==================== 步骤1: 根据时间范围筛选 ====================
     stepQueryDatabase = async (timeRangeDays: number | null): Promise<RSSItem[]> => {
         this.updateStepStatus('query-db', 'in_progress', '正在从数据库查询文章...')
         
@@ -829,7 +829,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
 
     // ==================== 主函数: 查询符合条件的文章（顺序执行各个步骤）====================
     queryArticles = async (timeRangeDays: number | null, topic: string | null): Promise<RSSItem[]> => {
-        // 步骤1: 查询数据库文章
+        // 步骤1: 根据时间范围筛选
         const items = await this.stepQueryDatabase(timeRangeDays)
 
         // 如果没有话题，直接返回所有文章
@@ -1799,7 +1799,7 @@ ${articlesText}
                         
                         progress = {
                             steps: [
-                                { id: 'query-db', title: '查询数据库文章', status: defaultStatus, message: defaultMessage, visible: true },
+                                { id: 'query-db', title: '根据时间范围筛选', status: defaultStatus, message: defaultMessage, visible: true },
                                 { id: 'compute-topic-embedding', title: '计算话题向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
                                 { id: 'load-embeddings', title: '加载已有文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
                                 { id: 'compute-embeddings', title: '计算新文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
@@ -1854,55 +1854,6 @@ ${articlesText}
                             flexDirection: 'column',
                             gap: '20px' // 卡片之间的间距
                         }}>
-                            {/* 标题区域 - 深色卡片 */}
-                            <div style={{
-                                backgroundColor: '#1e1e1e', // Cursor风格的深色背景
-                                borderRadius: '8px',
-                                padding: '20px 24px',
-                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                                flexShrink: 0
-                            }}>
-                                <h2 style={{
-                                    margin: '0 0 8px 0',
-                                    fontSize: '20px',
-                                    fontWeight: 600,
-                                    color: '#ffffff'
-                                }}>
-                                    正在查询文章
-                                </h2>
-                                <div style={{
-                                    fontSize: '13px',
-                                    color: '#858585'
-                                }}>
-                                    正在处理您的请求，请稍候...
-                                </div>
-                            </div>
-
-                            {/* 当前步骤信息 - 深色卡片 */}
-                            {progress.currentMessage && (
-                                <div style={{
-                                    padding: '12px 16px',
-                                    backgroundColor: '#1e1e1e', // Cursor风格的深色背景
-                                    borderRadius: '8px',
-                                    border: '1px solid #3e3e3e',
-                                    borderLeft: '3px solid #4ec9b0',
-                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                                    fontSize: '13px',
-                                    color: '#cccccc',
-                                    lineHeight: '1.5',
-                                    flexShrink: 0,
-                                    boxSizing: 'border-box'
-                                }}>
-                                    <Icon iconName="Info" style={{ 
-                                        fontSize: '14px', 
-                                        color: '#4ec9b0',
-                                        marginRight: '8px',
-                                        verticalAlign: 'middle'
-                                    }} />
-                                    {progress.currentMessage}
-                                </div>
-                            )}
-
                             {/* 步骤列表 - Todo风格 - 深色卡片容器 */}
                             <div style={{
                                 backgroundColor: '#1e1e1e', // Cursor风格的深色背景
@@ -1973,9 +1924,9 @@ ${articlesText}
                                                         : isError
                                                             ? '3px solid #f48771'
                                                             : '3px solid #3e3e3e',
-                                                transition: 'all 0.3s ease',
+                                                transition: 'all 0.6s ease-in-out',
                                                 opacity: isPending ? 0.6 : 1,
-                                                animation: 'fadeInUp 0.4s ease-out',
+                                                animation: 'fadeInUp 0.6s ease-in-out',
                                                 animationDelay: `${index * 0.1}s`,  // 基于索引的延迟
                                                 animationFillMode: 'both',
                                                 transform: 'translateY(0)'
@@ -1998,7 +1949,9 @@ ${articlesText}
                                                         : isActive 
                                                             ? '#4ec9b0' 
                                                             : '#3e3e3e',
-                                                border: isPending ? '1px solid #5a5a5a' : 'none'
+                                                border: isPending ? '1px solid #5a5a5a' : 'none',
+                                                transition: 'all 0.6s ease-in-out',
+                                                opacity: 1
                                             }}>
                                                 {isError ? (
                                                     <Icon iconName="Error" style={{ fontSize: '12px', color: '#ffffff' }} />
@@ -2024,7 +1977,8 @@ ${articlesText}
                                                                 ? '#4ec9b0' 
                                                                 : '#858585',
                                                     marginBottom: (step.message || step.progress !== undefined) ? '6px' : '0',
-                                                    lineHeight: '1.4'
+                                                    lineHeight: '1.4',
+                                                    transition: 'color 0.6s ease-in-out'
                                                 }}>
                                                     {step.title}
                                                 </div>
@@ -2037,7 +1991,8 @@ ${articlesText}
                                                                 ? '#6a9a6a'
                                                                 : '#a0a0a0',
                                                         lineHeight: '1.5',
-                                                        marginTop: '4px'
+                                                        marginTop: '4px',
+                                                        transition: 'color 0.6s ease-in-out'
                                                     }}>
                                                         {step.message}
                                                     </div>
@@ -2065,7 +2020,7 @@ ${articlesText}
                                                                 width: `${step.progress}%`,
                                                                 height: '100%',
                                                                 backgroundColor: '#4ec9b0',
-                                                                transition: 'width 0.3s ease',
+                                                                transition: 'width 0.5s ease-out',
                                                                 borderRadius: '2px',
                                                                 boxShadow: '0 0 4px rgba(78, 201, 176, 0.3)'
                                                             }} />
@@ -2180,7 +2135,7 @@ ${articlesText}
                             AI总结助手
                         </p>
                         <p style={{ fontSize: '14px', color: 'var(--neutralSecondary)', maxWidth: '500px' }}>
-                            在左侧菜单栏选择文章发布时间，和感兴趣的话题，然后点击"查询文章"按钮生成总结
+                            在左侧菜单栏选择文章发布时间，和感兴趣的话题，然后点击"整理汇总"按钮生成总结
                         </p>
                     </div>
                 )}

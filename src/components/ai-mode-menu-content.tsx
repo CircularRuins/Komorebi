@@ -24,6 +24,7 @@ export const AIModeMenuContent: React.FC = () => {
         topicInput,
         recentTopics,
         isLoading,
+        isClustering,
         filteredArticles,
         handleTimeRangeChange,
         handleTopicInputChange,
@@ -145,9 +146,9 @@ export const AIModeMenuContent: React.FC = () => {
             <div style={{ display: 'flex', gap: '8px', flexDirection: 'column', marginTop: '8px' }}>
                 <PrimaryButton
                     iconProps={{ iconName: 'Search' }}
-                    text="查询文章"
+                    text="整理汇总"
                     onClick={handleGenerateSummary}
-                    disabled={isLoading || !timeRange || (!topicInput.trim() && !topic)}
+                    disabled={isLoading || isClustering || !timeRange || (!topicInput.trim() && !topic)}
                     styles={{ root: { width: '100%' } }}
                 />
                 {filteredArticles && filteredArticles.length > 0 && (
