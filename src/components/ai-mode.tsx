@@ -37,6 +37,7 @@ export type QueryProgressStep = {
     status: 'pending' | 'in_progress' | 'completed' | 'error'  // 步骤状态
     message?: string  // 步骤详细信息
     progress?: number  // 当前步骤的进度百分比（0-100）
+    visible?: boolean  // 是否可见（新增）
 }
 
 // 查询进度类型
@@ -123,7 +124,6 @@ type AIModeState = {
     clusters: ArticleCluster[]  // 文章聚类结果
     queryProgress: QueryProgress | null  // 查询进度
     showResults: boolean  // 是否显示结果（所有步骤完成后，需要点击按钮才显示）
-    visibleStepsUpdateCounter: number  // 用于触发重新渲染的计数器
 }
 
 export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
@@ -132,8 +132,6 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
     private summaryContainerRef: React.RefObject<HTMLDivElement>
     private topicInputRef: React.RefObject<ITextField>
     private updateTimeout: NodeJS.Timeout | null = null
-    private visibleStepsRef: Set<string> = new Set() // 跟踪已显示的步骤ID
-    private stepAnimationTimeouts: Map<string, NodeJS.Timeout> = new Map() // 存储动画定时器
 
     constructor(props: AIModeProps) {
         super(props)
@@ -175,8 +173,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
             filteredArticles: [],
             clusters: [],
             queryProgress: null,
-            showResults: false,
-            visibleStepsUpdateCounter: 0
+            showResults: false
         }
     }
 
@@ -196,40 +193,12 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
 
     componentDidUpdate(prevProps: AIModeProps, prevState: AIModeState) {
         if (this.state.queryProgress) {
-            // 如果进度是新创建的（之前没有），立即显示第一个步骤
-            if (!prevState.queryProgress && this.state.queryProgress.steps && this.state.queryProgress.steps.length > 0) {
-                const firstStep = this.state.queryProgress.steps[0]
-                if (firstStep && !this.visibleStepsRef.has(firstStep.id)) {
-                    this.visibleStepsRef.add(firstStep.id)
-                }
-            }
-            
             // 话题必填，总是6个步骤，如果步骤数量不对，重新创建进度
             const currentStepCount = this.state.queryProgress.steps?.length || 0
             if (currentStepCount !== 6) {
                 const queryProgress = this.initializeQueryProgress()
                 this.setState({ queryProgress })
-                // 不要重置可见步骤，保持已有的可见步骤
-                // 只在 visibleStepsRef 为空时才添加第一个步骤
-                if (this.visibleStepsRef.size === 0) {
-                    if (queryProgress.steps && queryProgress.steps.length > 0) {
-                        this.visibleStepsRef.add(queryProgress.steps[0].id)
-                    }
-                }
             }
-            
-            // 管理步骤的逐步显示
-            this.updateVisibleSteps()
-        } else if (prevState.queryProgress && !this.state.queryProgress) {
-            // 如果进度被清空，重置可见步骤
-            // 但只有在确实需要清空时才清空（比如用户主动清空结果）
-            // 不要因为渲染时的临时状态变化而清空
-            // 注意：这里不应该清空，因为可能是渲染时的临时状态变化
-            // 只有在用户主动清空结果时才清空
-            // this.visibleStepsRef.clear()
-            // 清理所有定时器
-            this.stepAnimationTimeouts.forEach(timeout => clearTimeout(timeout))
-            this.stepAnimationTimeouts.clear()
         }
         
         // 只在关键状态改变时通知Root组件更新Context（排除输入框变化以避免打断输入）
@@ -264,78 +233,6 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         if (this.updateTimeout) {
             clearTimeout(this.updateTimeout)
         }
-        // 清理步骤动画定时器
-        this.stepAnimationTimeouts.forEach(timeout => clearTimeout(timeout))
-        this.stepAnimationTimeouts.clear()
-    }
-
-    // 更新可见步骤：根据步骤状态逐步显示
-    updateVisibleSteps = () => {
-        if (!this.state.queryProgress) return
-        
-        const steps = this.state.queryProgress.steps
-        if (!steps || steps.length === 0) return
-        
-        // 遍历所有步骤，检查哪些应该显示
-        // 重要：即使所有步骤都已完成，也要逐个显示，不要一次性显示所有
-        // 计算已显示的步骤数量，用于计算延迟
-        let visibleCount = 0
-        for (let i = 0; i < steps.length; i++) {
-            if (this.visibleStepsRef.has(steps[i].id)) {
-                visibleCount++
-            }
-        }
-        
-        // 调试信息：检查步骤状态
-        
-        for (let i = 0; i < steps.length; i++) {
-            const step = steps[i]
-            const isFirstStep = i === 0
-            const prevStep = i > 0 ? steps[i - 1] : null
-            
-            // 如果步骤已经显示，跳过
-            if (this.visibleStepsRef.has(step.id)) {
-                continue
-            }
-            
-                // 第一个步骤总是显示
-                if (isFirstStep) {
-                    this.showStepWithAnimation(step.id, 0)
-                    continue
-                }
-            
-                // 只有当前一个步骤完成（completed）时，才显示下一个步骤
-                // 不需要检查前一个步骤是否已显示，因为 showStepWithAnimation 会处理延迟
-                // 即使所有步骤都已完成，也要逐个显示，通过延迟来创建逐步出现的效果
-                if (prevStep && prevStep.status === 'completed') {
-                    // 延迟显示，创建逐步出现的效果
-                    // 使用已显示的步骤数量来计算延迟，确保步骤按顺序显示
-                    // 每个步骤在前一个步骤显示后200ms再显示
-                    const delay = visibleCount * 200 // 基于已显示的步骤数量计算延迟
-                    this.showStepWithAnimation(step.id, delay)
-                    visibleCount++ // 增加已显示的步骤数量
-                }
-        }
-    }
-
-    // 显示步骤并添加动画
-    showStepWithAnimation = (stepId: string, delay: number) => {
-        // 如果已经有定时器，先清除
-        const existingTimeout = this.stepAnimationTimeouts.get(stepId)
-        if (existingTimeout) {
-            clearTimeout(existingTimeout)
-        }
-        
-        const timeout = setTimeout(() => {
-            this.visibleStepsRef.add(stepId)
-            this.stepAnimationTimeouts.delete(stepId)
-            // 使用 setState 触发重新渲染
-            this.setState(prevState => ({
-                visibleStepsUpdateCounter: prevState.visibleStepsUpdateCounter + 1
-            }))
-        }, delay)
-        
-        this.stepAnimationTimeouts.set(stepId, timeout)
     }
 
     // Context value 生成器
@@ -548,12 +445,12 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
     // 初始化查询进度（话题必填，总是6个步骤）
     initializeQueryProgress = (): QueryProgress => {
         const steps: QueryProgressStep[] = [
-            { id: 'query-db', title: '查询数据库文章', status: 'in_progress', message: '正在从数据库查询文章...' },
-            { id: 'compute-topic-embedding', title: '计算话题向量', status: 'pending' },
-            { id: 'load-embeddings', title: '加载已有文章向量', status: 'pending' },
-            { id: 'compute-embeddings', title: '计算新文章向量', status: 'pending' },
-            { id: 'calculate-similarity', title: '计算相似度并筛选', status: 'pending' },
-            { id: 'cluster-articles', title: '分析文章内容并聚类', status: 'pending' }
+            { id: 'query-db', title: '查询数据库文章', status: 'in_progress', message: '正在从数据库查询文章...', visible: true },
+            { id: 'compute-topic-embedding', title: '计算话题向量', status: 'pending', visible: false },
+            { id: 'load-embeddings', title: '加载已有文章向量', status: 'pending', visible: false },
+            { id: 'compute-embeddings', title: '计算新文章向量', status: 'pending', visible: false },
+            { id: 'calculate-similarity', title: '计算相似度并筛选', status: 'pending', visible: false },
+            { id: 'cluster-articles', title: '分析文章内容并聚类', status: 'pending', visible: false }
         ]
         
         return {
@@ -590,6 +487,7 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         this.setState(prevState => {
             if (!prevState.queryProgress) return prevState
             
+            // 先更新步骤状态
             const steps = prevState.queryProgress.steps.map(step => {
                 if (step.id === stepId) {
                     return { ...step, status, message, progress }
@@ -597,15 +495,43 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                 return step
             })
             
-            const currentStepIndex = steps.findIndex(s => s.status === 'in_progress')
-            const currentMessage = steps.find(s => s.status === 'in_progress')?.message || 
-                                   steps.find(s => s.status === 'completed')?.message || 
+            // 然后计算可见性（基于更新后的状态）
+            const stepsWithVisibility = steps.map((step, index) => {
+                // 如果步骤已经可见，保持可见
+                if (step.visible === true) {
+                    return step
+                }
+                
+                const isFirstStep = index === 0
+                const prevStep = index > 0 ? steps[index - 1] : null
+                
+                // 第一步总是可见
+                if (isFirstStep) {
+                    return { ...step, visible: true }
+                }
+                
+                // 如果步骤状态是 in_progress、completed 或 error，则可见
+                if (step.status === 'in_progress' || step.status === 'completed' || step.status === 'error') {
+                    return { ...step, visible: true }
+                }
+                
+                // 如果前一步是 completed，则下一步可见（即使还是 pending）
+                if (prevStep && prevStep.status === 'completed') {
+                    return { ...step, visible: true }
+                }
+                
+                return step
+            })
+            
+            const currentStepIndex = stepsWithVisibility.findIndex(s => s.status === 'in_progress')
+            const currentMessage = stepsWithVisibility.find(s => s.status === 'in_progress')?.message || 
+                                   stepsWithVisibility.find(s => s.status === 'completed')?.message || 
                                    prevState.queryProgress.currentMessage
             
             // 计算总体进度
-            const totalSteps = steps.length
-            const completedSteps = steps.filter(s => s.status === 'completed').length
-            const currentStep = steps[currentStepIndex >= 0 ? currentStepIndex : prevState.queryProgress.currentStepIndex]
+            const totalSteps = stepsWithVisibility.length
+            const completedSteps = stepsWithVisibility.filter(s => s.status === 'completed').length
+            const currentStep = stepsWithVisibility[currentStepIndex >= 0 ? currentStepIndex : prevState.queryProgress.currentStepIndex]
             const stepProgress = currentStep?.progress || 0
             const baseProgress = (completedSteps / totalSteps) * 100
             const currentStepWeight = 1 / totalSteps
@@ -616,19 +542,13 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
                 ...prevState,
                 queryProgress: {
                     ...prevState.queryProgress,
-                    steps,
+                    steps: stepsWithVisibility,
                     currentStepIndex: currentStepIndex >= 0 ? currentStepIndex : prevState.queryProgress.currentStepIndex,
                     currentMessage,
                     overallProgress
                 }
             }
-            }, () => {
-                // 状态更新后，更新可见步骤（确保步骤在执行时能及时显示）
-                // 使用 setTimeout 确保状态已经更新
-                setTimeout(() => {
-                    this.updateVisibleSteps()
-                }, 0)
-            })
+        })
     }
 
     // 获取时间范围选项
@@ -1534,19 +1454,6 @@ ${articlesText}
         // 初始化查询进度（话题必填，总是6个步骤）
         const queryProgress = this.initializeQueryProgress()
 
-        // 重置可见步骤，开始新的进度展示
-        this.visibleStepsRef.clear()
-        this.stepAnimationTimeouts.forEach(timeout => clearTimeout(timeout))
-        this.stepAnimationTimeouts.clear()
-        
-        // 只显示第一个步骤，其他步骤会在执行时通过 updateVisibleSteps 逐步显示
-        if (queryProgress.steps && queryProgress.steps.length > 0) {
-            const firstStep = queryProgress.steps[0]
-            if (firstStep) {
-                this.visibleStepsRef.add(firstStep.id)
-            }
-        }
-
         this.setState({ 
             topic: currentTopic,
             topicInput: currentTopic, // 确保 topicInput 和 topic 一致
@@ -1625,8 +1532,6 @@ ${articlesText}
                     const event = new CustomEvent('aiModeUpdated')
                     window.dispatchEvent(event)
                 }
-                // 确保 cluster-articles 步骤已显示（如果前一个步骤已完成）
-                this.updateVisibleSteps()
             })
 
             // 使用LLM对文章进行聚类分析
@@ -2027,28 +1932,16 @@ ${articlesText}
                         
                         progress = {
                             steps: [
-                                { id: 'query-db', title: '查询数据库文章', status: defaultStatus, message: defaultMessage },
-                                { id: 'compute-topic-embedding', title: '计算话题向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
-                                { id: 'load-embeddings', title: '加载已有文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
-                                { id: 'compute-embeddings', title: '计算新文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
-                                { id: 'calculate-similarity', title: '计算相似度并筛选', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const },
-                                { id: 'cluster-articles', title: '分析文章内容并聚类', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const }
+                                { id: 'query-db', title: '查询数据库文章', status: defaultStatus, message: defaultMessage, visible: true },
+                                { id: 'compute-topic-embedding', title: '计算话题向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
+                                { id: 'load-embeddings', title: '加载已有文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
+                                { id: 'compute-embeddings', title: '计算新文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
+                                { id: 'calculate-similarity', title: '计算相似度并筛选', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
+                                { id: 'cluster-articles', title: '分析文章内容并聚类', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted }
                             ],
                             currentStepIndex: shouldShowProgressForCompleted ? 5 : 0,
                             overallProgress: shouldShowProgressForCompleted ? 100 : 0,
                             currentMessage: defaultMessage
-                        }
-                        // 如果重新创建进度，不要重置 visibleStepsRef，保持已有的可见步骤
-                        // 只在 visibleStepsRef 为空时才添加第一个步骤
-                        // 其他步骤会通过 updateVisibleSteps 逐个显示
-                        if (progress.steps && progress.steps.length > 0) {
-                            if (this.visibleStepsRef.size === 0) {
-                                // 如果 visibleStepsRef 为空，只添加第一个步骤
-                                const firstStep = progress.steps[0]
-                                if (firstStep) {
-                                    this.visibleStepsRef.add(firstStep.id)
-                                }
-                            }
                         }
                     }
                     
@@ -2174,14 +2067,9 @@ ${articlesText}
                                     overflow: 'visible'
                                 }}>
                                 {(() => {
-                                    const filteredSteps = progress.steps.filter(step => {
-                                        // 如果 visibleStepsRef 为空，显示所有步骤（兼容性处理）
-                                        if (this.visibleStepsRef.size === 0) {
-                                            return true
-                                        }
-                                        return this.visibleStepsRef.has(step.id)
-                                    })
-                                    return filteredSteps
+                                    // 向后兼容：如果 visible 字段不存在，默认显示（visible !== false）
+                                    const visibleSteps = progress.steps.filter(step => step.visible !== false)
+                                    return visibleSteps
                                 })().map((step, index) => {
                                     const isActive = step.status === 'in_progress'
                                     const isCompleted = step.status === 'completed'
@@ -2220,7 +2108,9 @@ ${articlesText}
                                                             : '3px solid #3e3e3e',
                                                 transition: 'all 0.3s ease',
                                                 opacity: isPending ? 0.6 : 1,
-                                                animation: 'fadeInUp 0.4s ease-out', // 添加淡入动画
+                                                animation: 'fadeInUp 0.4s ease-out',
+                                                animationDelay: `${index * 0.1}s`,  // 基于索引的延迟
+                                                animationFillMode: 'both',
                                                 transform: 'translateY(0)'
                                             }}
                                         >
