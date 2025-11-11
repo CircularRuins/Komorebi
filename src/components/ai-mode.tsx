@@ -21,32 +21,43 @@ import ListCard from "./cards/list-card"
 import { ViewConfigs } from "../schema-types"
 import { ActionStatus } from "../scripts/utils"
 import { AIModeMenuContent } from "./ai-mode-menu-content"
+import {
+    ArticleCluster,
+    QueryProgress,
+    QueryProgressStep,
+    AIModeState,
+    updateAIModeTimeRange,
+    updateAIModeTopic,
+    updateAIModeTopicInput,
+    setAIModeIsComposing,
+    updateAIModeRecentTopics,
+    setAIModeSummary,
+    setAIModeLoading,
+    setAIModeClustering,
+    setAIModeError,
+    updateAIModeApiEndpoint,
+    updateAIModeApiKey,
+    updateAIModeModel,
+    updateAIModeEmbeddingModel,
+    updateAIModeSimilarityThreshold,
+    setAIModeShowConfigPanel,
+    updateAIModeTempApiEndpoint,
+    updateAIModeTempApiKey,
+    updateAIModeTempModel,
+    updateAIModeTempEmbeddingModel,
+    updateAIModeTempSimilarityThreshold,
+    setAIModeShowErrorDialog,
+    setAIModeErrorDialogMessage,
+    setAIModeArticleCount,
+    setAIModeFilteredArticles,
+    setAIModeClusters,
+    updateAIModeQueryProgress,
+    updateAIModeStepStatus,
+    setAIModeShowResults,
+} from "../scripts/models/ai-mode"
 
-// 文章聚类结果类型
-export type ArticleCluster = {
-    id: string  // 聚类ID
-    title: string  // 聚类标题（说明这些文章讲的是什么）
-    description: string  // 聚类描述
-    articles: RSSItem[]  // 该聚类中的文章列表
-}
-
-// 查询进度步骤类型
-export type QueryProgressStep = {
-    id: string  // 步骤ID
-    title: string  // 步骤标题
-    status: 'pending' | 'in_progress' | 'completed' | 'error'  // 步骤状态
-    message?: string  // 步骤详细信息
-    progress?: number  // 当前步骤的进度百分比（0-100）
-    visible?: boolean  // 是否可见（新增）
-}
-
-// 查询进度类型
-export type QueryProgress = {
-    steps: QueryProgressStep[]
-    currentStepIndex: number
-    overallProgress: number  // 总体进度百分比（0-100）
-    currentMessage: string  // 当前步骤的详细信息
-}
+// 重新导出类型以便其他文件使用
+export type { ArticleCluster, QueryProgress, QueryProgressStep }
 
 // AIMode Context 类型定义
 export type AIModeContextType = {
@@ -91,91 +102,48 @@ type AIModeProps = {
     shortcuts: (item: RSSItem, e: KeyboardEvent) => void
     dispatch: any
     hideArticleList?: boolean  // 是否隐藏文章列表（在侧边栏模式下）
+    // Redux state
+    aiMode: AIModeState
+    // Redux actions
+    updateTimeRange: (timeRange: string | null) => void
+    updateTopic: (topic: string) => void
+    updateTopicInput: (topicInput: string) => void
+    setIsComposing: (isComposing: boolean) => void
+    updateRecentTopics: (recentTopics: string[]) => void
+    setSummary: (summary: string) => void
+    setLoading: (isLoading: boolean) => void
+    setClustering: (isClustering: boolean) => void
+    setError: (error: string | null) => void
+    updateApiEndpoint: (apiEndpoint: string) => void
+    updateApiKey: (apiKey: string) => void
+    updateModel: (model: string) => void
+    updateEmbeddingModel: (embeddingModel: string) => void
+    updateSimilarityThreshold: (similarityThreshold: number) => void
+    setShowConfigPanel: (showConfigPanel: boolean) => void
+    updateTempApiEndpoint: (tempApiEndpoint: string) => void
+    updateTempApiKey: (tempApiKey: string) => void
+    updateTempModel: (tempModel: string) => void
+    updateTempEmbeddingModel: (tempEmbeddingModel: string) => void
+    updateTempSimilarityThreshold: (tempSimilarityThreshold: string) => void
+    setShowErrorDialog: (showErrorDialog: boolean) => void
+    setErrorDialogMessage: (errorDialogMessage: string) => void
+    setArticleCount: (articleCount: number) => void
+    setFilteredArticles: (filteredArticles: RSSItem[]) => void
+    setClusters: (clusters: ArticleCluster[]) => void
+    updateQueryProgress: (queryProgress: QueryProgress | null) => void
+    updateStepStatus: (stepId: string, status: QueryProgressStep['status'], message?: string, progress?: number) => void
+    setShowResults: (showResults: boolean) => void
 }
 
 // 创建 Context
 export const AIModeContext = React.createContext<AIModeContextType | null>(null)
 
-type AIModeState = {
-    timeRange: string | null  // 时间范围key，例如 "1" 表示1天，"7" 表示7天
-    topic: string  // 单个话题文本
-    topicInput: string  // 当前输入的话题文本
-    recentTopics: string[]  // 最近使用的话题（最多5个）
-    isComposing: boolean  // 是否正在使用输入法输入
-    summary: string    // AI生成的总结
-    isLoading: boolean
-    isClustering: boolean  // 是否正在聚类
-    error: string | null
-    apiEndpoint: string
-    apiKey: string
-    model: string
-    embeddingModel: string
-    similarityThreshold: number  // 相似度阈值
-    showConfigPanel: boolean
-    tempApiEndpoint: string
-    tempApiKey: string
-    tempModel: string
-    tempEmbeddingModel: string
-    tempSimilarityThreshold: string  // 临时相似度阈值（字符串，用于输入框）
-    showErrorDialog: boolean
-    errorDialogMessage: string
-    articleCount: number  // 筛选到的文章数量
-    filteredArticles: RSSItem[]  // 筛选后的文章列表
-    clusters: ArticleCluster[]  // 文章聚类结果
-    queryProgress: QueryProgress | null  // 查询进度
-    showResults: boolean  // 是否显示结果（所有步骤完成后，需要点击按钮才显示）
-}
-
-export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
+export class AIModeComponent extends React.Component<AIModeProps> {
     static contextType = AIModeContext
     declare context: React.ContextType<typeof AIModeContext>
     private summaryContainerRef: React.RefObject<HTMLDivElement>
     private topicInputRef: React.RefObject<ITextField>
     private updateTimeout: NodeJS.Timeout | null = null
-
-    constructor(props: AIModeProps) {
-        super(props)
-        this.summaryContainerRef = React.createRef()
-        this.topicInputRef = React.createRef()
-        const savedEndpoint = localStorage.getItem('ai-api-endpoint') || 'https://api.openai.com/v1/chat/completions'
-        const savedKey = localStorage.getItem('ai-api-key') || ''
-        const savedModel = localStorage.getItem('ai-model') || ''
-        const savedEmbeddingModel = localStorage.getItem('ai-embedding-model') || 'text-embedding-ada-002'
-        const savedSimilarityThreshold = parseFloat(localStorage.getItem('ai-similarity-threshold') || '0.7')
-        // 从localStorage加载最近话题
-        const savedRecentTopics = localStorage.getItem('ai-recent-topics')
-        const recentTopics = savedRecentTopics ? JSON.parse(savedRecentTopics) : []
-        
-        this.state = {
-            timeRange: null,
-            topic: '',
-            topicInput: '',
-            recentTopics: recentTopics,
-            isComposing: false,
-            summary: '',
-            isLoading: false,
-            isClustering: false,
-            error: null,
-            apiEndpoint: savedEndpoint,
-            apiKey: savedKey,
-            model: savedModel,
-            embeddingModel: savedEmbeddingModel,
-            similarityThreshold: savedSimilarityThreshold,
-            showConfigPanel: false,
-            tempApiEndpoint: savedEndpoint,
-            tempApiKey: savedKey,
-            tempModel: savedModel,
-            tempEmbeddingModel: savedEmbeddingModel,
-            tempSimilarityThreshold: savedSimilarityThreshold.toString(),
-            showErrorDialog: false,
-            errorDialogMessage: '',
-            articleCount: 0,
-            filteredArticles: [],
-            clusters: [],
-            queryProgress: null,
-            showResults: false
-        }
-    }
 
     componentDidMount() {
         // 注册全局回调，让导航栏可以打开配置面板
@@ -191,31 +159,39 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         }
     }
 
-    componentDidUpdate(prevProps: AIModeProps, prevState: AIModeState) {
-        if (this.state.queryProgress) {
+    constructor(props: AIModeProps) {
+        super(props)
+        this.summaryContainerRef = React.createRef()
+        this.topicInputRef = React.createRef()
+    }
+
+    componentDidUpdate(prevProps: AIModeProps) {
+        const { aiMode } = this.props
+        if (aiMode.queryProgress) {
             // 话题必填，总是6个步骤，如果步骤数量不对，重新创建进度
-            const currentStepCount = this.state.queryProgress.steps?.length || 0
+            const currentStepCount = aiMode.queryProgress.steps?.length || 0
             if (currentStepCount !== 6) {
                 const queryProgress = this.initializeQueryProgress()
-                this.setState({ queryProgress })
+                this.props.updateQueryProgress(queryProgress)
             }
         }
         
         // 只在关键状态改变时通知Root组件更新Context（排除输入框变化以避免打断输入）
+        const prevAiMode = prevProps.aiMode
         if (
-            prevState.timeRange !== this.state.timeRange ||
-            prevState.topic !== this.state.topic ||
-            prevState.summary !== this.state.summary ||
-            prevState.isLoading !== this.state.isLoading ||
-            prevState.isClustering !== this.state.isClustering ||
-            prevState.showConfigPanel !== this.state.showConfigPanel ||
-            prevState.apiEndpoint !== this.state.apiEndpoint ||
-            prevState.apiKey !== this.state.apiKey ||
-            prevState.model !== this.state.model ||
-            prevState.filteredArticles.length !== this.state.filteredArticles.length ||
-            prevState.clusters.length !== this.state.clusters.length ||
-            prevState.articleCount !== this.state.articleCount ||
-            prevState.error !== this.state.error
+            prevAiMode.timeRange !== aiMode.timeRange ||
+            prevAiMode.topic !== aiMode.topic ||
+            prevAiMode.summary !== aiMode.summary ||
+            prevAiMode.isLoading !== aiMode.isLoading ||
+            prevAiMode.isClustering !== aiMode.isClustering ||
+            prevAiMode.showConfigPanel !== aiMode.showConfigPanel ||
+            prevAiMode.apiEndpoint !== aiMode.apiEndpoint ||
+            prevAiMode.apiKey !== aiMode.apiKey ||
+            prevAiMode.model !== aiMode.model ||
+            prevAiMode.filteredArticles.length !== aiMode.filteredArticles.length ||
+            prevAiMode.clusters.length !== aiMode.clusters.length ||
+            prevAiMode.articleCount !== aiMode.articleCount ||
+            prevAiMode.error !== aiMode.error
         ) {
             // 通知Root组件更新Context
             if (typeof window !== 'undefined') {
@@ -237,27 +213,28 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
 
     // Context value 生成器
     getContextValue = (): AIModeContextType => {
+        const { aiMode, updateTimeRange, updateTopic, updateTopicInput, setIsComposing } = this.props
         return {
-            timeRange: this.state.timeRange,
-            topic: this.state.topic,
-            topicInput: this.state.topicInput,
-            recentTopics: this.state.recentTopics,
-            isComposing: this.state.isComposing,
-            isLoading: this.state.isLoading,
-            isClustering: this.state.isClustering,
-            summary: this.state.summary,
-            apiEndpoint: this.state.apiEndpoint,
-            apiKey: this.state.apiKey,
-            model: this.state.model,
-            showConfigPanel: this.state.showConfigPanel,
-            articleCount: this.state.articleCount,
-            error: this.state.error,
-            filteredArticles: this.state.filteredArticles,
-            clusters: this.state.clusters,
-            setTimeRange: (timeRange: string | null) => this.setState({ timeRange }),
-            setTopic: (topic: string) => this.setState({ topic }),
-            setTopicInput: (topicInput: string) => this.setState({ topicInput }),
-            setIsComposing: (isComposing: boolean) => this.setState({ isComposing }),
+            timeRange: aiMode.timeRange,
+            topic: aiMode.topic,
+            topicInput: aiMode.topicInput,
+            recentTopics: aiMode.recentTopics,
+            isComposing: aiMode.isComposing,
+            isLoading: aiMode.isLoading,
+            isClustering: aiMode.isClustering,
+            summary: aiMode.summary,
+            apiEndpoint: aiMode.apiEndpoint,
+            apiKey: aiMode.apiKey,
+            model: aiMode.model,
+            showConfigPanel: aiMode.showConfigPanel,
+            articleCount: aiMode.articleCount,
+            error: aiMode.error,
+            filteredArticles: aiMode.filteredArticles,
+            clusters: aiMode.clusters,
+            setTimeRange: updateTimeRange,
+            setTopic: updateTopic,
+            setTopicInput: updateTopicInput,
+            setIsComposing: setIsComposing,
             handleGenerateSummary: this.handleGenerateSummary,
             handleClearSummary: this.handleClearSummary,
             handleConfigPanelOpen: this.handleConfigPanelOpen,
@@ -272,65 +249,62 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
     }
 
     handleTimeRangeChange = (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption) => {
-        this.setState({ timeRange: option ? option.key as string : null })
+        this.props.updateTimeRange(option ? option.key as string : null)
     }
 
     handleTopicInputChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-        this.setState({ topicInput: newValue || '' }, () => {
-            // 状态更新后立即更新Context，确保输入框能正常显示输入
-            if (typeof window !== 'undefined') {
-                const event = new CustomEvent('aiModeInputChanged')
-                window.dispatchEvent(event)
-            }
-        })
+        this.props.updateTopicInput(newValue || '')
+        // 状态更新后立即更新Context，确保输入框能正常显示输入
+        if (typeof window !== 'undefined') {
+            const event = new CustomEvent('aiModeInputChanged')
+            window.dispatchEvent(event)
+        }
     }
 
     handleTopicInputCompositionStart = () => {
-        this.setState({ isComposing: true })
+        this.props.setIsComposing(true)
     }
 
     handleTopicInputCompositionEnd = () => {
-        this.setState({ isComposing: false }, () => {
-            // 输入法结束后更新Context
-            if (typeof window !== 'undefined') {
-                const event = new CustomEvent('aiModeInputChanged')
-                window.dispatchEvent(event)
-            }
-        })
+        this.props.setIsComposing(false)
+        // 输入法结束后更新Context
+        if (typeof window !== 'undefined') {
+            const event = new CustomEvent('aiModeInputChanged')
+            window.dispatchEvent(event)
+        }
     }
 
     handleTopicInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         // 处理Enter键确认话题
-        if (event.key === 'Enter' && !this.state.isComposing) {
+        const { aiMode, updateTopic } = this.props
+        if (event.key === 'Enter' && !aiMode.isComposing) {
             event.preventDefault()
-            const trimmed = this.state.topicInput.trim()
+            const trimmed = aiMode.topicInput.trim()
             if (trimmed) {
-                this.setState({ topic: trimmed })
+                updateTopic(trimmed)
             }
         }
     }
 
     handleRecentTopicClick = (topic: string) => {
         // 点击常选话题时填充到输入框和话题字段
-        this.setState({ 
-            topicInput: topic,
-            topic: topic
-        }, () => {
-            // 直接设置 TextField 的值（如果引用存在）
-            if (this.topicInputRef.current) {
-                const inputElement = this.topicInputRef.current as any
-                if (inputElement.setValue) {
-                    inputElement.setValue(topic)
-                }
-                // 聚焦到输入框
-                inputElement.focus()
+        const { updateTopicInput, updateTopic } = this.props
+        updateTopicInput(topic)
+        updateTopic(topic)
+        // 直接设置 TextField 的值（如果引用存在）
+        if (this.topicInputRef.current) {
+            const inputElement = this.topicInputRef.current as any
+            if (inputElement.setValue) {
+                inputElement.setValue(topic)
             }
-            // 状态更新后立即更新Context，确保输入框能正常显示输入
-            if (typeof window !== 'undefined') {
-                const event = new CustomEvent('aiModeInputChanged')
-                window.dispatchEvent(event)
-            }
-        })
+            // 聚焦到输入框
+            inputElement.focus()
+        }
+        // 状态更新后立即更新Context，确保输入框能正常显示输入
+        if (typeof window !== 'undefined') {
+            const event = new CustomEvent('aiModeInputChanged')
+            window.dispatchEvent(event)
+        }
     }
 
     // 保存话题到最近话题列表
@@ -338,95 +312,84 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         const trimmed = topic.trim()
         if (!trimmed) return
 
-        const { recentTopics } = this.state
+        const { aiMode, updateRecentTopics } = this.props
         // 移除已存在的相同话题
-        const filtered = recentTopics.filter(t => t !== trimmed)
+        const filtered = aiMode.recentTopics.filter(t => t !== trimmed)
         // 添加到最前面
         const updated = [trimmed, ...filtered].slice(0, 5)  // 最多保留5个
         
-        this.setState({ recentTopics: updated })
-        // 保存到localStorage
-        localStorage.setItem('ai-recent-topics', JSON.stringify(updated))
+        updateRecentTopics(updated)
+        // localStorage 同步在 reducer 中处理
     }
 
     handleApiEndpointChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
-        this.setState({ tempApiEndpoint: value })
+        this.props.updateTempApiEndpoint(value)
     }
 
     handleApiKeyChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
-        this.setState({ tempApiKey: value })
+        this.props.updateTempApiKey(value)
     }
 
     handleModelChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
-        this.setState({ tempModel: value })
+        this.props.updateTempModel(value)
     }
 
     handleEmbeddingModelChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
-        this.setState({ tempEmbeddingModel: value })
+        this.props.updateTempEmbeddingModel(value)
     }
 
     handleSimilarityThresholdChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
-        this.setState({ tempSimilarityThreshold: value })
+        this.props.updateTempSimilarityThreshold(value)
     }
 
     handleConfigConfirm = () => {
-        const { tempApiEndpoint, tempApiKey, tempModel, tempEmbeddingModel, tempSimilarityThreshold } = this.state
+        const { aiMode, updateApiEndpoint, updateApiKey, updateModel, updateEmbeddingModel, updateSimilarityThreshold, setShowConfigPanel, setShowErrorDialog, setErrorDialogMessage } = this.props
+        const { tempApiEndpoint, tempApiKey, tempModel, tempEmbeddingModel, tempSimilarityThreshold } = aiMode
         
         // 验证相似度阈值
         const similarityThreshold = parseFloat(tempSimilarityThreshold)
         if (isNaN(similarityThreshold) || similarityThreshold < 0 || similarityThreshold > 1) {
-            this.setState({
-                showErrorDialog: true,
-                errorDialogMessage: '相似度阈值必须是0到1之间的数字'
-            })
+            setShowErrorDialog(true)
+            setErrorDialogMessage('相似度阈值必须是0到1之间的数字')
             return
         }
         
-        // 保存到localStorage和state
-        localStorage.setItem('ai-api-endpoint', tempApiEndpoint)
-        localStorage.setItem('ai-api-key', tempApiKey)
-        localStorage.setItem('ai-model', tempModel)
-        localStorage.setItem('ai-embedding-model', tempEmbeddingModel)
-        localStorage.setItem('ai-similarity-threshold', similarityThreshold.toString())
-        this.setState({
-            apiEndpoint: tempApiEndpoint,
-            apiKey: tempApiKey,
-            model: tempModel,
-            embeddingModel: tempEmbeddingModel,
-            similarityThreshold: similarityThreshold,
-            showConfigPanel: false
-        })
+        // 保存到 Redux（localStorage 同步在 reducer 中处理）
+        updateApiEndpoint(tempApiEndpoint)
+        updateApiKey(tempApiKey)
+        updateModel(tempModel)
+        updateEmbeddingModel(tempEmbeddingModel)
+        updateSimilarityThreshold(similarityThreshold)
+        setShowConfigPanel(false)
     }
 
     handleConfigCancel = () => {
         // 恢复临时状态为已保存的值
-        const { apiEndpoint, apiKey, model, embeddingModel, similarityThreshold } = this.state
-        this.setState({
-            tempApiEndpoint: apiEndpoint,
-            tempApiKey: apiKey,
-            tempModel: model,
-            tempEmbeddingModel: embeddingModel,
-            tempSimilarityThreshold: similarityThreshold.toString(),
-            showConfigPanel: false
-        })
+        const { aiMode, updateTempApiEndpoint, updateTempApiKey, updateTempModel, updateTempEmbeddingModel, updateTempSimilarityThreshold, setShowConfigPanel } = this.props
+        const { apiEndpoint, apiKey, model, embeddingModel, similarityThreshold } = aiMode
+        updateTempApiEndpoint(apiEndpoint)
+        updateTempApiKey(apiKey)
+        updateTempModel(model)
+        updateTempEmbeddingModel(embeddingModel)
+        updateTempSimilarityThreshold(similarityThreshold.toString())
+        setShowConfigPanel(false)
     }
 
     handleConfigPanelOpen = () => {
         // 打开面板时，初始化临时状态为当前保存的值
-        const { apiEndpoint, apiKey, model, embeddingModel, similarityThreshold } = this.state
-        this.setState({
-            showConfigPanel: true,
-            tempApiEndpoint: apiEndpoint,
-            tempApiKey: apiKey,
-            tempModel: model,
-            tempEmbeddingModel: embeddingModel,
-            tempSimilarityThreshold: similarityThreshold.toString()
-        })
+        const { aiMode, setShowConfigPanel, updateTempApiEndpoint, updateTempApiKey, updateTempModel, updateTempEmbeddingModel, updateTempSimilarityThreshold } = this.props
+        const { apiEndpoint, apiKey, model, embeddingModel, similarityThreshold } = aiMode
+        setShowConfigPanel(true)
+        updateTempApiEndpoint(apiEndpoint)
+        updateTempApiKey(apiKey)
+        updateTempModel(model)
+        updateTempEmbeddingModel(embeddingModel)
+        updateTempSimilarityThreshold(similarityThreshold.toString())
     }
 
     // 解析时间范围key，返回天数
@@ -461,94 +424,29 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
         }
     }
 
-    // 更新查询进度
+    // 更新查询进度（现在直接使用 Redux action）
     updateQueryProgress = (updates: Partial<QueryProgress>) => {
-        this.setState(prevState => {
-            if (!prevState.queryProgress) return prevState
-            
-            const progress = { ...prevState.queryProgress, ...updates }
-            
-            // 计算总体进度
-            const totalSteps = progress.steps.length
-            const completedSteps = progress.steps.filter(s => s.status === 'completed').length
-            const currentStep = progress.steps[progress.currentStepIndex]
-            const stepProgress = currentStep?.progress || 0
-            const baseProgress = (completedSteps / totalSteps) * 100
-            const currentStepWeight = 1 / totalSteps
-            const currentStepProgress = (stepProgress / 100) * currentStepWeight * 100
-            progress.overallProgress = Math.min(100, baseProgress + currentStepProgress)
-            
-            return { ...prevState, queryProgress: progress }
-        })
+        const { aiMode, updateQueryProgress } = this.props
+        if (!aiMode.queryProgress) return
+        
+        const progress = { ...aiMode.queryProgress, ...updates }
+        
+        // 计算总体进度
+        const totalSteps = progress.steps.length
+        const completedSteps = progress.steps.filter(s => s.status === 'completed').length
+        const currentStep = progress.steps[progress.currentStepIndex]
+        const stepProgress = currentStep?.progress || 0
+        const baseProgress = (completedSteps / totalSteps) * 100
+        const currentStepWeight = 1 / totalSteps
+        const currentStepProgress = (stepProgress / 100) * currentStepWeight * 100
+        progress.overallProgress = Math.min(100, baseProgress + currentStepProgress)
+        
+        updateQueryProgress(progress)
     }
 
-    // 更新步骤状态
+    // 更新步骤状态（现在直接使用 Redux action，逻辑在 reducer 中）
     updateStepStatus = (stepId: string, status: QueryProgressStep['status'], message?: string, progress?: number) => {
-        this.setState(prevState => {
-            if (!prevState.queryProgress) return prevState
-            
-            // 先更新步骤状态
-            const steps = prevState.queryProgress.steps.map(step => {
-                if (step.id === stepId) {
-                    return { ...step, status, message, progress }
-                }
-                return step
-            })
-            
-            // 然后计算可见性（基于更新后的状态）
-            const stepsWithVisibility = steps.map((step, index) => {
-                // 如果步骤已经可见，保持可见
-                if (step.visible === true) {
-                    return step
-                }
-                
-                const isFirstStep = index === 0
-                const prevStep = index > 0 ? steps[index - 1] : null
-                
-                // 第一步总是可见
-                if (isFirstStep) {
-                    return { ...step, visible: true }
-                }
-                
-                // 如果步骤状态是 in_progress、completed 或 error，则可见
-                if (step.status === 'in_progress' || step.status === 'completed' || step.status === 'error') {
-                    return { ...step, visible: true }
-                }
-                
-                // 如果前一步是 completed，则下一步可见（即使还是 pending）
-                if (prevStep && prevStep.status === 'completed') {
-                    return { ...step, visible: true }
-                }
-                
-                return step
-            })
-            
-            const currentStepIndex = stepsWithVisibility.findIndex(s => s.status === 'in_progress')
-            const currentMessage = stepsWithVisibility.find(s => s.status === 'in_progress')?.message || 
-                                   stepsWithVisibility.find(s => s.status === 'completed')?.message || 
-                                   prevState.queryProgress.currentMessage
-            
-            // 计算总体进度
-            const totalSteps = stepsWithVisibility.length
-            const completedSteps = stepsWithVisibility.filter(s => s.status === 'completed').length
-            const currentStep = stepsWithVisibility[currentStepIndex >= 0 ? currentStepIndex : prevState.queryProgress.currentStepIndex]
-            const stepProgress = currentStep?.progress || 0
-            const baseProgress = (completedSteps / totalSteps) * 100
-            const currentStepWeight = 1 / totalSteps
-            const currentStepProgress = (stepProgress / 100) * currentStepWeight * 100
-            const overallProgress = Math.min(100, baseProgress + currentStepProgress)
-            
-            return {
-                ...prevState,
-                queryProgress: {
-                    ...prevState.queryProgress,
-                    steps: stepsWithVisibility,
-                    currentStepIndex: currentStepIndex >= 0 ? currentStepIndex : prevState.queryProgress.currentStepIndex,
-                    currentMessage,
-                    overallProgress
-                }
-            }
-        })
+        this.props.updateStepStatus(stepId, status, message, progress)
     }
 
     // 获取时间范围选项
@@ -632,7 +530,8 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
 
     // 计算话题的embedding
     computeTopicEmbedding = async (topic: string): Promise<number[]> => {
-        const { apiEndpoint, apiKey, embeddingModel } = this.state
+        const { aiMode } = this.props
+        const { apiEndpoint, apiKey, embeddingModel } = aiMode
 
         // 验证API配置
         if (!apiEndpoint || !apiEndpoint.trim()) {
@@ -940,9 +839,9 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
 
         const trimmedTopic = topic.trim()
         
-        // 从localStorage读取最新的相似度阈值（确保使用最新配置）
-        const savedThreshold = localStorage.getItem('ai-similarity-threshold')
-        const similarityThreshold = savedThreshold ? parseFloat(savedThreshold) : (this.state.similarityThreshold || 0.7)
+        // 从 Redux state 读取相似度阈值
+        const { aiMode } = this.props
+        const similarityThreshold = aiMode.similarityThreshold || 0.7
 
         try {
             // 步骤2: 计算话题向量
@@ -976,7 +875,8 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
 
     // 计算文章的embedding并存储
     computeAndStoreEmbeddings = async (articles: RSSItem[]): Promise<void> => {
-        const { apiEndpoint, apiKey, embeddingModel } = this.state
+        const { aiMode } = this.props
+        const { apiEndpoint, apiKey, embeddingModel } = aiMode
 
         if (articles.length === 0) {
             return
@@ -1090,7 +990,8 @@ export class AIModeComponent extends React.Component<AIModeProps, AIModeState> {
 
     // 对文章进行聚类分析
     clusterArticles = async (articles: RSSItem[], topic: string | null): Promise<ArticleCluster[]> => {
-        const { apiEndpoint, apiKey, model } = this.state
+        const { aiMode } = this.props
+        const { apiEndpoint, apiKey, model } = aiMode
 
         if (articles.length === 0) {
             return []
@@ -1336,7 +1237,8 @@ ${articlesText}
 
     // 生成总结
     generateSummary = async (articles: RSSItem[], topic: string): Promise<string> => {
-        const { apiEndpoint, apiKey, model } = this.state
+        const { aiMode } = this.props
+        const { apiEndpoint, apiKey, model } = aiMode
 
         // 规范化endpoint URL
         let normalizedEndpoint = apiEndpoint.trim()
@@ -1426,24 +1328,22 @@ ${articlesText}
     }
 
     handleGenerateSummary = async () => {
-        const { timeRange, topicInput } = this.state
+        const { aiMode } = this.props
+        const { timeRange, topicInput } = aiMode
+        const { updateTopic, updateTopicInput, setLoading, setClustering, setError, setSummary, setArticleCount, setFilteredArticles, setClusters, updateQueryProgress, setShowResults, setShowErrorDialog, setErrorDialogMessage } = this.props
 
         // 验证时间范围必须选择
         if (!timeRange) {
-            this.setState({ 
-                showErrorDialog: true,
-                errorDialogMessage: '请先选择文章发布时间'
-            })
+            setShowErrorDialog(true)
+            setErrorDialogMessage('请先选择文章发布时间')
             return
         }
 
         // 验证话题必须输入（话题是必填的）
-        const trimmedTopic = topicInput.trim() || this.state.topic?.trim() || ''
+        const trimmedTopic = topicInput.trim() || aiMode.topic?.trim() || ''
         if (!trimmedTopic) {
-            this.setState({ 
-                showErrorDialog: true,
-                errorDialogMessage: '请输入话题关键词'
-            })
+            setShowErrorDialog(true)
+            setErrorDialogMessage('请输入话题关键词')
             return
         }
 
@@ -1454,53 +1354,45 @@ ${articlesText}
         // 初始化查询进度（话题必填，总是6个步骤）
         const queryProgress = this.initializeQueryProgress()
 
-        this.setState({ 
-            topic: currentTopic,
-            topicInput: currentTopic, // 确保 topicInput 和 topic 一致
-            isLoading: true,
-            error: null,
-            summary: '',
-            articleCount: 0,
-            filteredArticles: [],
-            clusters: [],
-            queryProgress: queryProgress,
-            showResults: false
-        }, () => {
-            // 状态更新后立即通知 Context 更新
-            if (typeof window !== 'undefined') {
-                const event = new CustomEvent('aiModeUpdated')
-                window.dispatchEvent(event)
-            }
-        })
+        // 更新状态
+        updateTopic(currentTopic)
+        updateTopicInput(currentTopic) // 确保 topicInput 和 topic 一致
+        setLoading(true)
+        setError(null)
+        setSummary('')
+        setArticleCount(0)
+        setFilteredArticles([])
+        setClusters([])
+        updateQueryProgress(queryProgress)
+        setShowResults(false)
+        
+        // 通知 Context 更新
+        if (typeof window !== 'undefined') {
+            const event = new CustomEvent('aiModeUpdated')
+            window.dispatchEvent(event)
+        }
 
         try {
             // 解析时间范围
             const timeRangeDays = this.parseTimeRange(timeRange)
 
             // 查询文章（根据时间范围和话题）
-            // queryArticles内部已经处理了：
-            // 1. 先通过时间范围筛选文章
-            // 2. 如果有话题，只对时间范围内的文章计算embedding（如果还没有的话）
-            // 3. 然后进行向量相似度筛选
             const articles = await this.queryArticles(timeRangeDays, currentTopic)
             
             if (articles.length === 0) {
                 const topicMessage = currentTopic ? `或话题"${currentTopic}"` : ''
-                this.setState({
-                    isLoading: false,
-                    error: `没有找到符合条件的文章。请尝试调整时间范围${topicMessage}。`,
-                    queryProgress: null
-                }, () => {
-                    if (typeof window !== 'undefined') {
-                        const event = new CustomEvent('aiModeUpdated')
-                        window.dispatchEvent(event)
-                    }
-                })
+                setLoading(false)
+                setError(`没有找到符合条件的文章。请尝试调整时间范围${topicMessage}。`)
+                updateQueryProgress(null)
+                if (typeof window !== 'undefined') {
+                    const event = new CustomEvent('aiModeUpdated')
+                    window.dispatchEvent(event)
+                }
                 return
             }
 
             // 将文章添加到 Redux store，确保可以点击查看
-            const { dispatch, items, sources } = this.props
+            const { sources } = this.props
             
             // 确保所有文章的 source 都存在
             const articlesWithValidSources = articles.filter(item => {
@@ -1511,106 +1403,81 @@ ${articlesText}
                 return true
             })
             
-            if (articlesWithValidSources.length !== articles.length) {
-            }
-            
-            // 注意：这些文章已经在数据库和 store 中了（因为我们是从数据库查询的）
-            // 我们不需要调用 fetchItemsSuccess，因为：
-            // 1. 这些文章已经在 itemReducer 的 state 中了
-            // 2. 调用 fetchItemsSuccess 会导致 feedReducer 将它们再次添加到 feed 中，造成重复
-            // 3. showItem 可以直接使用 store 中已有的文章
-            
             // 保存筛选后的文章列表
-            this.setState({ 
-                articleCount: articlesWithValidSources.length, 
-                filteredArticles: articlesWithValidSources,
-                clusters: [],
-                isLoading: false,
-                isClustering: true
-            }, () => {
-                if (typeof window !== 'undefined') {
-                    const event = new CustomEvent('aiModeUpdated')
-                    window.dispatchEvent(event)
-                }
-            })
+            setArticleCount(articlesWithValidSources.length)
+            setFilteredArticles(articlesWithValidSources)
+            setClusters([])
+            setLoading(false)
+            setClustering(true)
+            if (typeof window !== 'undefined') {
+                const event = new CustomEvent('aiModeUpdated')
+                window.dispatchEvent(event)
+            }
 
             // 使用LLM对文章进行聚类分析
             try {
                 const clusters = await this.clusterArticles(articlesWithValidSources, currentTopic)
                 
-                if (clusters.length === 0) {
-                }
-                
-                this.setState({ 
-                    clusters: clusters,
-                    isClustering: false,
-                    isLoading: false,
-                    showResults: false  // 不自动显示结果，等待用户点击按钮
-                }, () => {
-                    if (typeof window !== 'undefined') {
-                        const event = new CustomEvent('aiModeUpdated')
-                        window.dispatchEvent(event)
-                    }
-                })
-            } catch (clusterError) {
-                const errorMsg = clusterError instanceof Error ? clusterError.message : '聚类分析失败，已显示原始文章列表'
-                // 聚类失败时仍然显示文章列表，但不进行分组
-                this.setState({ 
-                    clusters: [],
-                    isClustering: false,
-                    isLoading: false,
-                    error: errorMsg,
-                    showResults: false  // 不自动显示结果
-                }, () => {
-                    if (typeof window !== 'undefined') {
-                        const event = new CustomEvent('aiModeUpdated')
-                        window.dispatchEvent(event)
-                    }
-                })
-            }
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : '查询失败，请稍后重试'
-            this.setState({ 
-                isLoading: false,
-                error: errorMessage,
-                showErrorDialog: true,
-                errorDialogMessage: errorMessage,
-                queryProgress: null
-            }, () => {
+                setClusters(clusters)
+                setClustering(false)
+                setLoading(false)
+                setShowResults(false)  // 不自动显示结果，等待用户点击按钮
                 if (typeof window !== 'undefined') {
                     const event = new CustomEvent('aiModeUpdated')
                     window.dispatchEvent(event)
                 }
-            })
+            } catch (clusterError) {
+                const errorMsg = clusterError instanceof Error ? clusterError.message : '聚类分析失败，已显示原始文章列表'
+                // 聚类失败时仍然显示文章列表，但不进行分组
+                setClusters([])
+                setClustering(false)
+                setLoading(false)
+                setError(errorMsg)
+                setShowResults(false)  // 不自动显示结果
+                if (typeof window !== 'undefined') {
+                    const event = new CustomEvent('aiModeUpdated')
+                    window.dispatchEvent(event)
+                }
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '查询失败，请稍后重试'
+            setLoading(false)
+            setError(errorMessage)
+            setShowErrorDialog(true)
+            setErrorDialogMessage(errorMessage)
+            updateQueryProgress(null)
+            if (typeof window !== 'undefined') {
+                const event = new CustomEvent('aiModeUpdated')
+                window.dispatchEvent(event)
+            }
         }
     }
 
     handleClearSummary = () => {
-        this.setState({ 
-            summary: '',
-            error: null,
-            articleCount: 0,
-            filteredArticles: [],
-            clusters: [],
-            showResults: false,
-            queryProgress: null
-        })
+        const { setSummary, setError, setArticleCount, setFilteredArticles, setClusters, setShowResults, updateQueryProgress } = this.props
+        setSummary('')
+        setError(null)
+        setArticleCount(0)
+        setFilteredArticles([])
+        setClusters([])
+        setShowResults(false)
+        updateQueryProgress(null)
     }
 
     handleShowResults = () => {
-        this.setState({ 
-            showResults: true
-        })
+        this.props.setShowResults(true)
     }
 
     handleCloseErrorDialog = () => {
-        this.setState({ showErrorDialog: false, errorDialogMessage: '' })
+        this.props.setShowErrorDialog(false)
+        this.props.setErrorDialogMessage('')
     }
 
     render() {
-        // 优先使用 Context 中的状态（如果存在），否则使用本地 state
+        // 优先使用 Context 中的状态（如果存在），否则使用 Redux state
         const context = this.context
         const useContext = context !== null && context !== undefined
+        const { aiMode } = this.props
         
         const { 
             timeRange, 
@@ -1637,22 +1504,22 @@ ${articlesText}
             queryProgress,
             showResults
         } = useContext ? {
-            ...this.state,
-            summary: context.summary !== undefined ? context.summary : this.state.summary,
-            filteredArticles: context.filteredArticles !== undefined ? context.filteredArticles : this.state.filteredArticles,
-            articleCount: context.articleCount !== undefined ? context.articleCount : this.state.articleCount,
-            isLoading: context.isLoading !== undefined ? context.isLoading : this.state.isLoading,
-            isClustering: context.isClustering !== undefined ? context.isClustering : this.state.isClustering,
-            error: context.error !== undefined ? context.error : this.state.error,
-            clusters: context.clusters !== undefined ? context.clusters : this.state.clusters,
-            queryProgress: this.state.queryProgress,
-            showResults: this.state.showResults
-        } : this.state
+            ...aiMode,
+            summary: context.summary !== undefined ? context.summary : aiMode.summary,
+            filteredArticles: context.filteredArticles !== undefined ? context.filteredArticles : aiMode.filteredArticles,
+            articleCount: context.articleCount !== undefined ? context.articleCount : aiMode.articleCount,
+            isLoading: context.isLoading !== undefined ? context.isLoading : aiMode.isLoading,
+            isClustering: context.isClustering !== undefined ? context.isClustering : aiMode.isClustering,
+            error: context.error !== undefined ? context.error : aiMode.error,
+            clusters: context.clusters !== undefined ? context.clusters : aiMode.clusters,
+            queryProgress: aiMode.queryProgress,
+            showResults: aiMode.showResults
+        } : aiMode
         
         const { sources, markRead, contextMenu, showItem, shortcuts } = this.props
 
         // 统一管理加载界面：只使用深色进度界面
-        const currentProgress = queryProgress || this.state.queryProgress
+        const currentProgress = queryProgress || aiMode.queryProgress
         const hasResults = filteredArticles.length > 0
         
         // 检查所有步骤是否完成
@@ -1915,9 +1782,9 @@ ${articlesText}
                 {/* 加载和错误状态 - Cursor风格深色界面 */}
                 {(shouldShowDarkProgress || shouldShowProgressForCompleted) && (() => {
                     // 话题必填，总是6个步骤
-                    // 始终使用 this.state.queryProgress，不要使用 currentProgress，因为它可能在某些情况下为 null
-                    // 如果 this.state.queryProgress 存在，直接使用它，不要重新创建
-                    let progress = this.state.queryProgress
+                    // 始终使用 aiMode.queryProgress，不要使用 currentProgress，因为它可能在某些情况下为 null
+                    // 如果 aiMode.queryProgress 存在，直接使用它，不要重新创建
+                    let progress = aiMode.queryProgress
                     if (!progress) {
                         progress = currentProgress
                     }
@@ -1925,8 +1792,8 @@ ${articlesText}
                     const needsRecreate = !progress || actualStepCount !== 6
                     
                     // 只有在确实没有进度时才创建默认进度
-                    // 如果 this.state.queryProgress 存在，即使步骤数量不对，也不要重新创建，因为状态可能正在更新中
-                    if (needsRecreate && !this.state.queryProgress) {
+                    // 如果 aiMode.queryProgress 存在，即使步骤数量不对，也不要重新创建，因为状态可能正在更新中
+                    if (needsRecreate && !aiMode.queryProgress) {
                         const defaultStatus = shouldShowProgressForCompleted ? 'completed' as const : 'in_progress' as const
                         const defaultMessage = shouldShowProgressForCompleted ? '所有步骤已完成' : '正在从数据库查询文章...'
                         
@@ -2047,7 +1914,7 @@ ${articlesText}
                                 display: 'flex',
                                 flexDirection: 'column',
                                 gap: '12px',
-                                overflow: 'visible'
+                                overflow: 'auto'
                             }}>
                                 <div style={{
                                     fontSize: '13px',
@@ -2064,7 +1931,7 @@ ${articlesText}
                                     gap: '8px',
                                     flex: 1,
                                     minHeight: 0,
-                                    overflow: 'visible'
+                                    overflow: 'auto'
                                 }}>
                                 {(() => {
                                     // 向后兼容：如果 visible 字段不存在，默认显示（visible !== false）
@@ -2361,7 +2228,8 @@ ${articlesText}
 
 const mapStateToProps = (state: RootState) => ({
     sources: state.sources,
-    items: state.items
+    items: state.items,
+    aiMode: state.aiMode
 })
 
 const mapDispatchToProps = dispatch => ({
@@ -2370,7 +2238,37 @@ const mapDispatchToProps = dispatch => ({
     contextMenu: (feedId: string, item: RSSItem, e: React.MouseEvent) => 
         dispatch(openItemMenu(item, feedId, e)),
     showItem: (fid: string, item: RSSItem) => dispatch(showItem(fid, item)),
-    shortcuts: (item: RSSItem, e: KeyboardEvent) => dispatch(itemShortcuts(item, e))
+    shortcuts: (item: RSSItem, e: KeyboardEvent) => dispatch(itemShortcuts(item, e)),
+    // AI Mode actions
+    updateTimeRange: (timeRange: string | null) => dispatch(updateAIModeTimeRange(timeRange)),
+    updateTopic: (topic: string) => dispatch(updateAIModeTopic(topic)),
+    updateTopicInput: (topicInput: string) => dispatch(updateAIModeTopicInput(topicInput)),
+    setIsComposing: (isComposing: boolean) => dispatch(setAIModeIsComposing(isComposing)),
+    updateRecentTopics: (recentTopics: string[]) => dispatch(updateAIModeRecentTopics(recentTopics)),
+    setSummary: (summary: string) => dispatch(setAIModeSummary(summary)),
+    setLoading: (isLoading: boolean) => dispatch(setAIModeLoading(isLoading)),
+    setClustering: (isClustering: boolean) => dispatch(setAIModeClustering(isClustering)),
+    setError: (error: string | null) => dispatch(setAIModeError(error)),
+    updateApiEndpoint: (apiEndpoint: string) => dispatch(updateAIModeApiEndpoint(apiEndpoint)),
+    updateApiKey: (apiKey: string) => dispatch(updateAIModeApiKey(apiKey)),
+    updateModel: (model: string) => dispatch(updateAIModeModel(model)),
+    updateEmbeddingModel: (embeddingModel: string) => dispatch(updateAIModeEmbeddingModel(embeddingModel)),
+    updateSimilarityThreshold: (similarityThreshold: number) => dispatch(updateAIModeSimilarityThreshold(similarityThreshold)),
+    setShowConfigPanel: (showConfigPanel: boolean) => dispatch(setAIModeShowConfigPanel(showConfigPanel)),
+    updateTempApiEndpoint: (tempApiEndpoint: string) => dispatch(updateAIModeTempApiEndpoint(tempApiEndpoint)),
+    updateTempApiKey: (tempApiKey: string) => dispatch(updateAIModeTempApiKey(tempApiKey)),
+    updateTempModel: (tempModel: string) => dispatch(updateAIModeTempModel(tempModel)),
+    updateTempEmbeddingModel: (tempEmbeddingModel: string) => dispatch(updateAIModeTempEmbeddingModel(tempEmbeddingModel)),
+    updateTempSimilarityThreshold: (tempSimilarityThreshold: string) => dispatch(updateAIModeTempSimilarityThreshold(tempSimilarityThreshold)),
+    setShowErrorDialog: (showErrorDialog: boolean) => dispatch(setAIModeShowErrorDialog(showErrorDialog)),
+    setErrorDialogMessage: (errorDialogMessage: string) => dispatch(setAIModeErrorDialogMessage(errorDialogMessage)),
+    setArticleCount: (articleCount: number) => dispatch(setAIModeArticleCount(articleCount)),
+    setFilteredArticles: (filteredArticles: RSSItem[]) => dispatch(setAIModeFilteredArticles(filteredArticles)),
+    setClusters: (clusters: ArticleCluster[]) => dispatch(setAIModeClusters(clusters)),
+    updateQueryProgress: (queryProgress: QueryProgress | null) => dispatch(updateAIModeQueryProgress(queryProgress)),
+    updateStepStatus: (stepId: string, status: QueryProgressStep['status'], message?: string, progress?: number) => 
+        dispatch(updateAIModeStepStatus(stepId, status, message, progress)),
+    setShowResults: (showResults: boolean) => dispatch(setAIModeShowResults(showResults))
 })
 
 const AIMode = connect(mapStateToProps, mapDispatchToProps, null, { forwardRef: true })(AIModeComponent)
