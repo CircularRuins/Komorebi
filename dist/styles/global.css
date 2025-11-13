@@ -105,6 +105,13 @@ body.linux {
     overflow: visible !important;
     height: auto !important;
 }
+/* 确保菜单项图标垂直居中 */
+.ms-ContextualMenu-item .ms-Icon {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    vertical-align: middle !important;
+}
 .ms-ContextualMenu-item {
     min-height: 28px !important;
     height: 28px !important;

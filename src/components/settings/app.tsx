@@ -72,7 +72,6 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
         
         calculateItemSize()
             .then(size => {
-                console.log("计算完成，大小:", size, "MB:", byteToMB(size))
                 this.setState({ itemSize: byteToMB(size) })
             })
             .catch(error => {

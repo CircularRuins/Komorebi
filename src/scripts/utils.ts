@@ -257,10 +257,9 @@ export async function calculateItemSize(): Promise<number> {
             return 0
         }
         
-        console.log("开始查询所有文章...")
+
         // 隐藏功能已移除，计算所有文章
         const allItems = (await db.itemsDB.select().from(db.items).exec()) as any[]
-        console.log(`找到 ${allItems.length} 篇文章`)
         
         if (allItems.length === 0) {
             console.log("数据库中没有文章")
@@ -277,7 +276,7 @@ export async function calculateItemSize(): Promise<number> {
             }
         }
         
-        console.log(`文章总大小: ${result} 字节 (${Math.round(result / 1048576)} MB)`)
+        
         return result
     } catch (error) {
         console.error("计算文章大小失败:", error)

@@ -2,7 +2,7 @@ import * as React from "react"
 import intl from "react-intl-universal"
 import { Icon } from "@fluentui/react/lib/Icon"
 import { AppState } from "../scripts/models/app"
-import { ProgressIndicator, IObjectWithKey } from "@fluentui/react"
+import { ProgressIndicator, IObjectWithKey, TooltipHost, TooltipDelay } from "@fluentui/react"
 import { getWindowBreakpoint } from "../scripts/utils"
 import { WindowStateListenerType } from "../schema-types"
 import {
@@ -74,6 +74,7 @@ type NavState = {
 
 class Nav extends React.Component<NavProps, NavState> {
     private aiMessagesCheckInterval: NodeJS.Timeout | null = null
+    private settingsMenuCloseTimer: NodeJS.Timeout | null = null
 
     constructor(props) {
         super(props)
@@ -144,6 +145,9 @@ class Nav extends React.Component<NavProps, NavState> {
         if (this.aiMessagesCheckInterval) {
             clearInterval(this.aiMessagesCheckInterval)
         }
+        if (this.settingsMenuCloseTimer) {
+            clearTimeout(this.settingsMenuCloseTimer)
+        }
     }
 
     minimize = () => {
@@ -198,10 +202,49 @@ class Nav extends React.Component<NavProps, NavState> {
     }
 
     closeSettingsMenu = () => {
+        if (this.settingsMenuCloseTimer) {
+            clearTimeout(this.settingsMenuCloseTimer)
+            this.settingsMenuCloseTimer = null
+        }
         this.setState({
             showSettingsMenu: false,
             settingsMenuTarget: undefined
         })
+    }
+
+    handleSettingsMouseEnter = (event: React.MouseEvent<HTMLElement>) => {
+        // 清除任何待关闭的定时器
+        if (this.settingsMenuCloseTimer) {
+            clearTimeout(this.settingsMenuCloseTimer)
+            this.settingsMenuCloseTimer = null
+        }
+        // 打开菜单
+        this.setState({
+            showSettingsMenu: true,
+            settingsMenuTarget: event.currentTarget
+        })
+    }
+
+    handleSettingsMouseLeave = () => {
+        // 延迟关闭菜单，给用户时间移动到菜单上
+        this.settingsMenuCloseTimer = setTimeout(() => {
+            this.closeSettingsMenu()
+        }, 200)
+    }
+
+    handleMenuMouseEnter = () => {
+        // 鼠标进入菜单时，取消关闭定时器
+        if (this.settingsMenuCloseTimer) {
+            clearTimeout(this.settingsMenuCloseTimer)
+            this.settingsMenuCloseTimer = null
+        }
+    }
+
+    handleMenuMouseLeave = () => {
+        // 鼠标离开菜单时，延迟关闭
+        this.settingsMenuCloseTimer = setTimeout(() => {
+            this.closeSettingsMenu()
+        }, 200)
     }
 
     handleNavClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -247,13 +290,69 @@ class Nav extends React.Component<NavProps, NavState> {
             {
                 key: "appPreferences",
                 text: intl.get("settings.appPreferences"),
-                iconProps: { iconName: "Settings" },
+                iconProps: { 
+                    iconName: "Edit",
+                    styles: {
+                        root: {
+                            fontSize: '11px',
+                            width: '11px',
+                            height: '11px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }
+                    }
+                },
+                styles: {
+                    root: {
+                        fontSize: '11px',
+                        lineHeight: '20px',
+                        display: 'flex',
+                        alignItems: 'center'
+                    },
+                    icon: {
+                        fontSize: '11px',
+                        width: '11px',
+                        height: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }
+                },
                 onClick: this.handleAppPreferences
             },
             {
                 key: "aiConfig",
                 text: intl.get("settings.ai"),
-                iconProps: { iconName: "Cloud" },
+                iconProps: { 
+                    iconName: "Cloud",
+                    styles: {
+                        root: {
+                            fontSize: '11px',
+                            width: '11px',
+                            height: '11px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }
+                    }
+                },
+                styles: {
+                    root: {
+                        fontSize: '11px',
+                        lineHeight: '20px',
+                        display: 'flex',
+                        alignItems: 'center'
+                    },
+                    icon: {
+                        fontSize: '11px',
+                        width: '11px',
+                        height: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }
+                },
                 onClick: this.handleAIConfig
             }
         ]
@@ -265,53 +364,66 @@ class Nav extends React.Component<NavProps, NavState> {
                 <span className="title" style={{ pointerEvents: 'none' }}>{this.props.state.title}</span>
                 {/* AI模式开关 - 居中显示，只保留图标 */}
                 {!this.props.settingsDisplay && !this.props.itemShown && (
-                <div 
-                    className={`ai-mode-switch ${this.props.isAIModeEnabled ? 'ai-mode-enabled' : ''}`}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        this.props.toggleAIMode(!this.props.isAIModeEnabled);
-                    }}
-                    title={intl.get("nav.aiMode")}
-                >
-                    <Icon iconName="AIMode" className="ai-mode-icon" />
+                <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'inline-block' }}>
+                    <TooltipHost 
+                        content={intl.get("nav.aiMode")} 
+                        delay={TooltipDelay.zero}
+                        calloutProps={{
+                            directionalHint: DirectionalHint.bottomCenter
+                        }}>
+                        <div 
+                            className={`ai-mode-switch ${this.props.isAIModeEnabled ? 'ai-mode-enabled' : ''}`}
+                            style={{ position: 'relative', left: 'auto', transform: 'none' }}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                this.props.toggleAIMode(!this.props.isAIModeEnabled);
+                            }}
+                        >
+                            <Icon iconName="AIMode" className="ai-mode-icon" />
+                        </div>
+                    </TooltipHost>
                 </div>
                 )}
                 <div className="btn-group" style={{ float: "right" }}>
-                    <a
-                        className={"btn" + this.fetching()}
-                        onClick={this.fetch}
-                        title={intl.get("nav.refresh")}>
-                        <Icon iconName="Refresh" />
-                    </a>
+                    <TooltipHost content={intl.get("nav.refresh")} delay={TooltipDelay.zero}>
+                        <a
+                            className={"btn" + this.fetching()}
+                            onClick={this.fetch}>
+                            <Icon iconName="Refresh" />
+                        </a>
+                    </TooltipHost>
                     <a
                         className="btn"
-                        title={intl.get("settings.app")}
-                        onClick={this.openSettingsMenu}>
+                        onMouseEnter={this.handleSettingsMouseEnter}
+                        onMouseLeave={this.handleSettingsMouseLeave}>
                         <Icon iconName="Settings" />
                     </a>
-                    <a
-                        className="btn system"
-                        title={intl.get("nav.minimize")}
-                        onClick={this.minimize}>
-                        <Icon iconName="Remove" />
-                    </a>
-                    <a
-                        className="btn system"
-                        title={intl.get("nav.maximize")}
-                        onClick={this.maximize}>
-                        {this.state.maximized ? (
-                            <Icon iconName="ChromeRestore" />
-                        ) : (
-                            <Icon iconName="Checkbox" />
-                        )}
-                    </a>
-                    <a
-                        className="btn system close"
-                        title={intl.get("close")}
-                        onClick={this.close}>
-                        <Icon iconName="Cancel" />
-                    </a>
+                    <TooltipHost content={intl.get("nav.minimize")} delay={TooltipDelay.zero}>
+                        <a
+                            className="btn system"
+                            onClick={this.minimize}>
+                            <Icon iconName="Remove" />
+                        </a>
+                    </TooltipHost>
+                    <TooltipHost content={intl.get("nav.maximize")} delay={TooltipDelay.zero}>
+                        <a
+                            className="btn system"
+                            onClick={this.maximize}>
+                            {this.state.maximized ? (
+                                <Icon iconName="ChromeRestore" />
+                            ) : (
+                                <Icon iconName="Checkbox" />
+                            )}
+                        </a>
+                    </TooltipHost>
+                    <TooltipHost content={intl.get("close")} delay={TooltipDelay.zero}>
+                        <a
+                            className="btn system close"
+                            onClick={this.close}>
+                            <Icon iconName="Cancel" />
+                        </a>
+                    </TooltipHost>
                 </div>
                 {!this.canFetch() && (
                     <ProgressIndicator
@@ -325,6 +437,34 @@ class Nav extends React.Component<NavProps, NavState> {
                         items={this.getSettingsMenuItems()}
                         target={this.state.settingsMenuTarget}
                         onDismiss={this.closeSettingsMenu}
+                        calloutProps={{
+                            onMouseEnter: this.handleMenuMouseEnter,
+                            onMouseLeave: this.handleMenuMouseLeave,
+                            styles: {
+                                root: {
+                                    maxHeight: 'none',
+                                    overflow: 'visible'
+                                },
+                                calloutMain: {
+                                    maxHeight: 'none',
+                                    overflow: 'visible'
+                                }
+                            }
+                        }}
+                        styles={{
+                            root: {
+                                maxHeight: 'none',
+                                overflow: 'visible'
+                            },
+                            list: {
+                                maxHeight: 'none',
+                                overflow: 'visible'
+                            },
+                            container: {
+                                maxHeight: 'none',
+                                overflow: 'visible'
+                            }
+                        }}
                     />
                 )}
             </nav>
