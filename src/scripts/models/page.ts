@@ -177,22 +177,8 @@ export function showItem(feedId: string, item: RSSItem): AppThunk<Promise<void>>
         let hasItem = state.items.hasOwnProperty(item._id)
         let hasSource = state.sources.hasOwnProperty(item.source)
         
-        // 调试日志
-        if (feedId === "ai-mode") {
-            console.log('showItem 检查:', {
-                itemId: item._id,
-                sourceId: item.source,
-                feedId: feedId,
-                hasItem: hasItem,
-                hasSource: hasSource,
-                itemKeys: Object.keys(state.items).slice(0, 5),
-                sourceKeys: Object.keys(state.sources).slice(0, 5)
-            })
-        }
-        
         // 如果是AI模式且source不在store中，从数据库加载
         if (feedId === "ai-mode" && !hasSource) {
-            console.log('AI模式：source不在store中，从数据库加载，sourceId:', item.source)
             try {
                 // 等待数据库初始化
                 let retries = 0
@@ -214,19 +200,14 @@ export function showItem(feedId: string, item: RSSItem): AppThunk<Promise<void>>
                         // 添加到store
                         dispatch(updateSourceDone(source))
                         hasSource = true
-                        console.log('AI模式：成功加载source到store，sourceId:', source.sid)
-                    } else {
-                        console.warn('AI模式：数据库中找不到source，sourceId:', item.source)
                     }
                 }
             } catch (error) {
-                console.error('AI模式：加载source失败:', error)
             }
         }
         
         // 如果是AI模式且item不在store中，临时添加到store
         if (feedId === "ai-mode" && !hasItem && hasSource) {
-            console.log('AI模式：临时添加item到store，itemId:', item._id)
             // 使用fetchItemsSuccess来添加item到store
             dispatch(fetchItemsSuccess([item], { ...state.items, [item._id]: item }))
             hasItem = true

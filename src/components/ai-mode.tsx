@@ -937,51 +937,75 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             const totalArticles = articlesNeedingEmbedding.length
             const totalBatches = Math.ceil(totalArticles / batchSize)
             
-            // 将文章分批处理
+            // 创建所有批次
+            const batches: Array<{ batch: RSSItem[], batchNumber: number, batchStart: number }> = []
             for (let batchStart = 0; batchStart < articlesNeedingEmbedding.length; batchStart += batchSize) {
                 const batchEnd = Math.min(batchStart + batchSize, articlesNeedingEmbedding.length)
                 const batch = articlesNeedingEmbedding.slice(batchStart, batchEnd)
                 const batchNumber = Math.floor(batchStart / batchSize) + 1
-                const progress = Math.floor((batchStart / totalArticles) * 100)
-                
-                // 更新进度
+                batches.push({ batch, batchNumber, batchStart })
+            }
+            
+            // 用于跟踪已完成的批次数量
+            let completedCount = 0
+            
+            // 更新进度的辅助函数（带节流）
+            const updateProgress = () => {
+                completedCount++
+                const progress = Math.floor((completedCount / totalBatches) * 100)
                 this.updateStepStatus('compute-embeddings', 'in_progress', 
-                    `正在计算向量... 第 ${batchNumber}/${totalBatches} 批 (${batchStart + batch.length}/${totalArticles})`, 
+                    `正在并行计算向量... 已完成 ${completedCount}/${totalBatches} 批 (${Math.min(completedCount * batchSize, totalArticles)}/${totalArticles})`, 
                     progress)
+            }
+            
+            // 处理单个批次的函数
+            const processBatch = async (batchInfo: { batch: RSSItem[], batchNumber: number, batchStart: number }) => {
+                const { batch, batchNumber } = batchInfo
                 
-                // 准备当前批次的文本
-                const texts = batch.map(article => {
-                    // 拼接标题和摘要
-                    const title = article.title || ''
-                    const snippet = article.snippet || ''
-                    return `${title}\n${snippet}`.trim()
-                })
+                try {
+                    // 准备当前批次的文本
+                    const texts = batch.map(article => {
+                        // 拼接标题和摘要
+                        const title = article.title || ''
+                        const snippet = article.snippet || ''
+                        return `${title}\n${snippet}`.trim()
+                    })
 
+                    // 调用embedding API
+                    const response = await openai.embeddings.create({
+                        model: modelToUse,
+                        input: texts,
+                    })
 
-                // 调用embedding API
-                const response = await openai.embeddings.create({
-                    model: modelToUse,
-                    input: texts,
-                })
-
-                // 存储embedding到数据库
-                const embeddings = response.data.map(item => item.embedding)
-                
-                for (let i = 0; i < batch.length; i++) {
-                    const article = batch[i]
-                    const embedding = embeddings[i]
+                    // 存储embedding到数据库
+                    const embeddings = response.data.map(item => item.embedding)
                     
-                    // 更新数据库
-                    await db.itemsDB
-                        .update(db.items)
-                        .where(db.items._id.eq(article._id))
-                        .set(db.items.embedding, embedding)
-                        .exec()
+                    // 并行更新数据库
+                    await Promise.all(batch.map(async (article, i) => {
+                        const embedding = embeddings[i]
+                        
+                        // 更新数据库
+                        await db.itemsDB
+                            .update(db.items)
+                            .where(db.items._id.eq(article._id))
+                            .set(db.items.embedding, embedding)
+                            .exec()
+                        
+                        // 更新内存中的对象
+                        article.embedding = embedding
+                    }))
                     
-                    // 更新内存中的对象
-                    article.embedding = embedding
+                    // 更新进度
+                    updateProgress()
+                } catch (error) {
+                    // 即使某个批次失败，也更新进度计数
+                    updateProgress()
+                    // 不抛出错误，避免影响其他批次
                 }
             }
+            
+            // 并行处理所有批次
+            await Promise.allSettled(batches.map(batchInfo => processBatch(batchInfo)))
 
         } catch (error: any) {
             // 不抛出错误，避免影响主流程
@@ -1010,7 +1034,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
 
         
         // 更新进度：开始聚类
-        this.updateStepStatus('cluster-articles', 'in_progress', `正在分析 ${articles.length} 篇文章的内容并进行聚类...`, 0)
+        this.updateStepStatus('cluster-articles', 'in_progress', `正在分析 ${articles.length} 篇文章的内容并进行聚类...`)
 
         // 规范化endpoint URL
         let normalizedEndpoint = apiEndpoint.trim()
@@ -1111,9 +1135,9 @@ ${articlesText}
                 // 忽略错误，继续使用普通格式
             }
             
-            this.updateStepStatus('cluster-articles', 'in_progress', '正在调用AI模型分析文章...', 50)
+            this.updateStepStatus('cluster-articles', 'in_progress', '正在调用AI模型分析文章...')
             const completion = await openai.chat.completions.create(completionParams)
-            this.updateStepStatus('cluster-articles', 'in_progress', '正在解析聚类结果...', 80)
+            this.updateStepStatus('cluster-articles', 'in_progress', '正在解析聚类结果...')
 
             if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
                 const responseText = completion.choices[0].message.content || ''
