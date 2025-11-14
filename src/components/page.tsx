@@ -1,6 +1,7 @@
 import * as React from "react"
+import intl from "react-intl-universal"
 import { FeedContainer } from "../containers/feed-container"
-import { AnimationClassNames, Icon, FocusTrapZone } from "@fluentui/react"
+import { AnimationClassNames, Icon, FocusTrapZone, TooltipHost, TooltipDelay } from "@fluentui/react"
 import ArticleContainer from "../containers/article-container"
 import AIMode from "./ai-mode"
 import { ViewType } from "../schema-types"
@@ -92,14 +93,22 @@ class Page extends React.Component<PageProps> {
                                 {this.props.itemFromFeed && (
                                     <>
                                         <div className="btn-group prev">
-                                            <a className="btn" onClick={this.prevItem}>
-                                                <Icon iconName="Back" />
-                                            </a>
+                                            <TooltipHost
+                                                content={intl.get("article.prevItem")}
+                                                delay={TooltipDelay.zero}>
+                                                <a className="btn" onClick={this.prevItem}>
+                                                    <Icon iconName="Back" />
+                                                </a>
+                                            </TooltipHost>
                                         </div>
                                         <div className="btn-group next">
-                                            <a className="btn" onClick={this.nextItem}>
-                                                <Icon iconName="Forward" />
-                                            </a>
+                                            <TooltipHost
+                                                content={intl.get("article.nextItem")}
+                                                delay={TooltipDelay.zero}>
+                                                <a className="btn" onClick={this.nextItem}>
+                                                    <Icon iconName="Forward" />
+                                                </a>
+                                            </TooltipHost>
                                         </div>
                                     </>
                                 )}

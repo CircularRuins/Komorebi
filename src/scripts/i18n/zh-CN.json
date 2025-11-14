@@ -77,7 +77,9 @@
         "LTR": "从左到右",
         "RTL": "从右到左",
         "Vertical": "纵书",
-        "font": "字体"
+        "font": "字体",
+        "prevItem": "上一篇文章",
+        "nextItem": "下一篇文章"
     },
     "context": {
         "share": "分享",

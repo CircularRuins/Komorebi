@@ -11,6 +11,8 @@ import {
     Spinner,
     Icon,
     Link,
+    TooltipHost,
+    TooltipDelay,
 } from "@fluentui/react"
 import {
     RSSSource,
@@ -412,87 +414,96 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                             )}
                         </span>
                     </Stack.Item>
-                    <CommandBarButton
-                        title={
+                    <TooltipHost
+                        content={
                             this.props.item.starred
                                 ? intl.get("article.unstar")
                                 : intl.get("article.star")
                         }
-                        iconProps={{
-                            iconName: this.props.item.starred
-                                ? "FavoriteStarFill"
-                                : "FavoriteStar",
-                            style: { fontSize: 16 },
-                        }}
-                        onClick={() =>
-                            this.props.toggleStarred(this.props.item)
-                        }
-                        styles={{
-                            root: {
-                                minWidth: 40,
-                                height: 32,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                            },
-                            icon: {
-                                fontSize: 16,
-                            },
-                        }}
-                    />
-                    <CommandBarButton
-                        title={intl.get("openExternal")}
-                        iconProps={{
-                            iconName: "NavigateExternalInline",
-                            style: { fontSize: 16, lineHeight: 1 },
-                        }}
-                        onClick={e => {
-                            window.utils.openExternal(
-                                this.props.item.link,
-                                platformCtrl(e.nativeEvent)
-                            )
-                        }}
-                        styles={{
-                            root: {
-                                minWidth: 40,
-                                height: 32,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                            },
-                            icon: {
-                                fontSize: 16,
-                                lineHeight: 1,
-                                marginTop: "-3px",
-                            },
-                        }}
-                    />
-                    <CommandBarButton
-                        title={intl.get("context.copyURL")}
-                        iconProps={{
-                            iconName: "Link",
-                            style: { fontSize: 16 },
-                        }}
-                        onClick={() => {
-                            window.utils.writeClipboard(this.props.item.link)
-                            this.setState({ showCopySuccess: true })
-                            setTimeout(() => {
-                                this.setState({ showCopySuccess: false })
-                            }, 1200)
-                        }}
-                        styles={{
-                            root: {
-                                minWidth: 40,
-                                height: 32,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                            },
-                            icon: {
-                                fontSize: 16,
-                            },
-                        }}
-                    />
+                        delay={TooltipDelay.zero}>
+                        <CommandBarButton
+                            iconProps={{
+                                iconName: this.props.item.starred
+                                    ? "FavoriteStarFill"
+                                    : "FavoriteStar",
+                                style: { fontSize: 16 },
+                            }}
+                            onClick={() =>
+                                this.props.toggleStarred(this.props.item)
+                            }
+                            styles={{
+                                root: {
+                                    minWidth: 40,
+                                    height: 32,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                },
+                                icon: {
+                                    fontSize: 16,
+                                },
+                            }}
+                        />
+                    </TooltipHost>
+                    <TooltipHost
+                        content={intl.get("openExternal")}
+                        delay={TooltipDelay.zero}>
+                        <CommandBarButton
+                            iconProps={{
+                                iconName: "NavigateExternalInline",
+                                style: { fontSize: 16, lineHeight: 1 },
+                            }}
+                            onClick={e => {
+                                window.utils.openExternal(
+                                    this.props.item.link,
+                                    platformCtrl(e.nativeEvent)
+                                )
+                            }}
+                            styles={{
+                                root: {
+                                    minWidth: 40,
+                                    height: 32,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                },
+                                icon: {
+                                    fontSize: 16,
+                                    lineHeight: 1,
+                                    marginTop: "-3px",
+                                },
+                            }}
+                        />
+                    </TooltipHost>
+                    <TooltipHost
+                        content={intl.get("context.copyURL")}
+                        delay={TooltipDelay.zero}>
+                        <CommandBarButton
+                            iconProps={{
+                                iconName: "Link",
+                                style: { fontSize: 16 },
+                            }}
+                            onClick={() => {
+                                window.utils.writeClipboard(this.props.item.link)
+                                this.setState({ showCopySuccess: true })
+                                setTimeout(() => {
+                                    this.setState({ showCopySuccess: false })
+                                }, 1200)
+                            }}
+                            styles={{
+                                root: {
+                                    minWidth: 40,
+                                    height: 32,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                },
+                                icon: {
+                                    fontSize: 16,
+                                },
+                            }}
+                        />
+                    </TooltipHost>
                 </Stack>
                 <Stack horizontal horizontalAlign="end" style={{ width: 112 }}>
                     <CommandBarButton

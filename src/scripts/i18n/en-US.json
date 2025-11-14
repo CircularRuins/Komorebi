@@ -77,7 +77,9 @@
         "LTR": "Left-to-right",
         "RTL": "Right-to-left",
         "Vertical": "Vertical",
-        "font": "Font"
+        "font": "Font",
+        "prevItem": "Previous article",
+        "nextItem": "Next article"
     },
     "context": {
         "share": "Share",
