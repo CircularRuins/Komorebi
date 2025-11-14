@@ -191,9 +191,7 @@ img.favicon.dropdown {
     vertical-align: sub;
 }
 .ms-DetailsList-contentWrapper {
-    max-height: 400px;
     overflow-x: hidden;
-    overflow-y: auto;
     margin-bottom: 16px;
 }
 .settings-hint {
