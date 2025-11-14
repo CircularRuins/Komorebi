@@ -39,13 +39,13 @@ import {
     updateAIModeApiKey,
     updateAIModeModel,
     updateAIModeEmbeddingModel,
-    updateAIModeSimilarityThreshold,
+    updateAIModeTopk,
     setAIModeShowConfigPanel,
     updateAIModeTempApiEndpoint,
     updateAIModeTempApiKey,
     updateAIModeTempModel,
     updateAIModeTempEmbeddingModel,
-    updateAIModeTempSimilarityThreshold,
+    updateAIModeTempTopk,
     setAIModeShowErrorDialog,
     setAIModeErrorDialogMessage,
     setAIModeArticleCount,
@@ -118,13 +118,13 @@ type AIModeProps = {
     updateApiKey: (apiKey: string) => void
     updateModel: (model: string) => void
     updateEmbeddingModel: (embeddingModel: string) => void
-    updateSimilarityThreshold: (similarityThreshold: number) => void
+    updateTopk: (topk: number) => void
     setShowConfigPanel: (showConfigPanel: boolean) => void
     updateTempApiEndpoint: (tempApiEndpoint: string) => void
     updateTempApiKey: (tempApiKey: string) => void
     updateTempModel: (tempModel: string) => void
     updateTempEmbeddingModel: (tempEmbeddingModel: string) => void
-    updateTempSimilarityThreshold: (tempSimilarityThreshold: string) => void
+    updateTempTopk: (tempTopk: string) => void
     setShowErrorDialog: (showErrorDialog: boolean) => void
     setErrorDialogMessage: (errorDialogMessage: string) => void
     setArticleCount: (articleCount: number) => void
@@ -168,9 +168,9 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     componentDidUpdate(prevProps: AIModeProps) {
         const { aiMode } = this.props
         if (aiMode.queryProgress) {
-            // 话题必填，总是6个步骤，如果步骤数量不对，重新创建进度
+            // 如果queryProgress存在但没有步骤，重新创建进度
             const currentStepCount = aiMode.queryProgress.steps?.length || 0
-            if (currentStepCount !== 6) {
+            if (currentStepCount === 0) {
                 const queryProgress = this.initializeQueryProgress()
                 this.props.updateQueryProgress(queryProgress)
             }
@@ -335,20 +335,20 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         this.props.updateTempEmbeddingModel(value)
     }
 
-    handleSimilarityThresholdChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+    handleTopkChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
-        this.props.updateTempSimilarityThreshold(value)
+        this.props.updateTempTopk(value)
     }
 
     handleConfigConfirm = () => {
-        const { aiMode, updateApiEndpoint, updateApiKey, updateModel, updateEmbeddingModel, updateSimilarityThreshold, setShowConfigPanel, setShowErrorDialog, setErrorDialogMessage } = this.props
-        const { tempApiEndpoint, tempApiKey, tempModel, tempEmbeddingModel, tempSimilarityThreshold } = aiMode
+        const { aiMode, updateApiEndpoint, updateApiKey, updateModel, updateEmbeddingModel, updateTopk, setShowConfigPanel, setShowErrorDialog, setErrorDialogMessage } = this.props
+        const { tempApiEndpoint, tempApiKey, tempModel, tempEmbeddingModel, tempTopk } = aiMode
         
-        // 验证相似度阈值
-        const similarityThreshold = parseFloat(tempSimilarityThreshold)
-        if (isNaN(similarityThreshold) || similarityThreshold < 0 || similarityThreshold > 1) {
+        // 验证topk
+        const topk = parseInt(tempTopk, 10)
+        if (isNaN(topk) || topk < 1 || !Number.isInteger(topk)) {
             setShowErrorDialog(true)
-            setErrorDialogMessage('相似度阈值必须是0到1之间的数字')
+            setErrorDialogMessage('TopK必须是大于0的正整数')
             return
         }
         
@@ -357,32 +357,32 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         updateApiKey(tempApiKey)
         updateModel(tempModel)
         updateEmbeddingModel(tempEmbeddingModel)
-        updateSimilarityThreshold(similarityThreshold)
+        updateTopk(topk)
         setShowConfigPanel(false)
     }
 
     handleConfigCancel = () => {
         // 恢复临时状态为已保存的值
-        const { aiMode, updateTempApiEndpoint, updateTempApiKey, updateTempModel, updateTempEmbeddingModel, updateTempSimilarityThreshold, setShowConfigPanel } = this.props
-        const { apiEndpoint, apiKey, model, embeddingModel, similarityThreshold } = aiMode
+        const { aiMode, updateTempApiEndpoint, updateTempApiKey, updateTempModel, updateTempEmbeddingModel, updateTempTopk, setShowConfigPanel } = this.props
+        const { apiEndpoint, apiKey, model, embeddingModel, topk } = aiMode
         updateTempApiEndpoint(apiEndpoint)
         updateTempApiKey(apiKey)
         updateTempModel(model)
         updateTempEmbeddingModel(embeddingModel)
-        updateTempSimilarityThreshold(similarityThreshold.toString())
+        updateTempTopk(topk.toString())
         setShowConfigPanel(false)
     }
 
     handleConfigPanelOpen = () => {
         // 打开面板时，初始化临时状态为当前保存的值
-        const { aiMode, setShowConfigPanel, updateTempApiEndpoint, updateTempApiKey, updateTempModel, updateTempEmbeddingModel, updateTempSimilarityThreshold } = this.props
-        const { apiEndpoint, apiKey, model, embeddingModel, similarityThreshold } = aiMode
+        const { aiMode, setShowConfigPanel, updateTempApiEndpoint, updateTempApiKey, updateTempModel, updateTempEmbeddingModel, updateTempTopk } = this.props
+        const { apiEndpoint, apiKey, model, embeddingModel, topk } = aiMode
         setShowConfigPanel(true)
         updateTempApiEndpoint(apiEndpoint)
         updateTempApiKey(apiKey)
         updateTempModel(model)
         updateTempEmbeddingModel(embeddingModel)
-        updateTempSimilarityThreshold(similarityThreshold.toString())
+        updateTempTopk(topk.toString())
     }
 
     // 解析时间范围key，返回天数
@@ -398,7 +398,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         return null
     }
 
-    // 初始化查询进度（话题必填，总是6个步骤）
+    // 初始化查询进度（默认6个步骤，如果文章数量<=topk会在queryArticles中动态调整为2个步骤）
     initializeQueryProgress = (): QueryProgress => {
         const steps: QueryProgressStep[] = [
             { id: 'query-db', title: '根据时间范围筛选', status: 'in_progress', message: '正在从数据库查询文章...', visible: true },
@@ -780,42 +780,64 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     }
 
     // ==================== 步骤5: 计算相似度并筛选 ====================
-    stepCalculateSimilarity = async (items: RSSItem[], topicEmbedding: number[], similarityThreshold: number): Promise<RSSItem[]> => {
+    stepCalculateSimilarity = async (items: RSSItem[], topicEmbedding: number[], topk: number): Promise<RSSItem[]> => {
         this.updateStepStatus('calculate-similarity', 'in_progress', '正在计算文章相似度...', 0)
         
-        const articlesWithSimilarity: Array<{ article: RSSItem, similarity: number }> = []
-        const totalItems = items.length
-        let processedCount = 0
+        // 过滤出有embedding的文章
+        const articlesWithEmbedding = items.filter(item => 
+            item.embedding && Array.isArray(item.embedding) && item.embedding.length > 0
+        )
         
-        for (const item of items) {
-            if (item.embedding && Array.isArray(item.embedding) && item.embedding.length > 0) {
-                try {
-                    const similarity = this.cosineSimilarity(topicEmbedding, item.embedding)
-                    if (similarity >= similarityThreshold) {
-                        articlesWithSimilarity.push({ article: item, similarity })
-                    }
-                } catch (error) {
-                    // 忽略单个文章的计算错误
+        if (articlesWithEmbedding.length === 0) {
+            this.updateStepStatus('calculate-similarity', 'completed', '没有可计算相似度的文章')
+            return []
+        }
+        
+        const totalItems = articlesWithEmbedding.length
+        const batchSize = 50 // 每批处理50篇文章
+        const articlesWithSimilarity: Array<{ article: RSSItem, similarity: number }> = []
+        
+        // 分批并行计算相似度
+        for (let i = 0; i < articlesWithEmbedding.length; i += batchSize) {
+            const batch = articlesWithEmbedding.slice(i, i + batchSize)
+            
+            // 并行计算当前批次的相似度
+            const batchResults = await Promise.all(
+                batch.map(item => {
+                    return new Promise<{ article: RSSItem, similarity: number } | null>((resolve) => {
+                        try {
+                            const similarity = this.cosineSimilarity(topicEmbedding, item.embedding!)
+                            resolve({ article: item, similarity })
+                        } catch (error) {
+                            // 忽略单个文章的计算错误
+                            resolve(null)
+                        }
+                    })
+                })
+            )
+            
+            // 过滤掉null结果并添加到总结果中
+            for (const result of batchResults) {
+                if (result !== null) {
+                    articlesWithSimilarity.push(result)
                 }
             }
-            processedCount++
-            // 每处理10%更新一次进度
-            if (processedCount % Math.max(1, Math.floor(totalItems / 10)) === 0) {
-                const progress = Math.floor((processedCount / totalItems) * 100)
-                this.updateStepStatus('calculate-similarity', 'in_progress', `正在计算相似度... (${processedCount}/${totalItems})`, progress)
-            }
+            
+            // 更新进度
+            const processedCount = Math.min(i + batchSize, totalItems)
+            const progress = Math.floor((processedCount / totalItems) * 100)
+            this.updateStepStatus('calculate-similarity', 'in_progress', `正在计算相似度... (${processedCount}/${totalItems})`, progress)
         }
 
         // 按相似度降序排序
         articlesWithSimilarity.sort((a, b) => b.similarity - a.similarity)
 
-        // 选择相似度最高的100篇（如果没有100篇就全选）
-        const maxArticles = 100
+        // 选择相似度最高的topk篇
         const selectedArticles = articlesWithSimilarity
-            .slice(0, maxArticles)
+            .slice(0, topk)
             .map(item => item.article)
 
-        this.updateStepStatus('calculate-similarity', 'completed', `找到 ${articlesWithSimilarity.length} 篇相关文章，已选择前 ${selectedArticles.length} 篇`)
+        this.updateStepStatus('calculate-similarity', 'completed', `计算了 ${articlesWithSimilarity.length} 篇文章的相似度，已选择前 ${selectedArticles.length} 篇`)
 
         return selectedArticles
     }
@@ -832,9 +854,30 @@ export class AIModeComponent extends React.Component<AIModeProps> {
 
         const trimmedTopic = topic.trim()
         
-        // 从 Redux state 读取相似度阈值
-        const { aiMode } = this.props
-        const similarityThreshold = aiMode.similarityThreshold || 0.7
+        // 从 Redux state 读取topk配置
+        const { aiMode, updateQueryProgress } = this.props
+        const topk = aiMode.topk || 100
+
+        // 如果文章数量小于等于topk，不需要计算embedding和相似度，直接返回所有文章
+        if (items.length <= topk) {
+            // 更新queryProgress，移除embedding相关步骤（步骤2-5），只保留步骤1和步骤6
+            if (aiMode.queryProgress) {
+                const steps: QueryProgressStep[] = [
+                    { id: 'query-db', title: '根据时间范围筛选', status: 'completed', message: `已查询到 ${items.length} 篇文章`, visible: true },
+                    { id: 'cluster-articles', title: '分析文章内容并聚类', status: 'pending', visible: true }
+                ]
+                
+                const updatedProgress: QueryProgress = {
+                    ...aiMode.queryProgress,
+                    steps,
+                    currentStepIndex: 1, // 指向聚类步骤
+                    currentMessage: `文章数量(${items.length})小于等于TopK(${topk})，跳过相似度计算`
+                }
+                updateQueryProgress(updatedProgress)
+            }
+            
+            return items
+        }
 
         try {
             // 步骤2: 计算话题向量
@@ -847,7 +890,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             await this.stepComputeEmbeddings(items)
             
             // 步骤5: 计算相似度并筛选
-            const selectedArticles = await this.stepCalculateSimilarity(items, topicEmbedding, similarityThreshold)
+            const selectedArticles = await this.stepCalculateSimilarity(items, topicEmbedding, topk)
             
             return selectedArticles
         } catch (error) {
@@ -1368,7 +1411,7 @@ ${articlesText}
         const currentTopic = trimmedTopic
         this.saveTopicToRecent(currentTopic)
         
-        // 初始化查询进度（话题必填，总是6个步骤）
+        // 初始化查询进度（默认6个步骤，如果文章数量<=topk会在queryArticles中动态调整为2个步骤）
         const queryProgress = this.initializeQueryProgress()
 
         // 更新状态
@@ -1512,7 +1555,6 @@ ${articlesText}
             tempApiKey, 
             tempModel,
             tempEmbeddingModel,
-            tempSimilarityThreshold,
             showErrorDialog, 
             errorDialogMessage,
             articleCount,
@@ -1730,7 +1772,6 @@ ${articlesText}
 
                 {/* 加载和错误状态 - Cursor风格深色界面 */}
                 {(shouldShowDarkProgress || shouldShowProgressForCompleted) && (() => {
-                    // 话题必填，总是6个步骤
                     // 始终使用 aiMode.queryProgress，不要使用 currentProgress，因为它可能在某些情况下为 null
                     // 如果 aiMode.queryProgress 存在，直接使用它，不要重新创建
                     let progress = aiMode.queryProgress
@@ -1738,10 +1779,11 @@ ${articlesText}
                         progress = currentProgress
                     }
                     const actualStepCount = progress?.steps?.length || 0
-                    const needsRecreate = !progress || actualStepCount !== 6
+                    const needsRecreate = !progress || actualStepCount === 0
                     
                     // 只有在确实没有进度时才创建默认进度
                     // 如果 aiMode.queryProgress 存在，即使步骤数量不对，也不要重新创建，因为状态可能正在更新中
+                    // 步骤数量可能是2（文章数量<=topk）或6（文章数量>topk）
                     if (needsRecreate && !aiMode.queryProgress) {
                         const defaultStatus = shouldShowProgressForCompleted ? 'completed' as const : 'in_progress' as const
                         const defaultMessage = shouldShowProgressForCompleted ? '所有步骤已完成' : '正在从数据库查询文章...'
@@ -2157,13 +2199,13 @@ const mapDispatchToProps = dispatch => ({
     updateApiKey: (apiKey: string) => dispatch(updateAIModeApiKey(apiKey)),
     updateModel: (model: string) => dispatch(updateAIModeModel(model)),
     updateEmbeddingModel: (embeddingModel: string) => dispatch(updateAIModeEmbeddingModel(embeddingModel)),
-    updateSimilarityThreshold: (similarityThreshold: number) => dispatch(updateAIModeSimilarityThreshold(similarityThreshold)),
+    updateTopk: (topk: number) => dispatch(updateAIModeTopk(topk)),
     setShowConfigPanel: (showConfigPanel: boolean) => dispatch(setAIModeShowConfigPanel(showConfigPanel)),
     updateTempApiEndpoint: (tempApiEndpoint: string) => dispatch(updateAIModeTempApiEndpoint(tempApiEndpoint)),
     updateTempApiKey: (tempApiKey: string) => dispatch(updateAIModeTempApiKey(tempApiKey)),
     updateTempModel: (tempModel: string) => dispatch(updateAIModeTempModel(tempModel)),
     updateTempEmbeddingModel: (tempEmbeddingModel: string) => dispatch(updateAIModeTempEmbeddingModel(tempEmbeddingModel)),
-    updateTempSimilarityThreshold: (tempSimilarityThreshold: string) => dispatch(updateAIModeTempSimilarityThreshold(tempSimilarityThreshold)),
+    updateTempTopk: (tempTopk: string) => dispatch(updateAIModeTempTopk(tempTopk)),
     setShowErrorDialog: (showErrorDialog: boolean) => dispatch(setAIModeShowErrorDialog(showErrorDialog)),
     setErrorDialogMessage: (errorDialogMessage: string) => dispatch(setAIModeErrorDialogMessage(errorDialogMessage)),
     setArticleCount: (articleCount: number) => dispatch(setAIModeArticleCount(articleCount)),

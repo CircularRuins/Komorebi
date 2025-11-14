@@ -45,13 +45,13 @@ export class AIModeState {
     apiKey: string = ''
     model: string = ''
     embeddingModel: string = ''
-    similarityThreshold: number = 0.7
+    topk: number = 100
     showConfigPanel: boolean = false
     tempApiEndpoint: string = ''
     tempApiKey: string = ''
     tempModel: string = ''
     tempEmbeddingModel: string = ''
-    tempSimilarityThreshold: string = '0.7'
+    tempTopk: string = '100'
     showErrorDialog: boolean = false
     errorDialogMessage: string = ''
     articleCount: number = 0
@@ -76,13 +76,13 @@ export const UPDATE_AI_MODE_API_ENDPOINT = "UPDATE_AI_MODE_API_ENDPOINT"
 export const UPDATE_AI_MODE_API_KEY = "UPDATE_AI_MODE_API_KEY"
 export const UPDATE_AI_MODE_MODEL = "UPDATE_AI_MODE_MODEL"
 export const UPDATE_AI_MODE_EMBEDDING_MODEL = "UPDATE_AI_MODE_EMBEDDING_MODEL"
-export const UPDATE_AI_MODE_SIMILARITY_THRESHOLD = "UPDATE_AI_MODE_SIMILARITY_THRESHOLD"
+export const UPDATE_AI_MODE_TOPK = "UPDATE_AI_MODE_TOPK"
 export const SET_AI_MODE_SHOW_CONFIG_PANEL = "SET_AI_MODE_SHOW_CONFIG_PANEL"
 export const UPDATE_AI_MODE_TEMP_API_ENDPOINT = "UPDATE_AI_MODE_TEMP_API_ENDPOINT"
 export const UPDATE_AI_MODE_TEMP_API_KEY = "UPDATE_AI_MODE_TEMP_API_KEY"
 export const UPDATE_AI_MODE_TEMP_MODEL = "UPDATE_AI_MODE_TEMP_MODEL"
 export const UPDATE_AI_MODE_TEMP_EMBEDDING_MODEL = "UPDATE_AI_MODE_TEMP_EMBEDDING_MODEL"
-export const UPDATE_AI_MODE_TEMP_SIMILARITY_THRESHOLD = "UPDATE_AI_MODE_TEMP_SIMILARITY_THRESHOLD"
+export const UPDATE_AI_MODE_TEMP_TOPK = "UPDATE_AI_MODE_TEMP_TOPK"
 export const SET_AI_MODE_SHOW_ERROR_DIALOG = "SET_AI_MODE_SHOW_ERROR_DIALOG"
 export const SET_AI_MODE_ERROR_DIALOG_MESSAGE = "SET_AI_MODE_ERROR_DIALOG_MESSAGE"
 export const SET_AI_MODE_ARTICLE_COUNT = "SET_AI_MODE_ARTICLE_COUNT"
@@ -160,9 +160,9 @@ export interface UpdateAIModeEmbeddingModelAction {
     embeddingModel: string
 }
 
-export interface UpdateAIModeSimilarityThresholdAction {
-    type: typeof UPDATE_AI_MODE_SIMILARITY_THRESHOLD
-    similarityThreshold: number
+export interface UpdateAIModeTopkAction {
+    type: typeof UPDATE_AI_MODE_TOPK
+    topk: number
 }
 
 export interface SetAIModeShowConfigPanelAction {
@@ -190,9 +190,9 @@ export interface UpdateAIModeTempEmbeddingModelAction {
     tempEmbeddingModel: string
 }
 
-export interface UpdateAIModeTempSimilarityThresholdAction {
-    type: typeof UPDATE_AI_MODE_TEMP_SIMILARITY_THRESHOLD
-    tempSimilarityThreshold: string
+export interface UpdateAIModeTempTopkAction {
+    type: typeof UPDATE_AI_MODE_TEMP_TOPK
+    tempTopk: string
 }
 
 export interface SetAIModeShowErrorDialogAction {
@@ -256,13 +256,13 @@ export type AIModeActionTypes =
     | UpdateAIModeApiKeyAction
     | UpdateAIModeModelAction
     | UpdateAIModeEmbeddingModelAction
-    | UpdateAIModeSimilarityThresholdAction
+    | UpdateAIModeTopkAction
     | SetAIModeShowConfigPanelAction
     | UpdateAIModeTempApiEndpointAction
     | UpdateAIModeTempApiKeyAction
     | UpdateAIModeTempModelAction
     | UpdateAIModeTempEmbeddingModelAction
-    | UpdateAIModeTempSimilarityThresholdAction
+    | UpdateAIModeTempTopkAction
     | SetAIModeShowErrorDialogAction
     | SetAIModeErrorDialogMessageAction
     | SetAIModeArticleCountAction
@@ -366,10 +366,10 @@ export function updateAIModeEmbeddingModel(embeddingModel: string): AIModeAction
     }
 }
 
-export function updateAIModeSimilarityThreshold(similarityThreshold: number): AIModeActionTypes {
+export function updateAIModeTopk(topk: number): AIModeActionTypes {
     return {
-        type: UPDATE_AI_MODE_SIMILARITY_THRESHOLD,
-        similarityThreshold
+        type: UPDATE_AI_MODE_TOPK,
+        topk
     }
 }
 
@@ -408,10 +408,10 @@ export function updateAIModeTempEmbeddingModel(tempEmbeddingModel: string): AIMo
     }
 }
 
-export function updateAIModeTempSimilarityThreshold(tempSimilarityThreshold: string): AIModeActionTypes {
+export function updateAIModeTempTopk(tempTopk: string): AIModeActionTypes {
     return {
-        type: UPDATE_AI_MODE_TEMP_SIMILARITY_THRESHOLD,
-        tempSimilarityThreshold
+        type: UPDATE_AI_MODE_TEMP_TOPK,
+        tempTopk
     }
 }
 
@@ -487,7 +487,7 @@ function getInitialState(): AIModeState {
     const savedKey = localStorage.getItem('ai-api-key') || ''
     const savedModel = localStorage.getItem('ai-model') || ''
     const savedEmbeddingModel = localStorage.getItem('ai-embedding-model') || 'text-embedding-ada-002'
-    const savedSimilarityThreshold = parseFloat(localStorage.getItem('ai-similarity-threshold') || '0.7')
+    const savedTopk = parseInt(localStorage.getItem('ai-topk') || '100', 10)
     const savedRecentTopics = localStorage.getItem('ai-recent-topics')
     const recentTopics = savedRecentTopics ? JSON.parse(savedRecentTopics) : []
 
@@ -496,13 +496,13 @@ function getInitialState(): AIModeState {
     state.apiKey = savedKey
     state.model = savedModel
     state.embeddingModel = savedEmbeddingModel
-    state.similarityThreshold = savedSimilarityThreshold
+    state.topk = savedTopk
     state.recentTopics = recentTopics
     state.tempApiEndpoint = savedEndpoint
     state.tempApiKey = savedKey
     state.tempModel = savedModel
     state.tempEmbeddingModel = savedEmbeddingModel
-    state.tempSimilarityThreshold = savedSimilarityThreshold.toString()
+    state.tempTopk = savedTopk.toString()
     return state
 }
 
@@ -560,10 +560,10 @@ export function aiModeReducer(
             localStorage.setItem('ai-embedding-model', action.embeddingModel)
             return { ...state, embeddingModel: action.embeddingModel }
 
-        case UPDATE_AI_MODE_SIMILARITY_THRESHOLD:
+        case UPDATE_AI_MODE_TOPK:
             // 同步到 localStorage
-            localStorage.setItem('ai-similarity-threshold', action.similarityThreshold.toString())
-            return { ...state, similarityThreshold: action.similarityThreshold }
+            localStorage.setItem('ai-topk', action.topk.toString())
+            return { ...state, topk: action.topk }
 
         case SET_AI_MODE_SHOW_CONFIG_PANEL:
             return { ...state, showConfigPanel: action.showConfigPanel }
@@ -580,8 +580,8 @@ export function aiModeReducer(
         case UPDATE_AI_MODE_TEMP_EMBEDDING_MODEL:
             return { ...state, tempEmbeddingModel: action.tempEmbeddingModel }
 
-        case UPDATE_AI_MODE_TEMP_SIMILARITY_THRESHOLD:
-            return { ...state, tempSimilarityThreshold: action.tempSimilarityThreshold }
+        case UPDATE_AI_MODE_TEMP_TOPK:
+            return { ...state, tempTopk: action.tempTopk }
 
         case SET_AI_MODE_SHOW_ERROR_DIALOG:
             return { ...state, showErrorDialog: action.showErrorDialog }

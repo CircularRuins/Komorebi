@@ -8,12 +8,12 @@ import {
     updateAIModeTempApiKey,
     updateAIModeTempModel,
     updateAIModeTempEmbeddingModel,
-    updateAIModeTempSimilarityThreshold,
+    updateAIModeTempTopk,
     updateAIModeApiEndpoint,
     updateAIModeApiKey,
     updateAIModeModel,
     updateAIModeEmbeddingModel,
-    updateAIModeSimilarityThreshold,
+    updateAIModeTopk,
     setAIModeShowErrorDialog,
     setAIModeErrorDialogMessage,
 } from "../scripts/models/ai-mode"
@@ -26,13 +26,13 @@ const mapStateToProps = createSelector([getAIMode], aiMode => ({
     tempApiKey: aiMode.tempApiKey,
     tempModel: aiMode.tempModel,
     tempEmbeddingModel: aiMode.tempEmbeddingModel,
-    tempSimilarityThreshold: aiMode.tempSimilarityThreshold,
+    tempTopk: aiMode.tempTopk,
     // 需要保存的值，用于取消时恢复
     apiEndpoint: aiMode.apiEndpoint,
     apiKey: aiMode.apiKey,
     model: aiMode.model,
     embeddingModel: aiMode.embeddingModel,
-    similarityThreshold: aiMode.similarityThreshold,
+    topk: aiMode.topk,
 }))
 
 const mapDispatchToProps = dispatch => {
@@ -49,15 +49,15 @@ const mapDispatchToProps = dispatch => {
         onEmbeddingModelChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
             dispatch(updateAIModeTempEmbeddingModel(newValue || ""))
         },
-        onSimilarityThresholdChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-            dispatch(updateAIModeTempSimilarityThreshold(newValue || ""))
+        onTopkChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+            dispatch(updateAIModeTempTopk(newValue || ""))
         },
-        onConfirm: (tempApiEndpoint: string, tempApiKey: string, tempModel: string, tempEmbeddingModel: string, tempSimilarityThreshold: string) => {
-            // 验证相似度阈值
-            const similarityThreshold = parseFloat(tempSimilarityThreshold)
-            if (isNaN(similarityThreshold) || similarityThreshold < 0 || similarityThreshold > 1) {
+        onConfirm: (tempApiEndpoint: string, tempApiKey: string, tempModel: string, tempEmbeddingModel: string, tempTopk: string) => {
+            // 验证topk
+            const topk = parseInt(tempTopk, 10)
+            if (isNaN(topk) || topk < 1 || !Number.isInteger(topk)) {
                 dispatch(setAIModeShowErrorDialog(true))
-                dispatch(setAIModeErrorDialogMessage('相似度阈值必须是0到1之间的数字'))
+                dispatch(setAIModeErrorDialogMessage('TopK必须是大于0的正整数'))
                 return
             }
             
@@ -66,16 +66,16 @@ const mapDispatchToProps = dispatch => {
             dispatch(updateAIModeApiKey(tempApiKey))
             dispatch(updateAIModeModel(tempModel))
             dispatch(updateAIModeEmbeddingModel(tempEmbeddingModel))
-            dispatch(updateAIModeSimilarityThreshold(similarityThreshold))
+            dispatch(updateAIModeTopk(topk))
             dispatch(setAIModeShowConfigPanel(false))
         },
-        onCancel: (apiEndpoint: string, apiKey: string, model: string, embeddingModel: string, similarityThreshold: number) => {
+        onCancel: (apiEndpoint: string, apiKey: string, model: string, embeddingModel: string, topk: number) => {
             // 恢复临时状态为已保存的值
             dispatch(updateAIModeTempApiEndpoint(apiEndpoint))
             dispatch(updateAIModeTempApiKey(apiKey))
             dispatch(updateAIModeTempModel(model))
             dispatch(updateAIModeTempEmbeddingModel(embeddingModel))
-            dispatch(updateAIModeTempSimilarityThreshold(similarityThreshold.toString()))
+            dispatch(updateAIModeTempTopk(topk.toString()))
             dispatch(setAIModeShowConfigPanel(false))
         },
     }

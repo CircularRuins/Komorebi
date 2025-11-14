@@ -13,19 +13,19 @@ type AIConfigProps = {
     tempApiKey: string
     tempModel: string
     tempEmbeddingModel: string
-    tempSimilarityThreshold: string
+    tempTopk: string
     apiEndpoint: string
     apiKey: string
     model: string
     embeddingModel: string
-    similarityThreshold: number
+    topk: number
     onApiEndpointChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onApiKeyChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onModelChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onEmbeddingModelChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
-    onSimilarityThresholdChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
-    onConfirm: (tempApiEndpoint: string, tempApiKey: string, tempModel: string, tempEmbeddingModel: string, tempSimilarityThreshold: string) => void
-    onCancel: (apiEndpoint: string, apiKey: string, model: string, embeddingModel: string, similarityThreshold: number) => void
+    onTopkChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
+    onConfirm: (tempApiEndpoint: string, tempApiKey: string, tempModel: string, tempEmbeddingModel: string, tempTopk: string) => void
+    onCancel: (apiEndpoint: string, apiKey: string, model: string, embeddingModel: string, topk: number) => void
 }
 
 class AIConfig extends React.Component<AIConfigProps> {
@@ -35,7 +35,7 @@ class AIConfig extends React.Component<AIConfigProps> {
 
     onKeyDown = (event: KeyboardEvent) => {
         if (event.key === "Escape" && this.props.display) {
-            this.props.onCancel(this.props.apiEndpoint, this.props.apiKey, this.props.model, this.props.embeddingModel, this.props.similarityThreshold)
+            this.props.onCancel(this.props.apiEndpoint, this.props.apiKey, this.props.model, this.props.embeddingModel, this.props.topk)
         }
     }
 
@@ -66,7 +66,7 @@ class AIConfig extends React.Component<AIConfigProps> {
                     <a
                         className="btn"
                         title={intl.get("settings.exit")}
-                        onClick={() => this.props.onCancel(this.props.apiEndpoint, this.props.apiKey, this.props.model, this.props.embeddingModel, this.props.similarityThreshold)}>
+                        onClick={() => this.props.onCancel(this.props.apiEndpoint, this.props.apiKey, this.props.model, this.props.embeddingModel, this.props.topk)}>
                         <Icon iconName="Back" />
                     </a>
                 </div>
@@ -134,35 +134,34 @@ class AIConfig extends React.Component<AIConfigProps> {
                                 用于计算文章embedding的模型名称，例如：text-embedding-ada-002, text-embedding-3-small 等
                             </span>
 
-                            <Label>相似度阈值</Label>
+                            <Label>TopK 结果数量</Label>
                             <Stack horizontal>
                                 <Stack.Item grow>
                                     <TextField
-                                        value={this.props.tempSimilarityThreshold}
-                                        onChange={this.props.onSimilarityThresholdChange}
-                                        placeholder="0.7"
+                                        value={this.props.tempTopk}
+                                        onChange={this.props.onTopkChange}
+                                        placeholder="100"
                                         type="number"
-                                        min={0}
-                                        max={1}
-                                        step={0.01}
+                                        min={1}
+                                        step={1}
                                     />
                                 </Stack.Item>
                             </Stack>
                             <span className="settings-hint up">
-                                话题筛选的相似度阈值，范围0-1。值越高，筛选出的文章与话题越相关。建议值：0.6-0.8
+                                选择相似度最高的前K篇文章。必须是正整数，建议值：50-200
                             </span>
 
                             <Stack horizontal>
                                 <Stack.Item>
                                     <DefaultButton
                                         text="取消"
-                                        onClick={() => this.props.onCancel(this.props.apiEndpoint, this.props.apiKey, this.props.model, this.props.embeddingModel, this.props.similarityThreshold)}
+                                        onClick={() => this.props.onCancel(this.props.apiEndpoint, this.props.apiKey, this.props.model, this.props.embeddingModel, this.props.topk)}
                                     />
                                 </Stack.Item>
                                 <Stack.Item>
                                     <PrimaryButton
                                         text="确认"
-                                        onClick={() => this.props.onConfirm(this.props.tempApiEndpoint, this.props.tempApiKey, this.props.tempModel, this.props.tempEmbeddingModel, this.props.tempSimilarityThreshold)}
+                                        onClick={() => this.props.onConfirm(this.props.tempApiEndpoint, this.props.tempApiKey, this.props.tempModel, this.props.tempEmbeddingModel, this.props.tempTopk)}
                                     />
                                 </Stack.Item>
                             </Stack>

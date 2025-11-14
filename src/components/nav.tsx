@@ -389,7 +389,7 @@ class Nav extends React.Component<NavProps, NavState> {
                 <div className="btn-group" style={{ float: "right" }}>
                     {!this.props.isRefreshing && (
                     <a
-                        className="btn"
+                        className="btn ai-config-btn"
                         onMouseEnter={this.handleSettingsMouseEnter}
                         onMouseLeave={this.handleSettingsMouseLeave}>
                         <Icon iconName="Settings" />
