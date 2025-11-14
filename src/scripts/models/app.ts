@@ -327,7 +327,7 @@ export function setupAutoFetch(): AppThunk {
             if (interval) {
                 fetchTimeout = setTimeout(() => {
                     let state = getState()
-                    if (!state.app.settings.display) {
+                    if (!state.app.settings.display && state.page.feedId !== "ai-mode") {
                         if (!state.app.fetchingItems) dispatch(fetchItems(true))
                     } else {
                         setupTimeout(1)

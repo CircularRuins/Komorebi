@@ -43,6 +43,7 @@
     "nav": {
         "menu": "Menu",
         "refresh": "Refresh",
+        "refreshing": "Refreshing...",
         "markAllRead": "Mark all as read",
         "notifications": "Notifications",
         "view": "View",

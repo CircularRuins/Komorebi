@@ -43,6 +43,7 @@
     "nav": {
         "menu": "菜单",
         "refresh": "刷新",
+        "refreshing": "正在刷新...",
         "markAllRead": "全部标为已读",
         "notifications": "消息",
         "view": "视图",

@@ -20,15 +20,18 @@ const getSettingsDisplay = (state: RootState) =>
     state.app.settings.display
 const getAIConfigDisplay = (state: RootState) => 
     state.aiMode.showConfigPanel
+const getIsRefreshing = (state: RootState) => 
+    state.app.syncing || state.app.fetchingItems
 
 const mapStateToProps = createSelector(
-    [getState, getItemShown, getIsAIModeEnabled, getSettingsDisplay, getAIConfigDisplay],
-    (state, itemShown, isAIModeEnabled, settingsDisplay, aiConfigDisplay) => ({
+    [getState, getItemShown, getIsAIModeEnabled, getSettingsDisplay, getAIConfigDisplay, getIsRefreshing],
+    (state, itemShown, isAIModeEnabled, settingsDisplay, aiConfigDisplay, isRefreshing) => ({
         state: state,
         itemShown: itemShown,
         isAIModeEnabled: isAIModeEnabled,
         settingsDisplay: settingsDisplay,
         aiConfigDisplay: aiConfigDisplay,
+        isRefreshing: isRefreshing,
     })
 )
 

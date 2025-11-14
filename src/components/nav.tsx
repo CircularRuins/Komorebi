@@ -63,6 +63,7 @@ type NavProps = {
     isAIModeEnabled: boolean
     aiConfigDisplay: boolean
     settingsDisplay: boolean
+    isRefreshing: boolean
 }
 
 type NavState = {
@@ -363,7 +364,7 @@ class Nav extends React.Component<NavProps, NavState> {
             <nav className={this.getClassNames()} onClick={this.handleNavClick}>
                 <span className="title" style={{ pointerEvents: 'none' }}>{this.props.state.title}</span>
                 {/* AI模式开关 - 居中显示，只保留图标 */}
-                {!this.props.settingsDisplay && !this.props.itemShown && (
+                {!this.props.settingsDisplay && !this.props.itemShown && !this.props.isRefreshing && (
                 <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'inline-block' }}>
                     <TooltipHost 
                         content={intl.get("nav.aiMode")} 
@@ -386,6 +387,14 @@ class Nav extends React.Component<NavProps, NavState> {
                 </div>
                 )}
                 <div className="btn-group" style={{ float: "right" }}>
+                    {!this.props.isRefreshing && (
+                    <a
+                        className="btn"
+                        onMouseEnter={this.handleSettingsMouseEnter}
+                        onMouseLeave={this.handleSettingsMouseLeave}>
+                        <Icon iconName="Settings" />
+                    </a>
+                    )}
                     <TooltipHost content={intl.get("nav.refresh")} delay={TooltipDelay.zero}>
                         <a
                             className={"btn" + this.fetching()}
@@ -393,12 +402,6 @@ class Nav extends React.Component<NavProps, NavState> {
                             <Icon iconName="Refresh" />
                         </a>
                     </TooltipHost>
-                    <a
-                        className="btn"
-                        onMouseEnter={this.handleSettingsMouseEnter}
-                        onMouseLeave={this.handleSettingsMouseLeave}>
-                        <Icon iconName="Settings" />
-                    </a>
                     <TooltipHost content={intl.get("nav.minimize")} delay={TooltipDelay.zero}>
                         <a
                             className="btn system"
