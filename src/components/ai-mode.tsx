@@ -253,12 +253,9 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     }
 
     handleTopicInputChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+        // 只更新Redux state，不触发Context更新事件
+        // Context更新由componentDidUpdate中的逻辑控制，避免频繁更新打断输入
         this.props.updateTopicInput(newValue || '')
-        // 状态更新后立即更新Context，确保输入框能正常显示输入
-        if (typeof window !== 'undefined') {
-            const event = new CustomEvent('aiModeInputChanged')
-            window.dispatchEvent(event)
-        }
     }
 
     handleTopicInputCompositionStart = () => {
@@ -287,20 +284,16 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     }
 
     handleRecentTopicClick = (topic: string) => {
-        // 点击常选话题时填充到输入框和话题字段
+        // 点击常选主题时填充到输入框和话题字段
         const { updateTopicInput, updateTopic } = this.props
         updateTopicInput(topic)
         updateTopic(topic)
-        // 直接设置 TextField 的值（如果引用存在）
+        // 聚焦到输入框（通过ref）
         if (this.topicInputRef.current) {
             const inputElement = this.topicInputRef.current as any
-            if (inputElement.setValue) {
-                inputElement.setValue(topic)
-            }
-            // 聚焦到输入框
             inputElement.focus()
         }
-        // 状态更新后立即更新Context，确保输入框能正常显示输入
+        // 触发Context更新，让本地state同步
         if (typeof window !== 'undefined') {
             const event = new CustomEvent('aiModeInputChanged')
             window.dispatchEvent(event)
@@ -452,10 +445,10 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     // 获取时间范围选项
     getTimeRangeOptions = (): IDropdownOption[] => {
         return [
-            { key: '1', text: '1日内' },
-            { key: '3', text: '3日内' },
-            { key: '7', text: '1周内' },
-            { key: '30', text: '1月内' }
+            { key: '1', text: '1天内' },
+            { key: '3', text: '3天内' },
+            { key: '7', text: '7天内' },
+            { key: '14', text: '14天内' }
         ]
     }
 

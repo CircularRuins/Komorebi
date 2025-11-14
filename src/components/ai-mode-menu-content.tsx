@@ -9,6 +9,15 @@ import { AIModeContext } from "./ai-mode"
 // 独立的菜单内容组件，使用 Context 订阅状态
 export const AIModeMenuContent: React.FC = () => {
     const context = React.useContext(AIModeContext)
+    // 使用本地state管理输入，避免频繁的全局状态更新打断输入
+    const [localTopicInput, setLocalTopicInput] = React.useState('')
+    
+    // 当Context中的topicInput变化时（如从外部设置、点击常选主题等），同步到本地state
+    React.useEffect(() => {
+        if (context && context.topicInput !== localTopicInput) {
+            setLocalTopicInput(context.topicInput || '')
+        }
+    }, [context?.topicInput])
     
     if (!context) {
         return (
@@ -21,7 +30,7 @@ export const AIModeMenuContent: React.FC = () => {
     const {
         timeRange,
         topic,
-        topicInput,
+        topicInput: contextTopicInput,
         recentTopics,
         isLoading,
         isClustering,
@@ -38,66 +47,86 @@ export const AIModeMenuContent: React.FC = () => {
         isComposing
     } = context
 
+    // 本地输入处理函数
+    const handleLocalTopicInputChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+        const value = newValue || ''
+        setLocalTopicInput(value)
+        // 同步到Redux，但不触发Context更新事件（避免打断输入）
+        handleTopicInputChange(event, value)
+    }
+
     const getTimeRangeOptions = (): IDropdownOption[] => {
         return [
-            { key: '1', text: '1日内' },
-            { key: '3', text: '3日内' },
-            { key: '7', text: '1周内' },
-            { key: '30', text: '1月内' }
+            { key: '1', text: '1天内' },
+            { key: '3', text: '3天内' },
+            { key: '7', text: '7天内' },
+            { key: '14', text: '14天内' }
         ]
     }
 
     return (
         <>
             <div style={{ marginBottom: '8px' }}>
-                <Label style={{ fontSize: '14px', fontWeight: 600 }}>文章发布时间（必选）</Label>
+                <Label style={{ fontSize: '13px', fontWeight: 600, fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>时间范围（必选）</Label>
                 <Dropdown
-                    placeholder="选择时间范围"
                     selectedKey={timeRange}
                     options={getTimeRangeOptions()}
                     onChange={handleTimeRangeChange}
-                    styles={{ root: { width: '100%', marginTop: '4px' } }}
-                    disabled={isLoading}
-                    required={true}
-                />
-                <Label styles={{ root: { fontSize: '11px', color: 'var(--neutralSecondary)', marginTop: '4px', fontWeight: 'normal' } }}>
-                    根据文章发布时间筛选。必须选择一个时间范围。
-                </Label>
-            </div>
-
-            <div style={{ marginBottom: '8px' }}>
-                <Label style={{ fontSize: '14px', fontWeight: 600 }}>话题（必填）</Label>
-                <TextField
-                    componentRef={topicInputRef}
-                    value={topicInput}
-                    onChange={handleTopicInputChange}
-                    onKeyDown={handleTopicInputKeyDown}
-                    onCompositionStart={handleTopicInputCompositionStart}
-                    onCompositionEnd={handleTopicInputCompositionEnd}
-                    placeholder="输入话题关键词..."
-                    styles={{
+                    styles={{ 
                         root: { width: '100%', marginTop: '4px' },
-                        fieldGroup: { 
-                            borderRadius: '4px',
-                            border: '1px solid var(--neutralLight)'
-                        },
-                        field: { 
-                            fontSize: '12px',
-                            padding: '4px 8px'
-                        }
+                        title: { fontSize: '12px' }
                     }}
                     disabled={isLoading}
                     required={true}
                 />
-                <Label styles={{ root: { fontSize: '11px', color: 'var(--neutralSecondary)', marginTop: '4px', fontWeight: 'normal' } }}>
-                    输入话题关键词，按Enter确认。将搜索文章标题和内容中的匹配文本。必须输入话题。
+                <Label styles={{ root: { fontSize: '11px', color: 'var(--neutralSecondary)', marginTop: '4px', fontWeight: 'normal', fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' } }}>
+                    根据文章发布时间筛选。
+                </Label>
+            </div>
+
+            <div style={{ marginBottom: '8px' }}>
+                <Label style={{ fontSize: '13px', fontWeight: 600, fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>主题（必填）</Label>
+                <div style={{ position: 'relative', marginTop: '4px' }}>
+                    <TextField
+                        componentRef={topicInputRef}
+                        value={localTopicInput}
+                        onChange={handleLocalTopicInputChange}
+                        onKeyDown={handleTopicInputKeyDown}
+                        onCompositionStart={handleTopicInputCompositionStart}
+                        onCompositionEnd={handleTopicInputCompositionEnd}
+                        maxLength={300}
+                        multiline
+                        rows={2}
+                        resizable={false}
+                        styles={{
+                            root: { width: '100%' },
+                            fieldGroup: { 
+                                borderRadius: '4px',
+                                border: '1px solid var(--neutralLight)'
+                            },
+                            field: { 
+                                fontSize: '11px',
+                                padding: '4px 8px',
+                                minHeight: 'auto',
+                                lineHeight: '1.4'
+                            }
+                        }}
+                        disabled={isLoading}
+                        required={true}
+                    />
+                    <div style={{ position: 'absolute', top: '100%', right: '0', marginTop: '2px', fontSize: '11px', color: localTopicInput.length >= 300 ? '#d13438' : 'var(--neutralSecondary)', fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>
+                        {localTopicInput.length}/300
+                    </div>
+                </div>
+                <Label styles={{ root: { fontSize: '11px', color: 'var(--neutralSecondary)', marginTop: '18px', fontWeight: 'normal', fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif', display: 'block' } }}>
+                    灵活输入您关注的主题，如：AI编程领域的进展、建材行业的最新动态等。
                 </Label>
                 
-                {/* 常选话题 */}
+                {/* 常选主题 */}
                 {recentTopics && recentTopics.length > 0 && (
                     <div style={{ marginTop: '8px' }}>
-                        <Label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--neutralSecondary)', marginBottom: '4px' }}>
-                            常选话题
+                        <Label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--neutralSecondary)', marginBottom: '4px', fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>
+                            常选主题
                         </Label>
                         <div style={{
                             display: 'flex',
@@ -148,7 +177,7 @@ export const AIModeMenuContent: React.FC = () => {
                     iconProps={{ iconName: 'Search' }}
                     text="整理汇总"
                     onClick={handleGenerateSummary}
-                    disabled={isLoading || isClustering || !timeRange || (!topicInput.trim() && !topic)}
+                    disabled={isLoading || isClustering || !timeRange || (!localTopicInput.trim() && !topic)}
                     styles={{ root: { width: '100%' } }}
                 />
                 {filteredArticles && filteredArticles.length > 0 && (
