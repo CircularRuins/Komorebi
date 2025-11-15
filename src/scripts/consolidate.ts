@@ -601,6 +601,210 @@ export async function stepCalculateSimilarity(
     return selectedArticles
 }
 
+// 步骤4: LLM精选（使用LLM严格判断文章是否真正讨论用户关注的主题）
+export async function stepLLMRefine(
+    articles: RSSItem[],
+    topic: string,
+    config: ConsolidateConfig,
+    callbacks: ConsolidateCallbacks
+): Promise<RSSItem[]> {
+    const { apiEndpoint, apiKey, model } = config
+
+    if (articles.length === 0) {
+        return []
+    }
+
+    // 验证API配置
+    if (!apiEndpoint || !apiEndpoint.trim()) {
+        callbacks.updateStepStatus('llm-refine', 'error', '请先配置API Endpoint（在设置中配置）')
+        return articles // 容错：返回所有文章
+    }
+    if (!apiKey || !apiKey.trim()) {
+        callbacks.updateStepStatus('llm-refine', 'error', '请先配置API Key（在设置中配置）')
+        return articles // 容错：返回所有文章
+    }
+    if (!model || !model.trim()) {
+        callbacks.updateStepStatus('llm-refine', 'error', '请先配置模型名称（在设置中配置）')
+        return articles // 容错：返回所有文章
+    }
+
+    callbacks.updateStepStatus('llm-refine', 'in_progress', `正在使用LLM严格筛选 ${articles.length} 篇文章...`, 0)
+
+    // 规范化endpoint URL
+    let normalizedEndpoint = apiEndpoint.trim()
+    if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
+        callbacks.updateStepStatus('llm-refine', 'error', 'API Endpoint必须以http://或https://开头')
+        return articles // 容错：返回所有文章
+    }
+
+    // 提取base URL
+    let baseURL = normalizedEndpoint
+    try {
+        const url = new URL(normalizedEndpoint)
+        if (url.pathname.includes('/v1/chat/completions')) {
+            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
+        } else {
+            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
+        }
+    } catch (error) {
+        callbacks.updateStepStatus('llm-refine', 'error', `无效的API Endpoint URL: ${normalizedEndpoint}`)
+        return articles // 容错：返回所有文章
+    }
+
+    const batchSize = 10 // 每批最多10篇文章
+    const totalArticles = articles.length
+    const totalBatches = Math.ceil(totalArticles / batchSize)
+    
+    // 创建所有批次
+    const batches: Array<{ batch: RSSItem[], batchNumber: number, batchStart: number }> = []
+    for (let batchStart = 0; batchStart < articles.length; batchStart += batchSize) {
+        const batchEnd = Math.min(batchStart + batchSize, articles.length)
+        const batch = articles.slice(batchStart, batchEnd)
+        const batchNumber = Math.floor(batchStart / batchSize) + 1
+        batches.push({ batch, batchNumber, batchStart })
+    }
+    
+    // 用于跟踪已完成的批次数量
+    let completedCount = 0
+    const allRelatedIndices = new Set<number>()
+    
+    // 更新进度的辅助函数（带节流）
+    const updateProgress = () => {
+        completedCount++
+        const progress = Math.floor((completedCount / totalBatches) * 100)
+        callbacks.updateStepStatus('llm-refine', 'in_progress', 
+            `正在并行使用LLM筛选... 已完成 ${completedCount}/${totalBatches} 批 (${Math.min(completedCount * batchSize, totalArticles)}/${totalArticles})`, 
+            progress)
+    }
+    
+    // 处理单个批次的函数
+    const processBatch = async (batchInfo: { batch: RSSItem[], batchNumber: number, batchStart: number }) => {
+        const { batch, batchNumber, batchStart } = batchInfo
+        
+        try {
+            // 准备当前批次的文章文本
+            const articlesText = batch.map((article, index) => {
+                const dateStr = article.date.toLocaleDateString('zh-CN')
+                const snippet = article.snippet || (article.content ? article.content.substring(0, 300) : '')
+                return `文章${index}:
+标题: ${article.title}
+发布时间: ${dateStr}
+摘要: ${snippet}`
+            }).join('\n\n')
+
+            const prompt = `请严格判断以下文章是否真正讨论用户关注的主题"${topic}"。
+
+要求：
+1. 仔细阅读每篇文章的标题和摘要
+2. 严格检查文章内容是否真正在讨论主题"${topic}"
+3. 只有文章的核心内容与主题"${topic}"直接相关时，才应该被包含在结果中
+4. 如果文章只是简单提及主题，但主要内容不涉及该主题，则不应该被包含
+5. 如果文章内容与主题完全无关，则不应该被包含
+6. 返回JSON格式，包含相关文章的索引：
+{
+  "relatedArticleIndices": [0, 2, 5, 7]
+}
+
+注意：
+- articleIndices是文章在列表中的索引（从0开始）
+- 必须严格检查，只有真正讨论主题"${topic}"的文章才应该被包含在relatedArticleIndices中
+- 不要包含只是简单提及主题但主要内容不相关的文章
+- 如果所有文章都真正讨论该主题，返回所有索引
+- 如果所有文章都不真正讨论该主题，返回空数组
+- 请保持严格的标准，确保返回的文章都是真正讨论用户关注主题的
+
+文章列表：
+${articlesText}
+
+请返回JSON格式的筛选结果：`
+
+            const openai = new OpenAI({
+                apiKey: apiKey,
+                baseURL: baseURL,
+                dangerouslyAllowBrowser: true
+            })
+
+            // 尝试使用JSON格式，如果不支持则回退到普通格式
+            const completionParams: any = {
+                model: model,
+                messages: [
+                    {
+                        role: 'system',
+                        content: '你是一个专业的文章分析助手，擅长判断文章内容是否真正讨论特定主题。请严格按照JSON格式返回结果，只返回JSON对象，不要包含任何其他文本。'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.3,
+                max_tokens: 2000
+            }
+            
+            // 某些模型可能不支持response_format，尝试添加但不强制
+            try {
+                completionParams.response_format = { type: "json_object" }
+            } catch (e) {
+                // 忽略错误，继续使用普通格式
+            }
+            
+            const completion = await openai.chat.completions.create(completionParams)
+            
+            if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
+                const responseText = completion.choices[0].message.content || ''
+                
+                // 解析JSON响应
+                let responseData
+                try {
+                    // 尝试提取JSON（可能包含markdown代码块）
+                    const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
+                    const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
+                    responseData = JSON.parse(jsonText)
+                } catch (parseError) {
+                    // 解析失败，保留当前批次的所有文章
+                    updateProgress()
+                    return
+                }
+
+                // 提取相关文章索引
+                if (responseData.relatedArticleIndices && Array.isArray(responseData.relatedArticleIndices)) {
+                    responseData.relatedArticleIndices.forEach((idx: number) => {
+                        if (typeof idx === 'number' && idx >= 0 && idx < batch.length) {
+                            // 将批次内的索引转换为全局索引
+                            const globalIndex = batchStart + idx
+                            if (globalIndex >= 0 && globalIndex < articles.length) {
+                                allRelatedIndices.add(globalIndex)
+                            }
+                        }
+                    })
+                }
+            }
+            
+            // 更新进度
+            updateProgress()
+        } catch (error) {
+            // 即使某个批次失败，也更新进度计数，并保留该批次的所有文章
+            updateProgress()
+            // 不抛出错误，避免影响其他批次
+        }
+    }
+    
+    // 并行处理所有批次
+    await Promise.allSettled(batches.map(batchInfo => processBatch(batchInfo)))
+
+    // 根据筛选结果返回相关文章
+    const refinedArticles = articles.filter((_, index) => allRelatedIndices.has(index))
+    
+    // 如果筛选后没有文章，返回空数组
+    if (refinedArticles.length === 0) {
+        callbacks.updateStepStatus('llm-refine', 'completed', `LLM筛选后没有相关文章`)
+        return []
+    }
+    
+    callbacks.updateStepStatus('llm-refine', 'completed', `已完成LLM筛选，从 ${articles.length} 篇中精选出 ${refinedArticles.length} 篇相关文章`)
+    return refinedArticles
+}
+
 // ==================== 主函数 ====================
 
 // 整理汇总文章（主函数）
@@ -613,6 +817,11 @@ export async function consolidate(
     // 步骤1: 根据时间范围筛选
     const items = await stepQueryDatabase(timeRangeDays, callbacks)
 
+    // 如果时间范围筛选后没有文章，直接返回空数组
+    if (items.length === 0) {
+        return []
+    }
+
     // 如果没有话题，直接返回所有文章
     if (!topic || !topic.trim()) {
         return items
@@ -621,23 +830,32 @@ export async function consolidate(
     const trimmedTopic = topic.trim()
     const { topk } = config
 
-    // 如果文章数量小于等于topk，不需要计算embedding和相似度，直接返回所有文章
+    // 如果文章数量小于等于topk，不需要计算embedding和相似度，直接进行LLM精选
     if (items.length <= topk) {
-        // 更新queryProgress，移除embedding相关步骤，只保留步骤1和聚类步骤
+        // 更新queryProgress，移除embedding相关步骤，只保留步骤1、LLM精选和聚类步骤
         if (callbacks.updateQueryProgress) {
             const steps: QueryProgressStep[] = [
                 { id: 'query-db', title: '根据时间范围筛选', status: 'completed', message: `已查询到 ${items.length} 篇文章`, visible: true },
-                { id: 'cluster-articles', title: '分析文章内容并聚类', status: 'pending', visible: true }
+                { id: 'llm-refine', title: 'LLM精选', status: 'pending', visible: true },
+                { id: 'cluster-articles', title: '分析文章内容并聚类', status: 'pending', visible: false }
             ]
             
             callbacks.updateQueryProgress({
                 steps,
-                currentStepIndex: 1, // 指向聚类步骤
+                currentStepIndex: 1, // 指向LLM精选步骤
                 currentMessage: `文章数量(${items.length})小于等于TopK(${topk})，跳过相似度计算`
             })
         }
         
-        return items
+        // 步骤2: LLM精选
+        const refinedArticles = await stepLLMRefine(items, trimmedTopic, config, callbacks)
+        
+        // 如果LLM精选后没有文章，直接返回空数组
+        if (refinedArticles.length === 0) {
+            return []
+        }
+        
+        return refinedArticles
     }
 
     try {
@@ -647,7 +865,15 @@ export async function consolidate(
         // 步骤3: 计算相似度并筛选
         const selectedArticles = await stepCalculateSimilarity(items, topicEmbedding, topk, callbacks)
         
-        return selectedArticles
+        // 步骤4: LLM精选
+        const refinedArticles = await stepLLMRefine(selectedArticles, trimmedTopic, config, callbacks)
+        
+        // 如果LLM精选后没有文章，直接返回空数组
+        if (refinedArticles.length === 0) {
+            return []
+        }
+        
+        return refinedArticles
     } catch (error) {
         // 如果计算embedding失败，回退到全文匹配
         if (error instanceof Error && error.message.includes('计算话题向量失败')) {
@@ -670,6 +896,7 @@ export async function consolidate(
 export async function clusterArticles(
     articles: RSSItem[],
     topic: string | null,
+    classificationStandard: string | null,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<ArticleCluster[]> {
@@ -725,20 +952,19 @@ export async function clusterArticles(
     }).join('\n\n')
 
     const topicText = topic ? `，这些文章都与话题"${topic}"相关` : ''
-    const topicFilterText = topic ? `\n\n重要：如果文章内容与话题"${topic}"完全无关，请将其放入unrelatedArticleIndices数组中，这些文章将不会被展示。` : ''
+    const classificationStandardText = classificationStandard ? `\n\n分类标准：请按照"${classificationStandard}"的要求对文章进行分组。例如，如果分类标准是"按行业分类"，则应将文章按照不同行业进行分组；如果分类标准是"按事件类型分类"，则应将文章按照新闻、分析、评论等类型进行分组。` : ''
 
     const prompt = `请分析以下RSS文章，将讲同一件事情或相关主题的文章归类到一起。
 
-${topicText}${topicFilterText}
+${topicText}${classificationStandardText}
 
 要求：
 1. 仔细阅读每篇文章的标题和摘要
 2. 识别文章讨论的核心主题或事件
-3. 将讨论同一件事情或相关主题的文章归为一组
+3. ${classificationStandard ? `按照分类标准"${classificationStandard}"的要求` : '将讨论同一件事情或相关主题的文章归为一组'}
 4. 为每个分组提供一个简洁的标题（说明这些文章讲的是什么，不超过20字）
 5. 为每个分组提供一段简要描述（说明这些文章的共同主题或事件，不超过100字）
-6. ${topic ? '如果文章内容与话题无关，请将其索引放入unrelatedArticleIndices数组中' : ''}
-7. 返回JSON格式，格式如下：
+6. 返回JSON格式，格式如下：
 {
   "clusters": [
     {
@@ -746,16 +972,15 @@ ${topicText}${topicFilterText}
       "description": "分组描述",
       "articleIndices": [0, 2, 5]
     }
-  ],
-  ${topic ? '"unrelatedArticleIndices": [3, 7]' : ''}
+  ]
 }
 
 注意：
 - articleIndices是文章在列表中的索引（从0开始）
 - 每个分组至少包含1篇文章
-- ${topic ? '只有与话题相关的文章才应该被分配到分组中' : '所有文章都应该被分配到某个分组中'}
-- ${topic ? '与话题无关的文章应放入unrelatedArticleIndices数组中' : '如果某篇文章无法归类，可以单独成组'}
-- unrelatedArticleIndices是可选的，如果没有无关文章，可以省略此字段或设为空数组
+- 所有文章都应该被分配到某个分组中
+- 如果某篇文章无法归类，可以单独成组
+- ${classificationStandard ? `分组应遵循分类标准"${classificationStandard}"的要求` : ''}
 
 文章列表：
 ${articlesText}
@@ -816,16 +1041,6 @@ ${articlesText}
                 throw new Error('聚类结果格式不正确：缺少clusters数组')
             }
 
-            // 提取与话题无关的文章索引
-            const unrelatedIndices = new Set<number>()
-            if (responseData.unrelatedArticleIndices && Array.isArray(responseData.unrelatedArticleIndices)) {
-                responseData.unrelatedArticleIndices.forEach((idx: number) => {
-                    if (typeof idx === 'number' && idx >= 0 && idx < articlesToAnalyze.length) {
-                        unrelatedIndices.add(idx)
-                    }
-                })
-            }
-
             // 用于跟踪每个文章被分配到哪个聚类（确保每个文章只属于一个聚类）
             const articleToClusterMap = new Map<number, number>() // 文章索引 -> 聚类索引
 
@@ -834,10 +1049,10 @@ ${articlesText}
                     throw new Error(`聚类${index}格式不正确：缺少articleIndices数组`)
                 }
 
-                // 过滤无效的索引，并去重，同时排除与话题无关的文章
+                // 过滤无效的索引，并去重
                 const validIndicesSet = new Set<number>()
                 cluster.articleIndices.forEach((idx: number) => {
-                    if (typeof idx === 'number' && idx >= 0 && idx < articlesToAnalyze.length && !unrelatedIndices.has(idx)) {
+                    if (typeof idx === 'number' && idx >= 0 && idx < articlesToAnalyze.length) {
                         validIndicesSet.add(idx)
                     }
                 })
@@ -864,11 +1079,11 @@ ${articlesText}
                 }
             }).filter((cluster: ArticleCluster | null) => cluster !== null) as ArticleCluster[]
 
-            // 处理未被分配的文章（如果有），但排除与话题无关的文章
+            // 处理未被分配的文章（如果有）
             const assignedIndices = new Set(articleToClusterMap.keys())
             const unassignedArticles: RSSItem[] = []
             articlesToAnalyze.forEach((article, idx) => {
-                if (!assignedIndices.has(idx) && !unrelatedIndices.has(idx)) {
+                if (!assignedIndices.has(idx)) {
                     unassignedArticles.push(article)
                 }
             })

@@ -252,7 +252,15 @@ export class Menu extends React.Component<MenuProps, MenuState> {
             return (
                 this.props.status && (
                     <div className="menu-container show">
-                        <div className={"menu" + (this.props.itemOn ? " item-on" : "")}>
+                        <div 
+                            className={"menu" + (this.props.itemOn ? " item-on" : "")}
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                height: '100%',
+                                overflow: 'hidden'
+                            }}
+                        >
                             <AIModeMenu />
                         </div>
                     </div>
@@ -340,7 +348,17 @@ export class Menu extends React.Component<MenuProps, MenuState> {
 class AIModeMenu extends React.Component {
     render() {
         return (
-            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', overflowY: 'auto' }}>
+            <div style={{ 
+                padding: '20px 20px 24px 20px', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '16px', 
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                boxSizing: 'border-box'
+            }}>
                 <AIModeMenuContent />
             </div>
         )

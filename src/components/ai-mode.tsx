@@ -29,6 +29,9 @@ import {
     updateAIModeTopicInput,
     setAIModeIsComposing,
     updateAIModeRecentTopics,
+    updateAIModeClassificationStandard,
+    updateAIModeClassificationStandardInput,
+    updateAIModeRecentClassificationStandards,
     setAIModeSummary,
     setAIModeLoading,
     setAIModeClustering,
@@ -69,6 +72,9 @@ export type AIModeContextType = {
     topic: string  // 单个话题文本
     topicInput: string
     recentTopics: string[]  // 最近使用的话题（最多5个）
+    classificationStandard: string
+    classificationStandardInput: string
+    recentClassificationStandards: string[]
     isComposing: boolean
     isLoading: boolean
     isClustering: boolean  // 是否正在聚类
@@ -95,6 +101,14 @@ export type AIModeContextType = {
     handleTimeRangeChange: (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption) => void
     handleRecentTopicClick: (topic: string) => void
     topicInputRef: React.RefObject<ITextField>
+    setClassificationStandard: (standard: string) => void
+    setClassificationStandardInput: (input: string) => void
+    handleClassificationStandardInputChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
+    handleClassificationStandardInputKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
+    handleClassificationStandardInputCompositionStart: () => void
+    handleClassificationStandardInputCompositionEnd: () => void
+    handleRecentClassificationStandardClick: (standard: string) => void
+    classificationStandardInputRef: React.RefObject<ITextField>
 }
 
 type AIModeProps = {
@@ -114,6 +128,9 @@ type AIModeProps = {
     updateTopicInput: (topicInput: string) => void
     setIsComposing: (isComposing: boolean) => void
     updateRecentTopics: (recentTopics: string[]) => void
+    updateClassificationStandard: (classificationStandard: string) => void
+    updateClassificationStandardInput: (classificationStandardInput: string) => void
+    updateRecentClassificationStandards: (recentClassificationStandards: string[]) => void
     setSummary: (summary: string) => void
     setLoading: (isLoading: boolean) => void
     setClustering: (isClustering: boolean) => void
@@ -147,6 +164,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     declare context: React.ContextType<typeof AIModeContext>
     private summaryContainerRef: React.RefObject<HTMLDivElement>
     private topicInputRef: React.RefObject<ITextField>
+    private classificationStandardInputRef: React.RefObject<ITextField>
     private updateTimeout: NodeJS.Timeout | null = null
 
     componentDidMount() {
@@ -167,6 +185,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         super(props)
         this.summaryContainerRef = React.createRef()
         this.topicInputRef = React.createRef()
+        this.classificationStandardInputRef = React.createRef()
     }
 
     componentDidUpdate(prevProps: AIModeProps) {
@@ -217,12 +236,15 @@ export class AIModeComponent extends React.Component<AIModeProps> {
 
     // Context value 生成器
     getContextValue = (): AIModeContextType => {
-        const { aiMode, updateTimeRange, updateTopic, updateTopicInput, setIsComposing } = this.props
+        const { aiMode, updateTimeRange, updateTopic, updateTopicInput, setIsComposing, updateClassificationStandard, updateClassificationStandardInput } = this.props
         return {
             timeRange: aiMode.timeRange,
             topic: aiMode.topic,
             topicInput: aiMode.topicInput,
             recentTopics: aiMode.recentTopics,
+            classificationStandard: aiMode.classificationStandard,
+            classificationStandardInput: aiMode.classificationStandardInput,
+            recentClassificationStandards: aiMode.recentClassificationStandards,
             isComposing: aiMode.isComposing,
             isLoading: aiMode.isLoading,
             isClustering: aiMode.isClustering,
@@ -248,7 +270,15 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             handleTopicInputCompositionEnd: this.handleTopicInputCompositionEnd,
             handleTimeRangeChange: this.handleTimeRangeChange,
             handleRecentTopicClick: this.handleRecentTopicClick,
-            topicInputRef: this.topicInputRef
+            topicInputRef: this.topicInputRef,
+            setClassificationStandard: updateClassificationStandard,
+            setClassificationStandardInput: updateClassificationStandardInput,
+            handleClassificationStandardInputChange: this.handleClassificationStandardInputChange,
+            handleClassificationStandardInputKeyDown: this.handleClassificationStandardInputKeyDown,
+            handleClassificationStandardInputCompositionStart: this.handleClassificationStandardInputCompositionStart,
+            handleClassificationStandardInputCompositionEnd: this.handleClassificationStandardInputCompositionEnd,
+            handleRecentClassificationStandardClick: this.handleRecentClassificationStandardClick,
+            classificationStandardInputRef: this.classificationStandardInputRef
         }
     }
 
@@ -304,6 +334,54 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         }
     }
 
+    handleClassificationStandardInputChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+        // 只更新Redux state，不触发Context更新事件
+        // Context更新由componentDidUpdate中的逻辑控制，避免频繁更新打断输入
+        this.props.updateClassificationStandardInput(newValue || '')
+    }
+
+    handleClassificationStandardInputCompositionStart = () => {
+        this.props.setIsComposing(true)
+    }
+
+    handleClassificationStandardInputCompositionEnd = () => {
+        this.props.setIsComposing(false)
+        // 输入法结束后更新Context
+        if (typeof window !== 'undefined') {
+            const event = new CustomEvent('aiModeInputChanged')
+            window.dispatchEvent(event)
+        }
+    }
+
+    handleClassificationStandardInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        // 处理Enter键确认分类标准
+        const { aiMode, updateClassificationStandard } = this.props
+        if (event.key === 'Enter' && !aiMode.isComposing) {
+            event.preventDefault()
+            const trimmed = aiMode.classificationStandardInput.trim()
+            if (trimmed) {
+                updateClassificationStandard(trimmed)
+            }
+        }
+    }
+
+    handleRecentClassificationStandardClick = (standard: string) => {
+        // 点击常用分类标准时填充到输入框和分类标准字段
+        const { updateClassificationStandardInput, updateClassificationStandard } = this.props
+        updateClassificationStandardInput(standard)
+        updateClassificationStandard(standard)
+        // 聚焦到输入框（通过ref）
+        if (this.classificationStandardInputRef.current) {
+            const inputElement = this.classificationStandardInputRef.current as any
+            inputElement.focus()
+        }
+        // 触发Context更新，让本地state同步
+        if (typeof window !== 'undefined') {
+            const event = new CustomEvent('aiModeInputChanged')
+            window.dispatchEvent(event)
+        }
+    }
+
     // 保存话题到最近话题列表
     saveTopicToRecent = (topic: string) => {
         const trimmed = topic.trim()
@@ -316,6 +394,21 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         const updated = [trimmed, ...filtered].slice(0, 5)  // 最多保留5个
         
         updateRecentTopics(updated)
+        // localStorage 同步在 reducer 中处理
+    }
+
+    // 保存分类标准到最近分类标准列表
+    saveClassificationStandardToRecent = (standard: string) => {
+        const trimmed = standard.trim()
+        if (!trimmed) return
+
+        const { aiMode, updateRecentClassificationStandards } = this.props
+        // 移除已存在的相同分类标准
+        const filtered = aiMode.recentClassificationStandards.filter(s => s !== trimmed)
+        // 添加到最前面
+        const updated = [trimmed, ...filtered].slice(0, 5)  // 最多保留5个
+        
+        updateRecentClassificationStandards(updated)
         // localStorage 同步在 reducer 中处理
     }
 
@@ -402,12 +495,13 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         return null
     }
 
-    // 初始化查询进度（默认4个步骤，如果文章数量<=topk会在consolidate中动态调整为2个步骤）
+    // 初始化查询进度（默认5个步骤，如果文章数量<=topk会在consolidate中动态调整为3个步骤）
     initializeQueryProgress = (): QueryProgress => {
         const steps: QueryProgressStep[] = [
             { id: 'query-db', title: '根据时间范围筛选', status: 'in_progress', message: '正在从数据库查询文章...', visible: true },
             { id: 'vectorize-text', title: '文本向量化', status: 'pending', visible: false },
             { id: 'calculate-similarity', title: '计算相似度并筛选', status: 'pending', visible: false },
+            { id: 'llm-refine', title: 'LLM精选', status: 'pending', visible: false },
             { id: 'cluster-articles', title: '分析文章内容并聚类', status: 'pending', visible: false }
         ]
         
@@ -477,7 +571,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
 
 
     // 对文章进行聚类分析
-    clusterArticles = async (articles: RSSItem[], topic: string | null): Promise<ArticleCluster[]> => {
+    clusterArticles = async (articles: RSSItem[], topic: string | null, classificationStandard: string | null = null): Promise<ArticleCluster[]> => {
         const { aiMode } = this.props
         
         const config: ConsolidateConfig = {
@@ -492,7 +586,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             updateStepStatus: this.updateStepStatus,
         }
         
-        return await consolidateClusterArticles(articles, topic, config, callbacks)
+        return await consolidateClusterArticles(articles, topic, classificationStandard, config, callbacks)
     }
 
     // 生成总结
@@ -590,7 +684,7 @@ ${articlesText}
     handleGenerateSummary = async () => {
         const { aiMode } = this.props
         const { timeRange, topicInput } = aiMode
-        const { updateTopic, updateTopicInput, setLoading, setClustering, setError, setSummary, setArticleCount, setFilteredArticles, setClusters, updateQueryProgress, setShowResults, setShowErrorDialog, setErrorDialogMessage } = this.props
+        const { updateTopic, updateTopicInput, updateClassificationStandard, updateClassificationStandardInput, setLoading, setClustering, setError, setSummary, setArticleCount, setFilteredArticles, setClusters, updateQueryProgress, setShowResults, setShowErrorDialog, setErrorDialogMessage } = this.props
 
         // 验证时间范围必须选择
         if (!timeRange) {
@@ -611,7 +705,15 @@ ${articlesText}
         const currentTopic = trimmedTopic
         this.saveTopicToRecent(currentTopic)
         
-        // 初始化查询进度（默认4个步骤，如果文章数量<=topk会在consolidate中动态调整为2个步骤）
+        // 获取分类标准（可选）
+        const trimmedClassificationStandard = aiMode.classificationStandardInput.trim() || aiMode.classificationStandard?.trim() || ''
+        if (trimmedClassificationStandard) {
+            updateClassificationStandard(trimmedClassificationStandard)
+            updateClassificationStandardInput(trimmedClassificationStandard) // 确保 classificationStandardInput 和 classificationStandard 一致
+            this.saveClassificationStandardToRecent(trimmedClassificationStandard)
+        }
+        
+        // 初始化查询进度（默认5个步骤，如果文章数量<=topk会在consolidate中动态调整为3个步骤）
         const queryProgress = this.initializeQueryProgress()
 
         // 更新状态
@@ -676,7 +778,8 @@ ${articlesText}
 
             // 使用LLM对文章进行聚类分析
             try {
-                const clusters = await this.clusterArticles(articlesWithValidSources, currentTopic)
+                const currentClassificationStandard = aiMode.classificationStandardInput.trim() || aiMode.classificationStandard?.trim() || null
+                const clusters = await this.clusterArticles(articlesWithValidSources, currentTopic, currentClassificationStandard)
                 
                 setClusters(clusters)
                 setClustering(false)
@@ -983,7 +1086,7 @@ ${articlesText}
                     
                     // 只有在确实没有进度时才创建默认进度
                     // 如果 aiMode.queryProgress 存在，即使步骤数量不对，也不要重新创建，因为状态可能正在更新中
-                    // 步骤数量可能是2（文章数量<=topk）或6（文章数量>topk）
+                    // 步骤数量可能是3（文章数量<=topk）或7（文章数量>topk）
                     if (needsRecreate && !aiMode.queryProgress) {
                         const defaultStatus = shouldShowProgressForCompleted ? 'completed' as const : 'in_progress' as const
                         const defaultMessage = shouldShowProgressForCompleted ? '所有步骤已完成' : '正在从数据库查询文章...'
@@ -995,9 +1098,10 @@ ${articlesText}
                                 { id: 'load-embeddings', title: '加载已有文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
                                 { id: 'compute-embeddings', title: '计算新文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
                                 { id: 'calculate-similarity', title: '计算相似度并筛选', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
+                                { id: 'llm-refine', title: 'LLM精选', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
                                 { id: 'cluster-articles', title: '分析文章内容并聚类', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted }
                             ],
-                            currentStepIndex: shouldShowProgressForCompleted ? 5 : 0,
+                            currentStepIndex: shouldShowProgressForCompleted ? 6 : 0,
                             overallProgress: shouldShowProgressForCompleted ? 100 : 0,
                             currentMessage: defaultMessage
                         }
@@ -1391,6 +1495,9 @@ const mapDispatchToProps = dispatch => ({
     updateTopicInput: (topicInput: string) => dispatch(updateAIModeTopicInput(topicInput)),
     setIsComposing: (isComposing: boolean) => dispatch(setAIModeIsComposing(isComposing)),
     updateRecentTopics: (recentTopics: string[]) => dispatch(updateAIModeRecentTopics(recentTopics)),
+    updateClassificationStandard: (classificationStandard: string) => dispatch(updateAIModeClassificationStandard(classificationStandard)),
+    updateClassificationStandardInput: (classificationStandardInput: string) => dispatch(updateAIModeClassificationStandardInput(classificationStandardInput)),
+    updateRecentClassificationStandards: (recentClassificationStandards: string[]) => dispatch(updateAIModeRecentClassificationStandards(recentClassificationStandards)),
     setSummary: (summary: string) => dispatch(setAIModeSummary(summary)),
     setLoading: (isLoading: boolean) => dispatch(setAIModeLoading(isLoading)),
     setClustering: (isClustering: boolean) => dispatch(setAIModeClustering(isClustering)),
