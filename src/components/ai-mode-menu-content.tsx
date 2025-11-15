@@ -25,7 +25,7 @@ export const AIModeMenuContent: React.FC = () => {
         if (context && context.classificationStandardInput !== localClassificationStandardInput) {
             setLocalClassificationStandardInput(context.classificationStandardInput || '')
         }
-    }, [context?.classificationStandardInput])
+    }, [context, context?.classificationStandardInput])
     
     if (!context) {
         return (

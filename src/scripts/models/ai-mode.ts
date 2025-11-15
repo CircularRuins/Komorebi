@@ -3,12 +3,12 @@ import { RSSItem } from "./item"
 
 // ==================== 共享类型定义 ====================
 
-// 文章聚类结果类型
+// 文章分类结果类型
 export type ArticleCluster = {
-    id: string  // 聚类ID
-    title: string  // 聚类标题（说明这些文章讲的是什么）
-    description: string  // 聚类描述
-    articles: RSSItem[]  // 该聚类中的文章列表
+    id: string  // 分类ID
+    title: string  // 分类标题（分类名称）
+    description: string  // 分类描述
+    articles: RSSItem[]  // 该分类中的文章列表
 }
 
 // 查询进度步骤类型

@@ -86,7 +86,7 @@ export type AIModeContextType = {
     articleCount: number
     error: string | null
     filteredArticles: RSSItem[]  // 筛选后的文章列表
-    clusters: ArticleCluster[]  // 文章聚类结果
+    clusters: ArticleCluster[]  // 文章分类结果
     setTimeRange: (timeRange: string | null) => void
     setTopic: (topic: string) => void
     setTopicInput: (topicInput: string) => void
@@ -194,7 +194,9 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             // 如果queryProgress存在但没有步骤，重新创建进度
             const currentStepCount = aiMode.queryProgress.steps?.length || 0
             if (currentStepCount === 0) {
-                const queryProgress = this.initializeQueryProgress()
+                const hasTopic = !!(aiMode.topic && aiMode.topic.trim())
+                const hasClassificationStandard = !!(aiMode.classificationStandardInput && aiMode.classificationStandardInput.trim())
+                const queryProgress = this.initializeQueryProgress(hasTopic, hasClassificationStandard)
                 this.props.updateQueryProgress(queryProgress)
             }
         }
@@ -496,14 +498,18 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     }
 
     // 初始化查询进度（默认5个步骤，如果文章数量<=topk会在consolidate中动态调整为3个步骤）
-    initializeQueryProgress = (): QueryProgress => {
+    initializeQueryProgress = (hasTopic: boolean, hasClassificationStandard: boolean): QueryProgress => {
         const steps: QueryProgressStep[] = [
             { id: 'query-db', title: '根据时间范围筛选', status: 'in_progress', message: '正在从数据库查询文章...', visible: true },
             { id: 'vectorize-text', title: '文本向量化', status: 'pending', visible: false },
             { id: 'calculate-similarity', title: '计算相似度并筛选', status: 'pending', visible: false },
-            { id: 'llm-refine', title: 'LLM精选', status: 'pending', visible: false },
-            { id: 'cluster-articles', title: '分析文章内容并聚类', status: 'pending', visible: false }
+            { id: 'llm-refine', title: 'LLM精选', status: 'pending', visible: false }
         ]
+        
+        // 只有当有话题且有分类依据时，才添加分类步骤
+        if (hasTopic && hasClassificationStandard) {
+            steps.push({ id: 'cluster-articles', title: '分类文章', status: 'pending', visible: false })
+        }
         
         return {
             steps,
@@ -570,7 +576,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     }
 
 
-    // 对文章进行聚类分析
+    // 对文章进行分类分析
     clusterArticles = async (articles: RSSItem[], topic: string | null, classificationStandard: string | null = null): Promise<ArticleCluster[]> => {
         const { aiMode } = this.props
         
@@ -705,16 +711,23 @@ ${articlesText}
         const currentTopic = trimmedTopic
         this.saveTopicToRecent(currentTopic)
         
-        // 获取分类标准（可选）
-        const trimmedClassificationStandard = aiMode.classificationStandardInput.trim() || aiMode.classificationStandard?.trim() || ''
+        // 获取分类标准（可选）- 只使用用户当前输入的值，不自动填充
+        const trimmedClassificationStandard = aiMode.classificationStandardInput.trim()
         if (trimmedClassificationStandard) {
             updateClassificationStandard(trimmedClassificationStandard)
-            updateClassificationStandardInput(trimmedClassificationStandard) // 确保 classificationStandardInput 和 classificationStandard 一致
+            // 确保 classificationStandardInput 和 classificationStandard 一致
+            updateClassificationStandardInput(trimmedClassificationStandard)
             this.saveClassificationStandardToRecent(trimmedClassificationStandard)
+        } else {
+            // 如果用户清空了输入框，也应该清空 classificationStandard，避免使用旧值
+            updateClassificationStandard('')
+            updateClassificationStandardInput('')
         }
         
-        // 初始化查询进度（默认5个步骤，如果文章数量<=topk会在consolidate中动态调整为3个步骤）
-        const queryProgress = this.initializeQueryProgress()
+        // 初始化查询进度（根据是否有话题和分类依据决定是否包含分类步骤）
+        const hasTopic = !!currentTopic
+        const hasClassificationStandard = !!trimmedClassificationStandard
+        const queryProgress = this.initializeQueryProgress(hasTopic, hasClassificationStandard)
 
         // 更新状态
         updateTopic(currentTopic)
@@ -770,15 +783,31 @@ ${articlesText}
             setFilteredArticles(articlesWithValidSources)
             setClusters([])
             setLoading(false)
+            
+            // 检查是否有话题和分类依据
+            const hasTopic = currentTopic && currentTopic.trim()
+            const currentClassificationStandard = aiMode.classificationStandardInput.trim() || null
+            
+            // 如果没有话题或没有分类依据，不执行分类步骤，直接展示所有文章
+            if (!hasTopic || !currentClassificationStandard) {
+                setClustering(false)
+                setShowResults(false)  // 不自动显示结果，等待用户点击按钮
+                if (typeof window !== 'undefined') {
+                    const event = new CustomEvent('aiModeUpdated')
+                    window.dispatchEvent(event)
+                }
+                return
+            }
+            
+            // 有分类依据，执行分类步骤
             setClustering(true)
             if (typeof window !== 'undefined') {
                 const event = new CustomEvent('aiModeUpdated')
                 window.dispatchEvent(event)
             }
 
-            // 使用LLM对文章进行聚类分析
+            // 使用LLM对文章进行分类分析
             try {
-                const currentClassificationStandard = aiMode.classificationStandardInput.trim() || aiMode.classificationStandard?.trim() || null
                 const clusters = await this.clusterArticles(articlesWithValidSources, currentTopic, currentClassificationStandard)
                 
                 setClusters(clusters)
@@ -790,8 +819,8 @@ ${articlesText}
                     window.dispatchEvent(event)
                 }
             } catch (clusterError) {
-                const errorMsg = clusterError instanceof Error ? clusterError.message : '聚类分析失败，已显示原始文章列表'
-                // 聚类失败时仍然显示文章列表，但不进行分组
+                const errorMsg = clusterError instanceof Error ? clusterError.message : '分类分析失败，已显示原始文章列表'
+                // 分类失败时仍然显示文章列表，但不进行分组
                 setClusters([])
                 setClustering(false)
                 setLoading(false)
@@ -1013,7 +1042,7 @@ ${articlesText}
                     </div>
                 )}
 
-                {/* 如果没有聚类结果，显示原始文章列表 */}
+                {/* 如果没有分类结果，显示原始文章列表 */}
                 {filteredArticles.length > 0 && clusters.length === 0 && !isClustering && showResults && (
                     <div 
                         ref={this.summaryContainerRef}
@@ -1086,11 +1115,12 @@ ${articlesText}
                     
                     // 只有在确实没有进度时才创建默认进度
                     // 如果 aiMode.queryProgress 存在，即使步骤数量不对，也不要重新创建，因为状态可能正在更新中
-                    // 步骤数量可能是3（文章数量<=topk）或7（文章数量>topk）
+                    // 步骤数量可能是2（文章数量<=topk且无分类依据）、3（文章数量<=topk且有分类依据）、6（文章数量>topk且无分类依据）或7（文章数量>topk且有分类依据）
                     if (needsRecreate && !aiMode.queryProgress) {
                         const defaultStatus = shouldShowProgressForCompleted ? 'completed' as const : 'in_progress' as const
                         const defaultMessage = shouldShowProgressForCompleted ? '所有步骤已完成' : '正在从数据库查询文章...'
                         
+                        // 注意：分类步骤由 initializeQueryProgress 根据是否有话题和分类依据决定是否添加
                         progress = {
                             steps: [
                                 { id: 'query-db', title: '根据时间范围筛选', status: defaultStatus, message: defaultMessage, visible: true },
@@ -1098,10 +1128,9 @@ ${articlesText}
                                 { id: 'load-embeddings', title: '加载已有文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
                                 { id: 'compute-embeddings', title: '计算新文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
                                 { id: 'calculate-similarity', title: '计算相似度并筛选', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
-                                { id: 'llm-refine', title: 'LLM精选', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
-                                { id: 'cluster-articles', title: '分析文章内容并聚类', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted }
+                                { id: 'llm-refine', title: 'LLM精选', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted }
                             ],
-                            currentStepIndex: shouldShowProgressForCompleted ? 6 : 0,
+                            currentStepIndex: shouldShowProgressForCompleted ? 5 : 0,
                             overallProgress: shouldShowProgressForCompleted ? 100 : 0,
                             currentMessage: defaultMessage
                         }
@@ -1359,7 +1388,7 @@ ${articlesText}
                                                 color: '#858585',
                                                 marginBottom: '20px'
                                             }}>
-                                                已找到 {filteredArticles.length} 篇文章，{clusters.length > 0 ? `分为 ${clusters.length} 个主题` : '未进行聚类'}
+                                                已找到 {filteredArticles.length} 篇文章，{clusters.length > 0 ? `分为 ${clusters.length} 个分类` : '未进行分类'}
                                             </div>
                                             <PrimaryButton
                                                 iconProps={{ iconName: 'View' }}

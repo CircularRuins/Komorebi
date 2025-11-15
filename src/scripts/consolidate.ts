@@ -832,12 +832,12 @@ export async function consolidate(
 
     // 如果文章数量小于等于topk，不需要计算embedding和相似度，直接进行LLM精选
     if (items.length <= topk) {
-        // 更新queryProgress，移除embedding相关步骤，只保留步骤1、LLM精选和聚类步骤
+        // 更新queryProgress，移除embedding相关步骤，只保留步骤1和LLM精选
+        // 注意：分类步骤由调用方根据是否有分类依据决定是否添加
         if (callbacks.updateQueryProgress) {
             const steps: QueryProgressStep[] = [
                 { id: 'query-db', title: '根据时间范围筛选', status: 'completed', message: `已查询到 ${items.length} 篇文章`, visible: true },
-                { id: 'llm-refine', title: 'LLM精选', status: 'pending', visible: true },
-                { id: 'cluster-articles', title: '分析文章内容并聚类', status: 'pending', visible: false }
+                { id: 'llm-refine', title: 'LLM精选', status: 'pending', visible: true }
             ]
             
             callbacks.updateQueryProgress({
@@ -890,9 +890,9 @@ export async function consolidate(
     }
 }
 
-// ==================== 聚类函数 ====================
+// ==================== 分类函数 ====================
 
-// 对文章进行聚类分析
+// 对文章进行分类分析
 export async function clusterArticles(
     articles: RSSItem[],
     topic: string | null,
@@ -917,9 +917,8 @@ export async function clusterArticles(
         throw new Error('请先配置模型名称（在设置中配置）')
     }
 
-    
-    // 更新进度：开始聚类
-    callbacks.updateStepStatus('cluster-articles', 'in_progress', `正在分析 ${articles.length} 篇文章的内容并进行聚类...`)
+    // 更新进度：开始分类
+    callbacks.updateStepStatus('cluster-articles', 'in_progress', `正在分析 ${articles.length} 篇文章的内容并进行分类...`)
 
     // 规范化endpoint URL
     let normalizedEndpoint = apiEndpoint.trim()
@@ -942,176 +941,311 @@ export async function clusterArticles(
 
     // 准备文章内容（限制数量以避免token过多）
     const articlesToAnalyze = articles.slice(0, 100)  // 最多分析100篇文章
-    const articlesText = articlesToAnalyze.map((article, index) => {
-        const dateStr = article.date.toLocaleDateString('zh-CN')
-        const snippet = article.snippet || (article.content ? article.content.substring(0, 300) : '')
-        return `文章${index + 1}:
+    const batchSize = 10  // 每批10篇文章
+    const totalArticles = articlesToAnalyze.length
+    const totalBatches = Math.ceil(totalArticles / batchSize)
+
+    // 创建所有批次
+    const batches: Array<{ batch: RSSItem[], batchNumber: number, batchStart: number }> = []
+    for (let batchStart = 0; batchStart < articlesToAnalyze.length; batchStart += batchSize) {
+        const batchEnd = Math.min(batchStart + batchSize, articlesToAnalyze.length)
+        const batch = articlesToAnalyze.slice(batchStart, batchEnd)
+        const batchNumber = Math.floor(batchStart / batchSize) + 1
+        batches.push({ batch, batchNumber, batchStart })
+    }
+
+    // 用于跟踪已完成的批次数量
+    let completedCount = 0
+    const allClassifications: Array<{ articleIndex: number, category: string }> = []
+
+    // 更新进度的辅助函数
+    const updateProgress = () => {
+        completedCount++
+        const progress = Math.floor((completedCount / totalBatches) * 100)
+        callbacks.updateStepStatus('cluster-articles', 'in_progress', 
+            `正在并行分类文章... 已完成 ${completedCount}/${totalBatches} 批 (${Math.min(completedCount * batchSize, totalArticles)}/${totalArticles})`, 
+            progress)
+    }
+
+    const topicText = topic ? `，这些文章都与话题"${topic}"相关` : ''
+    const classificationStandardText = classificationStandard ? `\n\n分类标准：请按照"${classificationStandard}"的要求给每篇文章分配一个分类标签。例如，如果分类标准是"按公司名称分类"，则讲苹果公司新闻的文章应分类为"苹果"，讲谷歌公司新闻的文章应分类为"谷歌"。` : ''
+
+    // 处理单个批次的函数
+    const processBatch = async (batchInfo: { batch: RSSItem[], batchNumber: number, batchStart: number }) => {
+        const { batch, batchNumber, batchStart } = batchInfo
+
+        try {
+            // 准备当前批次的文章文本
+            const articlesText = batch.map((article, index) => {
+                const dateStr = article.date.toLocaleDateString('zh-CN')
+                const snippet = article.snippet || (article.content ? article.content.substring(0, 300) : '')
+                return `文章${index}:
 标题: ${article.title}
 发布时间: ${dateStr}
 摘要: ${snippet}`
-    }).join('\n\n')
+            }).join('\n\n')
 
-    const topicText = topic ? `，这些文章都与话题"${topic}"相关` : ''
-    const classificationStandardText = classificationStandard ? `\n\n分类标准：请按照"${classificationStandard}"的要求对文章进行分组。例如，如果分类标准是"按行业分类"，则应将文章按照不同行业进行分组；如果分类标准是"按事件类型分类"，则应将文章按照新闻、分析、评论等类型进行分组。` : ''
-
-    const prompt = `请分析以下RSS文章，将讲同一件事情或相关主题的文章归类到一起。
+            const prompt = `请根据分类标准给以下文章进行分类。
 
 ${topicText}${classificationStandardText}
 
 要求：
 1. 仔细阅读每篇文章的标题和摘要
-2. 识别文章讨论的核心主题或事件
-3. ${classificationStandard ? `按照分类标准"${classificationStandard}"的要求` : '将讨论同一件事情或相关主题的文章归为一组'}
-4. 为每个分组提供一个简洁的标题（说明这些文章讲的是什么，不超过20字）
-5. 为每个分组提供一段简要描述（说明这些文章的共同主题或事件，不超过100字）
-6. 返回JSON格式，格式如下：
+2. 根据分类标准给每篇文章分配分类标签（一篇文章可以属于多个分类）
+3. 返回JSON格式，格式如下：
 {
-  "clusters": [
+  "classifications": [
+    { "articleIndex": 0, "category": "分类名称1" },
+    { "articleIndex": 0, "category": "分类名称2" },
+    { "articleIndex": 1, "category": "分类名称1" }
+  ]
+}
+
+注意：
+- articleIndex是文章在列表中的索引（从0开始）
+- category是分类名称，应该简洁明了（不超过20字）
+- 每篇文章至少被分配一个分类，但可以属于多个分类（如果文章内容涉及多个分类）
+- 如果一篇文章属于多个分类，应该在classifications数组中为每个分类添加一条记录
+- ${classificationStandard ? `分类应遵循分类标准"${classificationStandard}"的要求` : '分类应该准确反映文章的主要内容'}
+
+文章列表：
+${articlesText}
+
+请返回JSON格式的分类结果：`
+
+            const openai = new OpenAI({
+                apiKey: apiKey,
+                baseURL: baseURL,
+                dangerouslyAllowBrowser: true
+            })
+
+            // 尝试使用JSON格式，如果不支持则回退到普通格式
+            const completionParams: any = {
+                model: model,
+                messages: [
+                    {
+                        role: 'system',
+                        content: '你是一个专业的文章分析助手，擅长根据分类标准给文章分类。请严格按照JSON格式返回结果，只返回JSON对象，不要包含任何其他文本。'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.3,
+                max_tokens: 2000
+            }
+
+            // 某些模型可能不支持response_format，尝试添加但不强制
+            try {
+                completionParams.response_format = { type: "json_object" }
+            } catch (e) {
+                // 忽略错误，继续使用普通格式
+            }
+
+            const completion = await openai.chat.completions.create(completionParams)
+
+            if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
+                const responseText = completion.choices[0].message.content || ''
+
+                // 解析JSON响应
+                let responseData
+                try {
+                    // 尝试提取JSON（可能包含markdown代码块）
+                    const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
+                    const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
+                    responseData = JSON.parse(jsonText)
+                } catch (parseError) {
+                    // 解析失败，跳过当前批次
+                    updateProgress()
+                    return
+                }
+
+                // 提取分类结果
+                if (responseData.classifications && Array.isArray(responseData.classifications)) {
+                    responseData.classifications.forEach((item: any) => {
+                        if (typeof item.articleIndex === 'number' && item.category && typeof item.category === 'string') {
+                            if (item.articleIndex >= 0 && item.articleIndex < batch.length) {
+                                // 将批次内索引转换为全局索引
+                                const globalIndex = batchStart + item.articleIndex
+                                if (globalIndex >= 0 && globalIndex < articlesToAnalyze.length) {
+                                    allClassifications.push({
+                                        articleIndex: globalIndex,
+                                        category: item.category.trim()
+                                    })
+                                }
+                            }
+                        }
+                    })
+                }
+            }
+
+            // 更新进度
+            updateProgress()
+        } catch (error) {
+            // 即使某个批次失败，也更新进度计数
+            updateProgress()
+            // 不抛出错误，避免影响其他批次
+        }
+    }
+
+    // 并行处理所有批次
+    await Promise.allSettled(batches.map(batchInfo => processBatch(batchInfo)))
+
+    // 如果没有任何分类结果，返回空数组
+    if (allClassifications.length === 0) {
+        callbacks.updateStepStatus('cluster-articles', 'completed', '分类完成，但没有有效的分类结果')
+        return []
+    }
+
+    // 分类去重和合并（仅当有多批时执行）
+    let categoryMap = new Map<string, string>() // 原始分类名称 -> 标准分类名称
+
+    if (totalBatches > 1) {
+        // 收集所有唯一的分类名称
+        const uniqueCategories = Array.from(new Set(allClassifications.map(c => c.category)))
+        
+        if (uniqueCategories.length > 0) {
+            try {
+                callbacks.updateStepStatus('cluster-articles', 'in_progress', '正在合并重复的分类...')
+
+                const openai = new OpenAI({
+                    apiKey: apiKey,
+                    baseURL: baseURL,
+                    dangerouslyAllowBrowser: true
+                })
+
+                const deduplicationPrompt = `请识别以下分类名称中的同义词，将同义词合并为一个标准分类名称。
+
+分类名称列表：
+${uniqueCategories.map((cat, idx) => `${idx}. ${cat}`).join('\n')}
+
+要求：
+1. 识别完全重复的分类（如"苹果"和"苹果"）
+2. 识别同义词（如"苹果"、"Apple"、"苹果公司"应视为同一分类）
+3. 为每个同义词组选择一个标准分类名称（通常选择最常用的那个）
+4. 返回JSON格式，格式如下：
+{
+  "synonymGroups": [
     {
-      "title": "分组标题",
-      "description": "分组描述",
-      "articleIndices": [0, 2, 5]
+      "standardName": "苹果",
+      "synonyms": ["苹果", "Apple", "苹果公司"]
+    },
+    {
+      "standardName": "谷歌",
+      "synonyms": ["谷歌", "Google", "谷歌公司"]
     }
   ]
 }
 
 注意：
-- articleIndices是文章在列表中的索引（从0开始）
-- 每个分组至少包含1篇文章
-- 所有文章都应该被分配到某个分组中
-- 如果某篇文章无法归类，可以单独成组
-- ${classificationStandard ? `分组应遵循分类标准"${classificationStandard}"的要求` : ''}
+- 如果某个分类没有同义词，它应该单独成组
+- standardName 应该是该组的标准分类名称
+- synonyms 数组应包含该组的所有同义词（包括standardName本身）
 
-文章列表：
-${articlesText}
+请返回JSON格式的同义词分组结果：`
 
-请返回JSON格式的聚类结果：`
-
-    try {
-        const openai = new OpenAI({
-            apiKey: apiKey,
-            baseURL: baseURL,
-            dangerouslyAllowBrowser: true
-        })
-
-        // 尝试使用JSON格式，如果不支持则回退到普通格式
-        const completionParams: any = {
-            model: model,
-            messages: [
-                {
-                    role: 'system',
-                    content: '你是一个专业的文章分析助手，擅长识别文章主题并进行分类。请严格按照JSON格式返回结果，只返回JSON对象，不要包含任何其他文本。'
-                },
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            temperature: 0.3,  // 降低温度以获得更稳定的聚类结果
-            max_tokens: 4000
-        }
-        
-        // 某些模型可能不支持response_format，尝试添加但不强制
-        try {
-            completionParams.response_format = { type: "json_object" }
-        } catch (e) {
-            // 忽略错误，继续使用普通格式
-        }
-        
-        callbacks.updateStepStatus('cluster-articles', 'in_progress', '正在调用AI模型分析文章...')
-        const completion = await openai.chat.completions.create(completionParams)
-        callbacks.updateStepStatus('cluster-articles', 'in_progress', '正在解析聚类结果...')
-
-        if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
-            const responseText = completion.choices[0].message.content || ''
-            
-            // 解析JSON响应
-            let responseData
-            try {
-                // 尝试提取JSON（可能包含markdown代码块）
-                const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
-                const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
-                responseData = JSON.parse(jsonText)
-            } catch (parseError) {
-                throw new Error(`LLM返回的聚类结果格式不正确，无法解析JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`)
-            }
-
-            // 验证并转换聚类结果
-            if (!responseData.clusters || !Array.isArray(responseData.clusters)) {
-                throw new Error('聚类结果格式不正确：缺少clusters数组')
-            }
-
-            // 用于跟踪每个文章被分配到哪个聚类（确保每个文章只属于一个聚类）
-            const articleToClusterMap = new Map<number, number>() // 文章索引 -> 聚类索引
-
-            const clusters: ArticleCluster[] = responseData.clusters.map((cluster: any, index: number) => {
-                if (!cluster.articleIndices || !Array.isArray(cluster.articleIndices)) {
-                    throw new Error(`聚类${index}格式不正确：缺少articleIndices数组`)
+                const completionParams: any = {
+                    model: model,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: '你是一个专业的文本分析助手，擅长识别同义词。请严格按照JSON格式返回结果，只返回JSON对象，不要包含任何其他文本。'
+                        },
+                        {
+                            role: 'user',
+                            content: deduplicationPrompt
+                        }
+                    ],
+                    temperature: 0.2,
+                    max_tokens: 2000
                 }
 
-                // 过滤无效的索引，并去重
-                const validIndicesSet = new Set<number>()
-                cluster.articleIndices.forEach((idx: number) => {
-                    if (typeof idx === 'number' && idx >= 0 && idx < articlesToAnalyze.length) {
-                        validIndicesSet.add(idx)
+                try {
+                    completionParams.response_format = { type: "json_object" }
+                } catch (e) {
+                    // 忽略错误
+                }
+
+                const completion = await openai.chat.completions.create(completionParams)
+
+                if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
+                    const responseText = completion.choices[0].message.content || ''
+
+                    try {
+                        const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
+                        const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
+                        const responseData = JSON.parse(jsonText)
+
+                        if (responseData.synonymGroups && Array.isArray(responseData.synonymGroups)) {
+                            responseData.synonymGroups.forEach((group: any) => {
+                                if (group.standardName && group.synonyms && Array.isArray(group.synonyms)) {
+                                    group.synonyms.forEach((synonym: string) => {
+                                        if (typeof synonym === 'string') {
+                                            categoryMap.set(synonym.trim(), group.standardName.trim())
+                                        }
+                                    })
+                                }
+                            })
+                        }
+                    } catch (parseError) {
+                        // 解析失败，使用原始分类名称
                     }
-                })
-
-                // 过滤掉已经被分配到其他聚类的文章（如果LLM返回了重复分配，优先使用第一个聚类）
-                const uniqueIndices: number[] = []
-                validIndicesSet.forEach(idx => {
-                    if (!articleToClusterMap.has(idx)) {
-                        articleToClusterMap.set(idx, index)
-                        uniqueIndices.push(idx)
-                    } else {
-                    }
-                })
-
-                if (uniqueIndices.length === 0) {
-                    return null
                 }
-
-                return {
-                    id: `cluster-${index}`,
-                    title: cluster.title || `分组 ${index + 1}`,
-                    description: cluster.description || '',
-                    articles: uniqueIndices.map((idx: number) => articlesToAnalyze[idx])
-                }
-            }).filter((cluster: ArticleCluster | null) => cluster !== null) as ArticleCluster[]
-
-            // 处理未被分配的文章（如果有）
-            const assignedIndices = new Set(articleToClusterMap.keys())
-            const unassignedArticles: RSSItem[] = []
-            articlesToAnalyze.forEach((article, idx) => {
-                if (!assignedIndices.has(idx)) {
-                    unassignedArticles.push(article)
-                }
-            })
-
-            // 如果有未分配的文章，创建一个"其他"聚类
-            if (unassignedArticles.length > 0) {
-                clusters.push({
-                    id: 'cluster-other',
-                    title: '其他',
-                    description: '未明确分类的文章',
-                    articles: unassignedArticles
-                })
+            } catch (error) {
+                // 去重失败，使用原始分类名称
             }
-
-            callbacks.updateStepStatus('cluster-articles', 'completed', `已完成聚类，共 ${clusters.length} 个分组`)
-            return clusters
-        } else {
-            throw new Error('LLM返回的响应格式不正确')
-        }
-    } catch (error: any) {
-        if (error instanceof Error) {
-            callbacks.updateStepStatus('cluster-articles', 'error', error.message)
-            throw error
-        } else {
-            const errorMessage = `聚类分析失败: ${String(error)}`
-            callbacks.updateStepStatus('cluster-articles', 'error', errorMessage)
-            throw new Error(errorMessage)
         }
     }
+
+    // 应用分类映射（如果有）
+    const mappedClassifications = allClassifications.map(c => ({
+        articleIndex: c.articleIndex,
+        category: categoryMap.get(c.category) || c.category
+    }))
+
+    // 按分类名称分组
+    const categoryGroups = new Map<string, number[]>()
+    mappedClassifications.forEach(c => {
+        if (!categoryGroups.has(c.category)) {
+            categoryGroups.set(c.category, [])
+        }
+        categoryGroups.get(c.category)!.push(c.articleIndex)
+    })
+
+    // 生成 ArticleCluster 数组
+    // 注意：允许一篇文章属于多个分类，但同一分类内去重
+    const clusters: ArticleCluster[] = Array.from(categoryGroups.entries()).map(([category, indices], index) => {
+        // 对同一分类内的索引去重（避免LLM错误返回重复条目）
+        const uniqueIndices = Array.from(new Set(indices))
+        return {
+            id: `cluster-${index}`,
+            title: category,
+            description: `共 ${uniqueIndices.length} 篇文章`,
+            articles: uniqueIndices.map(idx => articlesToAnalyze[idx])
+        }
+    })
+
+    // 处理未被分配的文章（如果有）
+    const assignedIndices = new Set(mappedClassifications.map(c => c.articleIndex))
+    const unassignedArticles: RSSItem[] = []
+    articlesToAnalyze.forEach((article, idx) => {
+        if (!assignedIndices.has(idx)) {
+            unassignedArticles.push(article)
+        }
+    })
+
+    // 如果有未分配的文章，创建一个"其他"分类
+    if (unassignedArticles.length > 0) {
+        clusters.push({
+            id: 'cluster-other',
+            title: '其他',
+            description: '未明确分类的文章',
+            articles: unassignedArticles
+        })
+    }
+
+    callbacks.updateStepStatus('cluster-articles', 'completed', `已完成分类，共 ${clusters.length} 个分类`)
+    return clusters
 }
 

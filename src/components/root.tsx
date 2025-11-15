@@ -43,6 +43,7 @@ class RootWithProvider extends React.Component<{ locale: string; dispatch: any }
             this.lastContextValue.articleCount !== newValue.articleCount ||
             this.lastContextValue.error !== newValue.error ||
             this.lastContextValue.topicInput !== newValue.topicInput ||
+            this.lastContextValue.classificationStandardInput !== newValue.classificationStandardInput ||
             this.lastContextValue.isComposing !== newValue.isComposing
         )
         

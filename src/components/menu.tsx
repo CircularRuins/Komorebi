@@ -348,18 +348,28 @@ export class Menu extends React.Component<MenuProps, MenuState> {
 class AIModeMenu extends React.Component {
     render() {
         return (
-            <div style={{ 
-                padding: '20px 20px 24px 20px', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: '16px', 
-                flex: 1,
-                minHeight: 0,
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                boxSizing: 'border-box'
-            }}>
-                <AIModeMenuContent />
+            <div 
+                style={{ 
+                    padding: '20px 20px 0 20px', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    flex: 1,
+                    minHeight: 0,
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    boxSizing: 'border-box',
+                    WebkitOverflowScrolling: 'touch'
+                }}
+            >
+                <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '16px',
+                    paddingBottom: '40px',
+                    flexShrink: 0
+                }}>
+                    <AIModeMenuContent />
+                </div>
             </div>
         )
     }
