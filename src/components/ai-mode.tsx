@@ -397,9 +397,12 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             inputElement.focus()
         }
         // 触发Context更新，让本地state同步
+        // 使用 requestAnimationFrame 确保在下一个渲染周期更新，此时 Redux state 已经同步
         if (typeof window !== 'undefined') {
-            const event = new CustomEvent('aiModeInputChanged')
-            window.dispatchEvent(event)
+            requestAnimationFrame(() => {
+                const event = new CustomEvent('aiModeInputChanged')
+                window.dispatchEvent(event)
+            })
         }
     }
 

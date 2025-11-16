@@ -14,20 +14,6 @@ export const AIModeMenuContent: React.FC = () => {
     const [localTopicInput, setLocalTopicInput] = React.useState('')
     const [localClassificationStandardInput, setLocalClassificationStandardInput] = React.useState('')
     
-    // 当Context中的topicInput变化时（如从外部设置、点击常选主题等），同步到本地state
-    React.useEffect(() => {
-        if (context && context.topicInput !== localTopicInput) {
-            setLocalTopicInput(context.topicInput || '')
-        }
-    }, [context?.topicInput])
-    
-    // 当Context中的classificationStandardInput变化时，同步到本地state
-    React.useEffect(() => {
-        if (context && context.classificationStandardInput !== localClassificationStandardInput) {
-            setLocalClassificationStandardInput(context.classificationStandardInput || '')
-        }
-    }, [context, context?.classificationStandardInput])
-    
     if (!context) {
         return (
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--neutralSecondary)' }}>
@@ -66,6 +52,16 @@ export const AIModeMenuContent: React.FC = () => {
         classificationStandardInputRef
     } = context
 
+    // 当Context中的topicInput变化时（如从外部设置、点击常选主题等），同步到本地state
+    React.useEffect(() => {
+        setLocalTopicInput(contextTopicInput || '')
+    }, [contextTopicInput])
+    
+    // 当Context中的classificationStandardInput变化时，同步到本地state
+    React.useEffect(() => {
+        setLocalClassificationStandardInput(contextClassificationStandardInput || '')
+    }, [contextClassificationStandardInput])
+
     // 本地输入处理函数
     const handleLocalTopicInputChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
@@ -81,6 +77,7 @@ export const AIModeMenuContent: React.FC = () => {
         // 同步到Redux，但不触发Context更新事件（避免打断输入）
         handleClassificationStandardInputChange(event, value)
     }
+
 
     const getTimeRangeOptions = (): IDropdownOption[] => {
         return [
