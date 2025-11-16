@@ -1,4 +1,5 @@
 import * as React from "react"
+import intl from "react-intl-universal"
 import { TextField, ITextField } from "@fluentui/react/lib/TextField"
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown"
 import { Label } from "@fluentui/react/lib/Label"
@@ -36,14 +37,18 @@ import {
     setAIModeLoading,
     setAIModeClustering,
     setAIModeError,
-    updateAIModeApiEndpoint,
-    updateAIModeApiKey,
+    updateAIModeChatApiEndpoint,
+    updateAIModeChatApiKey,
+    updateAIModeEmbeddingApiEndpoint,
+    updateAIModeEmbeddingApiKey,
     updateAIModeModel,
     updateAIModeEmbeddingModel,
     updateAIModeTopk,
     setAIModeShowConfigPanel,
-    updateAIModeTempApiEndpoint,
-    updateAIModeTempApiKey,
+    updateAIModeTempChatApiEndpoint,
+    updateAIModeTempChatApiKey,
+    updateAIModeTempEmbeddingApiEndpoint,
+    updateAIModeTempEmbeddingApiKey,
     updateAIModeTempModel,
     updateAIModeTempEmbeddingModel,
     updateAIModeTempTopk,
@@ -79,8 +84,10 @@ export type AIModeContextType = {
     isLoading: boolean
     isClustering: boolean  // 是否正在聚类
     summary: string
-    apiEndpoint: string
-    apiKey: string
+    chatApiEndpoint: string
+    chatApiKey: string
+    embeddingApiEndpoint: string
+    embeddingApiKey: string
     model: string
     showConfigPanel: boolean
     articleCount: number
@@ -135,14 +142,18 @@ type AIModeProps = {
     setLoading: (isLoading: boolean) => void
     setClustering: (isClustering: boolean) => void
     setError: (error: string | null) => void
-    updateApiEndpoint: (apiEndpoint: string) => void
-    updateApiKey: (apiKey: string) => void
+    updateChatApiEndpoint: (chatApiEndpoint: string) => void
+    updateChatApiKey: (chatApiKey: string) => void
+    updateEmbeddingApiEndpoint: (embeddingApiEndpoint: string) => void
+    updateEmbeddingApiKey: (embeddingApiKey: string) => void
     updateModel: (model: string) => void
     updateEmbeddingModel: (embeddingModel: string) => void
     updateTopk: (topk: number) => void
     setShowConfigPanel: (showConfigPanel: boolean) => void
-    updateTempApiEndpoint: (tempApiEndpoint: string) => void
-    updateTempApiKey: (tempApiKey: string) => void
+    updateTempChatApiEndpoint: (tempChatApiEndpoint: string) => void
+    updateTempChatApiKey: (tempChatApiKey: string) => void
+    updateTempEmbeddingApiEndpoint: (tempEmbeddingApiEndpoint: string) => void
+    updateTempEmbeddingApiKey: (tempEmbeddingApiKey: string) => void
     updateTempModel: (tempModel: string) => void
     updateTempEmbeddingModel: (tempEmbeddingModel: string) => void
     updateTempTopk: (tempTopk: string) => void
@@ -210,8 +221,10 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             prevAiMode.isLoading !== aiMode.isLoading ||
             prevAiMode.isClustering !== aiMode.isClustering ||
             prevAiMode.showConfigPanel !== aiMode.showConfigPanel ||
-            prevAiMode.apiEndpoint !== aiMode.apiEndpoint ||
-            prevAiMode.apiKey !== aiMode.apiKey ||
+            prevAiMode.chatApiEndpoint !== aiMode.chatApiEndpoint ||
+            prevAiMode.chatApiKey !== aiMode.chatApiKey ||
+            prevAiMode.embeddingApiEndpoint !== aiMode.embeddingApiEndpoint ||
+            prevAiMode.embeddingApiKey !== aiMode.embeddingApiKey ||
             prevAiMode.model !== aiMode.model ||
             prevAiMode.filteredArticles.length !== aiMode.filteredArticles.length ||
             prevAiMode.clusters.length !== aiMode.clusters.length ||
@@ -251,8 +264,10 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             isLoading: aiMode.isLoading,
             isClustering: aiMode.isClustering,
             summary: aiMode.summary,
-            apiEndpoint: aiMode.apiEndpoint,
-            apiKey: aiMode.apiKey,
+            chatApiEndpoint: aiMode.chatApiEndpoint,
+            chatApiKey: aiMode.chatApiKey,
+            embeddingApiEndpoint: aiMode.embeddingApiEndpoint,
+            embeddingApiKey: aiMode.embeddingApiKey,
             model: aiMode.model,
             showConfigPanel: aiMode.showConfigPanel,
             articleCount: aiMode.articleCount,
@@ -414,14 +429,24 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         // localStorage 同步在 reducer 中处理
     }
 
-    handleApiEndpointChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+    handleChatApiEndpointChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
-        this.props.updateTempApiEndpoint(value)
+        this.props.updateTempChatApiEndpoint(value)
     }
 
-    handleApiKeyChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+    handleChatApiKeyChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
-        this.props.updateTempApiKey(value)
+        this.props.updateTempChatApiKey(value)
+    }
+
+    handleEmbeddingApiEndpointChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+        const value = newValue || ''
+        this.props.updateTempEmbeddingApiEndpoint(value)
+    }
+
+    handleEmbeddingApiKeyChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+        const value = newValue || ''
+        this.props.updateTempEmbeddingApiKey(value)
     }
 
     handleModelChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
@@ -440,20 +465,22 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     }
 
     handleConfigConfirm = () => {
-        const { aiMode, updateApiEndpoint, updateApiKey, updateModel, updateEmbeddingModel, updateTopk, setShowConfigPanel, setShowErrorDialog, setErrorDialogMessage } = this.props
-        const { tempApiEndpoint, tempApiKey, tempModel, tempEmbeddingModel, tempTopk } = aiMode
+        const { aiMode, updateChatApiEndpoint, updateChatApiKey, updateEmbeddingApiEndpoint, updateEmbeddingApiKey, updateModel, updateEmbeddingModel, updateTopk, setShowConfigPanel, setShowErrorDialog, setErrorDialogMessage } = this.props
+        const { tempChatApiEndpoint, tempChatApiKey, tempEmbeddingApiEndpoint, tempEmbeddingApiKey, tempModel, tempEmbeddingModel, tempTopk } = aiMode
         
         // 验证topk
         const topk = parseInt(tempTopk, 10)
         if (isNaN(topk) || topk < 1 || !Number.isInteger(topk)) {
             setShowErrorDialog(true)
-            setErrorDialogMessage('TopK必须是大于0的正整数')
+            setErrorDialogMessage(intl.get("settings.aiMode.errors.topkInvalid"))
             return
         }
         
         // 保存到 Redux（localStorage 同步在 reducer 中处理）
-        updateApiEndpoint(tempApiEndpoint)
-        updateApiKey(tempApiKey)
+        updateChatApiEndpoint(tempChatApiEndpoint)
+        updateChatApiKey(tempChatApiKey)
+        updateEmbeddingApiEndpoint(tempEmbeddingApiEndpoint)
+        updateEmbeddingApiKey(tempEmbeddingApiKey)
         updateModel(tempModel)
         updateEmbeddingModel(tempEmbeddingModel)
         updateTopk(topk)
@@ -462,10 +489,12 @@ export class AIModeComponent extends React.Component<AIModeProps> {
 
     handleConfigCancel = () => {
         // 恢复临时状态为已保存的值
-        const { aiMode, updateTempApiEndpoint, updateTempApiKey, updateTempModel, updateTempEmbeddingModel, updateTempTopk, setShowConfigPanel } = this.props
-        const { apiEndpoint, apiKey, model, embeddingModel, topk } = aiMode
-        updateTempApiEndpoint(apiEndpoint)
-        updateTempApiKey(apiKey)
+        const { aiMode, updateTempChatApiEndpoint, updateTempChatApiKey, updateTempEmbeddingApiEndpoint, updateTempEmbeddingApiKey, updateTempModel, updateTempEmbeddingModel, updateTempTopk, setShowConfigPanel } = this.props
+        const { chatApiEndpoint, chatApiKey, embeddingApiEndpoint, embeddingApiKey, model, embeddingModel, topk } = aiMode
+        updateTempChatApiEndpoint(chatApiEndpoint)
+        updateTempChatApiKey(chatApiKey)
+        updateTempEmbeddingApiEndpoint(embeddingApiEndpoint)
+        updateTempEmbeddingApiKey(embeddingApiKey)
         updateTempModel(model)
         updateTempEmbeddingModel(embeddingModel)
         updateTempTopk(topk.toString())
@@ -474,11 +503,13 @@ export class AIModeComponent extends React.Component<AIModeProps> {
 
     handleConfigPanelOpen = () => {
         // 打开面板时，初始化临时状态为当前保存的值
-        const { aiMode, setShowConfigPanel, updateTempApiEndpoint, updateTempApiKey, updateTempModel, updateTempEmbeddingModel, updateTempTopk } = this.props
-        const { apiEndpoint, apiKey, model, embeddingModel, topk } = aiMode
+        const { aiMode, setShowConfigPanel, updateTempChatApiEndpoint, updateTempChatApiKey, updateTempEmbeddingApiEndpoint, updateTempEmbeddingApiKey, updateTempModel, updateTempEmbeddingModel, updateTempTopk } = this.props
+        const { chatApiEndpoint, chatApiKey, embeddingApiEndpoint, embeddingApiKey, model, embeddingModel, topk } = aiMode
         setShowConfigPanel(true)
-        updateTempApiEndpoint(apiEndpoint)
-        updateTempApiKey(apiKey)
+        updateTempChatApiEndpoint(chatApiEndpoint)
+        updateTempChatApiKey(chatApiKey)
+        updateTempEmbeddingApiEndpoint(embeddingApiEndpoint)
+        updateTempEmbeddingApiKey(embeddingApiKey)
         updateTempModel(model)
         updateTempEmbeddingModel(embeddingModel)
         updateTempTopk(topk.toString())
@@ -500,22 +531,22 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     // 初始化查询进度（默认5个步骤，如果文章数量<=topk会在consolidate中动态调整为3个步骤）
     initializeQueryProgress = (hasTopic: boolean, hasClassificationStandard: boolean): QueryProgress => {
         const steps: QueryProgressStep[] = [
-            { id: 'query-db', title: '根据时间范围筛选', status: 'in_progress', message: '正在从数据库查询文章...', visible: true },
-            { id: 'vectorize-text', title: '文本向量化', status: 'pending', visible: false },
-            { id: 'calculate-similarity', title: '计算相似度并筛选', status: 'pending', visible: false },
-            { id: 'llm-refine', title: 'LLM精选', status: 'pending', visible: false }
+            { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: 'in_progress', message: intl.get("settings.aiMode.progress.messages.querying"), visible: true },
+            { id: 'vectorize-text', title: intl.get("settings.aiMode.progress.steps.vectorizeText"), status: 'pending', visible: false },
+            { id: 'calculate-similarity', title: intl.get("settings.aiMode.progress.steps.calculateSimilarity"), status: 'pending', visible: false },
+            { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'pending', visible: false }
         ]
         
         // 只有当有话题且有分类依据时，才添加分类步骤
         if (hasTopic && hasClassificationStandard) {
-            steps.push({ id: 'cluster-articles', title: '分类文章', status: 'pending', visible: false })
+            steps.push({ id: 'cluster-articles', title: intl.get("settings.aiMode.progress.steps.clusterArticles"), status: 'pending', visible: false })
         }
         
         return {
             steps,
             currentStepIndex: 0,
             overallProgress: 0,
-            currentMessage: '开始查询...'
+            currentMessage: intl.get("settings.aiMode.progress.messages.startQuery")
         }
     }
 
@@ -547,10 +578,10 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     // 获取时间范围选项
     getTimeRangeOptions = (): IDropdownOption[] => {
         return [
-            { key: '1', text: '1天内' },
-            { key: '3', text: '3天内' },
-            { key: '7', text: '7天内' },
-            { key: '14', text: '14天内' }
+            { key: '1', text: intl.get("settings.aiMode.menu.timeRangeOptions.1") },
+            { key: '3', text: intl.get("settings.aiMode.menu.timeRangeOptions.3") },
+            { key: '7', text: intl.get("settings.aiMode.menu.timeRangeOptions.7") },
+            { key: '14', text: intl.get("settings.aiMode.menu.timeRangeOptions.14") }
         ]
     }
 
@@ -560,8 +591,10 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         const { aiMode, updateQueryProgress } = this.props
         
         const config: ConsolidateConfig = {
-            apiEndpoint: aiMode.apiEndpoint,
-            apiKey: aiMode.apiKey,
+            chatApiEndpoint: aiMode.chatApiEndpoint,
+            chatApiKey: aiMode.chatApiKey,
+            embeddingApiEndpoint: aiMode.embeddingApiEndpoint,
+            embeddingApiKey: aiMode.embeddingApiKey,
             embeddingModel: aiMode.embeddingModel,
             model: aiMode.model,
             topk: aiMode.topk || 100,
@@ -581,8 +614,10 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         const { aiMode } = this.props
         
         const config: ConsolidateConfig = {
-            apiEndpoint: aiMode.apiEndpoint,
-            apiKey: aiMode.apiKey,
+            chatApiEndpoint: aiMode.chatApiEndpoint,
+            chatApiKey: aiMode.chatApiKey,
+            embeddingApiEndpoint: aiMode.embeddingApiEndpoint,
+            embeddingApiKey: aiMode.embeddingApiKey,
             embeddingModel: aiMode.embeddingModel,
             model: aiMode.model,
             topk: aiMode.topk || 100,
@@ -598,12 +633,12 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     // 生成总结
     generateSummary = async (articles: RSSItem[], topic: string): Promise<string> => {
         const { aiMode } = this.props
-        const { apiEndpoint, apiKey, model } = aiMode
+        const { chatApiEndpoint, chatApiKey, model } = aiMode
 
         // 规范化endpoint URL
-        let normalizedEndpoint = apiEndpoint.trim()
+        let normalizedEndpoint = chatApiEndpoint.trim()
         if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-            throw new Error('API Endpoint必须以http://或https://开头')
+            throw new Error('Chat API Endpoint必须以http://或https://开头')
         }
 
         // 提取base URL
@@ -616,7 +651,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
                 baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
             }
         } catch (error) {
-            throw new Error(`无效的API Endpoint URL: ${normalizedEndpoint}`)
+            throw new Error(`无效的Chat API Endpoint URL: ${normalizedEndpoint}`)
         }
 
         // 准备文章内容
@@ -645,7 +680,7 @@ ${articlesText}
 
         try {
             const openai = new OpenAI({
-                apiKey: apiKey,
+                apiKey: chatApiKey,
                 baseURL: baseURL,
                 dangerouslyAllowBrowser: true
             })
@@ -676,7 +711,7 @@ ${articlesText}
             if (error instanceof OpenAI.APIError) {
                 let errorMessage = error.message
                 if (error.status === 404) {
-                    errorMessage = `404错误: 请求的URL不存在\n${error.message}\n\n请检查:\n1. API Endpoint是否正确（完整的URL路径）\n2. 是否需要包含特定的路径（如 /v1/chat/completions）\n3. API服务是否正常运行\n当前请求URL: ${normalizedEndpoint}`
+                    errorMessage = `404错误: 请求的URL不存在\n${error.message}\n\n请检查:\n1. Chat API Endpoint是否正确（完整的URL路径）\n2. 是否需要包含特定的路径（如 /v1/chat/completions）\n3. API服务是否正常运行\n当前请求URL: ${normalizedEndpoint}`
                 }
                 throw new Error(errorMessage)
             } else if (error instanceof Error) {
@@ -695,7 +730,7 @@ ${articlesText}
         // 验证时间范围必须选择
         if (!timeRange) {
             setShowErrorDialog(true)
-            setErrorDialogMessage('请先选择文章发布时间')
+            setErrorDialogMessage(intl.get("settings.aiMode.errors.selectTimeRange"))
             return
         }
 
@@ -703,7 +738,7 @@ ${articlesText}
         const trimmedTopic = topicInput.trim() || aiMode.topic?.trim() || ''
         if (!trimmedTopic) {
             setShowErrorDialog(true)
-            setErrorDialogMessage('请输入话题关键词')
+            setErrorDialogMessage(intl.get("settings.aiMode.errors.enterTopic"))
             return
         }
 
@@ -755,9 +790,9 @@ ${articlesText}
             const articles = await this.queryArticles(timeRangeDays, currentTopic)
             
             if (articles.length === 0) {
-                const topicMessage = currentTopic ? `或话题"${currentTopic}"` : ''
+                const topicMessage = currentTopic ? intl.get("settings.aiMode.errors.noArticlesWithTopic", { topic: currentTopic }) : ''
                 setLoading(false)
-                setError(`没有找到符合条件的文章。请尝试调整时间范围${topicMessage}。`)
+                setError(intl.get("settings.aiMode.errors.noArticles", { message: topicMessage }))
                 updateQueryProgress(null)
                 if (typeof window !== 'undefined') {
                     const event = new CustomEvent('aiModeUpdated')
@@ -819,7 +854,7 @@ ${articlesText}
                     window.dispatchEvent(event)
                 }
             } catch (clusterError) {
-                const errorMsg = clusterError instanceof Error ? clusterError.message : '分类分析失败，已显示原始文章列表'
+                const errorMsg = clusterError instanceof Error ? clusterError.message : intl.get("settings.aiMode.errors.clusterFailed")
                 // 分类失败时仍然显示文章列表，但不进行分组
                 setClusters([])
                 setClustering(false)
@@ -832,7 +867,7 @@ ${articlesText}
                 }
             }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : '查询失败，请稍后重试'
+            const errorMessage = error instanceof Error ? error.message : intl.get("settings.aiMode.errors.queryFailed")
             setLoading(false)
             setError(errorMessage)
             setShowErrorDialog(true)
@@ -879,12 +914,16 @@ ${articlesText}
             isLoading, 
             isClustering,
             error, 
-            apiEndpoint, 
-            apiKey, 
+            chatApiEndpoint, 
+            chatApiKey, 
+            embeddingApiEndpoint, 
+            embeddingApiKey, 
             model, 
             showConfigPanel, 
-            tempApiEndpoint, 
-            tempApiKey, 
+            tempChatApiEndpoint, 
+            tempChatApiKey,
+            tempEmbeddingApiEndpoint, 
+            tempEmbeddingApiKey, 
             tempModel,
             tempEmbeddingModel,
             showErrorDialog, 
@@ -963,7 +1002,7 @@ ${articlesText}
                                 fontWeight: 600,
                                 color: 'var(--neutralPrimary)'
                             }}>
-                                总结
+                                {intl.get("settings.aiMode.results.summary")}
                             </h3>
                         </div>
                         
@@ -1003,13 +1042,6 @@ ${articlesText}
                                             {cluster.description}
                                         </p>
                                     )}
-                                    <div style={{
-                                        marginTop: '8px',
-                                        fontSize: '12px',
-                                        color: 'var(--neutralTertiary)'
-                                    }}>
-                                        共 {cluster.articles.length} 篇文章
-                                    </div>
                                 </div>
                                 <div style={{
                                     display: 'flex',
@@ -1070,7 +1102,7 @@ ${articlesText}
                                 fontWeight: 600,
                                 color: 'var(--neutralPrimary)'
                             }}>
-                                筛选后的文章 ({filteredArticles.length} 篇)
+                                {intl.get("settings.aiMode.results.filteredArticles", { count: filteredArticles.length })}
                             </h3>
                             <div style={{
                                 display: 'flex',
@@ -1118,17 +1150,17 @@ ${articlesText}
                     // 步骤数量可能是2（文章数量<=topk且无分类依据）、3（文章数量<=topk且有分类依据）、6（文章数量>topk且无分类依据）或7（文章数量>topk且有分类依据）
                     if (needsRecreate && !aiMode.queryProgress) {
                         const defaultStatus = shouldShowProgressForCompleted ? 'completed' as const : 'in_progress' as const
-                        const defaultMessage = shouldShowProgressForCompleted ? '所有步骤已完成' : '正在从数据库查询文章...'
+                        const defaultMessage = shouldShowProgressForCompleted ? intl.get("settings.aiMode.progress.messages.completed") : intl.get("settings.aiMode.progress.messages.querying")
                         
                         // 注意：分类步骤由 initializeQueryProgress 根据是否有话题和分类依据决定是否添加
                         progress = {
                             steps: [
-                                { id: 'query-db', title: '根据时间范围筛选', status: defaultStatus, message: defaultMessage, visible: true },
-                                { id: 'compute-topic-embedding', title: '计算话题向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
-                                { id: 'load-embeddings', title: '加载已有文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
-                                { id: 'compute-embeddings', title: '计算新文章向量', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
-                                { id: 'calculate-similarity', title: '计算相似度并筛选', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
-                                { id: 'llm-refine', title: 'LLM精选', status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted }
+                                { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: defaultStatus, message: defaultMessage, visible: true },
+                                { id: 'compute-topic-embedding', title: intl.get("settings.aiMode.progress.steps.computeTopicEmbedding"), status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
+                                { id: 'load-embeddings', title: intl.get("settings.aiMode.progress.steps.loadEmbeddings"), status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
+                                { id: 'compute-embeddings', title: intl.get("settings.aiMode.progress.steps.computeEmbeddings"), status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
+                                { id: 'calculate-similarity', title: intl.get("settings.aiMode.progress.steps.calculateSimilarity"), status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
+                                { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted }
                             ],
                             currentStepIndex: shouldShowProgressForCompleted ? 5 : 0,
                             overallProgress: shouldShowProgressForCompleted ? 100 : 0,
@@ -1198,7 +1230,7 @@ ${articlesText}
                                     textTransform: 'uppercase',
                                     letterSpacing: '0.5px'
                                 }}>
-                                    执行步骤 ({progress.steps.filter(s => s.status === 'completed').length}/{progress.steps.length})
+                                    {intl.get("settings.aiMode.progress.executionSteps")} ({progress.steps.filter(s => s.status === 'completed').length}/{progress.steps.length})
                                 </div>
                                 <div style={{
                                     display: 'flex',
@@ -1330,7 +1362,7 @@ ${articlesText}
                                                             fontSize: '11px',
                                                             color: '#858585'
                                                         }}>
-                                                            <span>处理中...</span>
+                                                            <span>{intl.get("settings.aiMode.progress.messages.processing")}</span>
                                                             <span>{step.progress}%</span>
                                                         </div>
                                                         <div style={{
@@ -1381,18 +1413,23 @@ ${articlesText}
                                                 color: '#ffffff',
                                                 marginBottom: '12px'
                                             }}>
-                                                所有步骤已完成！
+                                                {intl.get("settings.aiMode.progress.messages.completed")}
                                             </div>
                                             <div style={{
                                                 fontSize: '13px',
                                                 color: '#858585',
                                                 marginBottom: '20px'
                                             }}>
-                                                已找到 {filteredArticles.length} 篇文章，{clusters.length > 0 ? `分为 ${clusters.length} 个分类` : '未进行分类'}
+                                                {intl.get("settings.aiMode.progress.foundArticles", { 
+                                                    count: filteredArticles.length, 
+                                                    clusters: clusters.length > 0 
+                                                        ? intl.get("settings.aiMode.progress.foundArticlesWithClusters", { count: clusters.length })
+                                                        : intl.get("settings.aiMode.progress.foundArticlesNoClusters")
+                                                })}
                                             </div>
                                             <PrimaryButton
                                                 iconProps={{ iconName: 'View' }}
-                                                text="查看结果"
+                                                text={intl.get("settings.aiMode.progress.viewResults")}
                                                 onClick={this.handleShowResults}
                                                 styles={{
                                                     root: {
@@ -1454,13 +1491,61 @@ ${articlesText}
                         width: 'calc(100% - 40px)',
                         margin: '0 auto'
                     }}>
-                        <Icon iconName="Robot" style={{ fontSize: 64, color: 'var(--neutralTertiary)' }} />
                         <p style={{ fontSize: '18px', fontWeight: 600, color: 'var(--neutralPrimary)' }}>
-                            AI总结助手
+                            {intl.get("settings.aiMode.placeholder.title")}
                         </p>
                         <p style={{ fontSize: '14px', color: 'var(--neutralSecondary)', maxWidth: '500px' }}>
-                            在左侧菜单栏选择文章发布时间，和感兴趣的话题，然后点击"整理汇总"按钮生成总结
+                            {intl.get("settings.aiMode.placeholder.description")}
                         </p>
+                        <div style={{ 
+                            marginTop: '24px',
+                            width: '100%',
+                            maxWidth: '500px',
+                            textAlign: 'left',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '16px'
+                        }}>
+                            <div style={{
+                                padding: '12px 16px',
+                                backgroundColor: 'var(--neutralLighterAlt)',
+                                borderRadius: '6px',
+                                border: '1px solid var(--neutralLight)'
+                            }}>
+                                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--neutralPrimary)', marginBottom: '4px' }}>
+                                    {intl.get("settings.aiMode.menu.timeRange")}
+                                </div>
+                                <div style={{ fontSize: '13px', color: 'var(--neutralSecondary)', lineHeight: '1.5' }}>
+                                    {intl.get("settings.aiMode.placeholder.timeRangeHint")}
+                                </div>
+                            </div>
+                            <div style={{
+                                padding: '12px 16px',
+                                backgroundColor: 'var(--neutralLighterAlt)',
+                                borderRadius: '6px',
+                                border: '1px solid var(--neutralLight)'
+                            }}>
+                                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--neutralPrimary)', marginBottom: '4px' }}>
+                                    {intl.get("settings.aiMode.menu.topic")}
+                                </div>
+                                <div style={{ fontSize: '13px', color: 'var(--neutralSecondary)', lineHeight: '1.5' }}>
+                                    {intl.get("settings.aiMode.placeholder.topicHint")}
+                                </div>
+                            </div>
+                            <div style={{
+                                padding: '12px 16px',
+                                backgroundColor: 'var(--neutralLighterAlt)',
+                                borderRadius: '6px',
+                                border: '1px solid var(--neutralLight)'
+                            }}>
+                                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--neutralPrimary)', marginBottom: '4px' }}>
+                                    {intl.get("settings.aiMode.menu.classificationStandard")}
+                                </div>
+                                <div style={{ fontSize: '13px', color: 'var(--neutralSecondary)', lineHeight: '1.5' }}>
+                                    {intl.get("settings.aiMode.placeholder.classificationStandardHint")}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -1489,13 +1574,13 @@ ${articlesText}
                             overflow: 'auto'
                         }} onClick={(e) => e.stopPropagation()}>
                             <div style={{ marginBottom: '16px' }}>
-                                <h2 style={{ margin: 0, fontSize: '21px', fontWeight: 600, color: 'var(--neutralPrimary)' }}>错误</h2>
+                                <h2 style={{ margin: 0, fontSize: '21px', fontWeight: 600, color: 'var(--neutralPrimary)' }}>{intl.get("settings.aiMode.common.error")}</h2>
                             </div>
                             <div style={{ marginBottom: '20px', color: 'var(--neutralPrimary)', fontSize: '14px', whiteSpace: 'pre-wrap' }}>
                                 {errorDialogMessage}
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                <DefaultButton onClick={this.handleCloseErrorDialog} text="确定" />
+                                <DefaultButton onClick={this.handleCloseErrorDialog} text={intl.get("settings.aiMode.common.ok")} />
                             </div>
                         </div>
                     </div>
@@ -1531,14 +1616,18 @@ const mapDispatchToProps = dispatch => ({
     setLoading: (isLoading: boolean) => dispatch(setAIModeLoading(isLoading)),
     setClustering: (isClustering: boolean) => dispatch(setAIModeClustering(isClustering)),
     setError: (error: string | null) => dispatch(setAIModeError(error)),
-    updateApiEndpoint: (apiEndpoint: string) => dispatch(updateAIModeApiEndpoint(apiEndpoint)),
-    updateApiKey: (apiKey: string) => dispatch(updateAIModeApiKey(apiKey)),
+    updateChatApiEndpoint: (chatApiEndpoint: string) => dispatch(updateAIModeChatApiEndpoint(chatApiEndpoint)),
+    updateChatApiKey: (chatApiKey: string) => dispatch(updateAIModeChatApiKey(chatApiKey)),
+    updateEmbeddingApiEndpoint: (embeddingApiEndpoint: string) => dispatch(updateAIModeEmbeddingApiEndpoint(embeddingApiEndpoint)),
+    updateEmbeddingApiKey: (embeddingApiKey: string) => dispatch(updateAIModeEmbeddingApiKey(embeddingApiKey)),
     updateModel: (model: string) => dispatch(updateAIModeModel(model)),
     updateEmbeddingModel: (embeddingModel: string) => dispatch(updateAIModeEmbeddingModel(embeddingModel)),
     updateTopk: (topk: number) => dispatch(updateAIModeTopk(topk)),
     setShowConfigPanel: (showConfigPanel: boolean) => dispatch(setAIModeShowConfigPanel(showConfigPanel)),
-    updateTempApiEndpoint: (tempApiEndpoint: string) => dispatch(updateAIModeTempApiEndpoint(tempApiEndpoint)),
-    updateTempApiKey: (tempApiKey: string) => dispatch(updateAIModeTempApiKey(tempApiKey)),
+    updateTempChatApiEndpoint: (tempChatApiEndpoint: string) => dispatch(updateAIModeTempChatApiEndpoint(tempChatApiEndpoint)),
+    updateTempChatApiKey: (tempChatApiKey: string) => dispatch(updateAIModeTempChatApiKey(tempChatApiKey)),
+    updateTempEmbeddingApiEndpoint: (tempEmbeddingApiEndpoint: string) => dispatch(updateAIModeTempEmbeddingApiEndpoint(tempEmbeddingApiEndpoint)),
+    updateTempEmbeddingApiKey: (tempEmbeddingApiKey: string) => dispatch(updateAIModeTempEmbeddingApiKey(tempEmbeddingApiKey)),
     updateTempModel: (tempModel: string) => dispatch(updateAIModeTempModel(tempModel)),
     updateTempEmbeddingModel: (tempEmbeddingModel: string) => dispatch(updateAIModeTempEmbeddingModel(tempEmbeddingModel)),
     updateTempTopk: (tempTopk: string) => dispatch(updateAIModeTempTopk(tempTopk)),

@@ -1,14 +1,17 @@
 import OpenAI from "openai"
 import * as db from "./db"
 import lf from "lovefield"
+import intl from "react-intl-universal"
 import type { RSSItem } from "./models/item"
 import type { QueryProgressStep, QueryProgress, ArticleCluster } from "./models/ai-mode"
 
 // ==================== 配置和回调接口 ====================
 
 export interface ConsolidateConfig {
-    apiEndpoint: string
-    apiKey: string
+    chatApiEndpoint: string
+    chatApiKey: string
+    embeddingApiEndpoint: string
+    embeddingApiKey: string
     embeddingModel: string
     model: string
     topk: number
@@ -117,14 +120,14 @@ export async function computeTopicEmbedding(
     topic: string,
     config: ConsolidateConfig
 ): Promise<number[]> {
-    const { apiEndpoint, apiKey, embeddingModel } = config
+    const { embeddingApiEndpoint, embeddingApiKey, embeddingModel } = config
 
     // 验证API配置
-    if (!apiEndpoint || !apiEndpoint.trim()) {
-        throw new Error('请先配置API Endpoint（在设置中配置）')
+    if (!embeddingApiEndpoint || !embeddingApiEndpoint.trim()) {
+        throw new Error('请先配置Embedding API Endpoint（在设置中配置）')
     }
-    if (!apiKey || !apiKey.trim()) {
-        throw new Error('请先配置API Key（在设置中配置）')
+    if (!embeddingApiKey || !embeddingApiKey.trim()) {
+        throw new Error('请先配置Embedding API Key（在设置中配置）')
     }
     if (!embeddingModel || !embeddingModel.trim()) {
         throw new Error('请先配置Embedding模型名称（在设置中配置）')
@@ -142,9 +145,9 @@ export async function computeTopicEmbedding(
     // 缓存中没有，需要计算
 
     // 规范化endpoint URL
-    let normalizedEndpoint = apiEndpoint.trim()
+    let normalizedEndpoint = embeddingApiEndpoint.trim()
     if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-        throw new Error('API Endpoint必须以http://或https://开头')
+        throw new Error('Embedding API Endpoint必须以http://或https://开头')
     }
 
     // 提取base URL（用于embedding API）
@@ -157,12 +160,12 @@ export async function computeTopicEmbedding(
             baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
         }
     } catch (error) {
-        throw new Error(`无效的API Endpoint URL: ${normalizedEndpoint}`)
+        throw new Error(`无效的Embedding API Endpoint URL: ${normalizedEndpoint}`)
     }
 
     try {
         const openai = new OpenAI({
-            apiKey: apiKey,
+            apiKey: embeddingApiKey,
             baseURL: baseURL,
             dangerouslyAllowBrowser: true
         })
@@ -200,22 +203,22 @@ export async function computeAndStoreEmbeddings(
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<void> {
-    const { apiEndpoint, apiKey, embeddingModel } = config
+    const { embeddingApiEndpoint, embeddingApiKey, embeddingModel } = config
 
     if (articles.length === 0) {
         return
     }
 
     // 验证API配置
-    if (!apiEndpoint || !apiEndpoint.trim()) {
+    if (!embeddingApiEndpoint || !embeddingApiEndpoint.trim()) {
         return
     }
-    if (!apiKey || !apiKey.trim()) {
+    if (!embeddingApiKey || !embeddingApiKey.trim()) {
         return
     }
 
     // 规范化endpoint URL
-    let normalizedEndpoint = apiEndpoint.trim()
+    let normalizedEndpoint = embeddingApiEndpoint.trim()
     if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
         return
     }
@@ -245,7 +248,7 @@ export async function computeAndStoreEmbeddings(
 
     try {
         const openai = new OpenAI({
-            apiKey: apiKey,
+            apiKey: embeddingApiKey,
             baseURL: baseURL,
             dangerouslyAllowBrowser: true
         })
@@ -277,7 +280,12 @@ export async function computeAndStoreEmbeddings(
             completedCount++
             const progress = Math.floor((completedCount / totalBatches) * 100)
             callbacks.updateStepStatus('vectorize-text', 'in_progress', 
-                `正在并行计算向量... 已完成 ${completedCount}/${totalBatches} 批 (${Math.min(completedCount * batchSize, totalArticles)}/${totalArticles})`, 
+                intl.get("settings.aiMode.progress.messages.computingVectorsInParallel", { 
+                    completed: completedCount, 
+                    total: totalBatches, 
+                    processed: Math.min(completedCount * batchSize, totalArticles), 
+                    totalArticles: totalArticles 
+                }), 
                 progress)
         }
         
@@ -342,7 +350,7 @@ export async function stepQueryDatabase(
     timeRangeDays: number | null,
     callbacks: ConsolidateCallbacks
 ): Promise<RSSItem[]> {
-    callbacks.updateStepStatus('query-db', 'in_progress', '正在从数据库查询文章...')
+    callbacks.updateStepStatus('query-db', 'in_progress', intl.get("settings.aiMode.progress.messages.queryingArticles"))
     
     // 等待数据库初始化
     let retries = 0
@@ -352,7 +360,7 @@ export async function stepQueryDatabase(
     }
     
     if (!db.itemsDB || !db.items) {
-        callbacks.updateStepStatus('query-db', 'error', '数据库未初始化')
+        callbacks.updateStepStatus('query-db', 'error', intl.get("settings.aiMode.progress.messages.databaseNotInitialized"))
         throw new Error('数据库未初始化，请稍后再试')
     }
 
@@ -378,7 +386,7 @@ export async function stepQueryDatabase(
         ? await queryBuilder.where(query).exec() as RSSItem[]
         : await queryBuilder.exec() as RSSItem[]
     
-    callbacks.updateStepStatus('query-db', 'completed', `已查询到 ${items.length} 篇文章`)
+    callbacks.updateStepStatus('query-db', 'completed', intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }))
     return items
 }
 
@@ -389,14 +397,14 @@ async function stepComputeTopicEmbedding(
     callbacks: ConsolidateCallbacks
 ): Promise<number[]> {
     const trimmedTopic = topic.trim()
-    callbacks.updateStepStatus('vectorize-text', 'in_progress', `正在计算话题"${trimmedTopic}"的向量...`)
+    callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.computingTopicEmbedding", { topic: trimmedTopic }))
     
     try {
         const topicEmbedding = await computeTopicEmbedding(trimmedTopic, config)
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', '话题向量计算完成')
+        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.topicEmbeddingCompleted"))
         return topicEmbedding
     } catch (error) {
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', '计算话题向量失败，使用全文匹配')
+        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.topicEmbeddingFailed"))
         throw error
     }
 }
@@ -406,11 +414,11 @@ async function stepLoadEmbeddings(
     items: RSSItem[],
     callbacks: ConsolidateCallbacks
 ): Promise<void> {
-    callbacks.updateStepStatus('vectorize-text', 'in_progress', '正在从数据库加载已有文章向量...')
+    callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.loadingEmbeddings"))
     
     const itemIds = items.map(item => item._id)
     if (itemIds.length === 0) {
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', '没有需要加载的文章')
+        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.noArticlesToLoad"))
         return
     }
 
@@ -440,9 +448,9 @@ async function stepLoadEmbeddings(
             }
         }
         
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', `已加载 ${loadedCount} 篇文章的向量`)
+        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.embeddingsLoaded", { count: loadedCount }))
     } catch (error) {
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', '加载向量失败')
+        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.loadEmbeddingsFailed"))
     }
 }
 
@@ -460,11 +468,11 @@ async function stepComputeEmbeddings(
     })
 
     if (articlesNeedingEmbedding.length === 0) {
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', '所有文章已有向量，跳过计算', 100)
+        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.allArticlesHaveEmbeddings"), 100)
         return
     }
 
-    callbacks.updateStepStatus('vectorize-text', 'in_progress', `需要计算 ${articlesNeedingEmbedding.length} 篇文章的向量...`, 0)
+    callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.needComputeEmbeddings", { count: articlesNeedingEmbedding.length }), 0)
     
     try {
         await computeAndStoreEmbeddings(articlesNeedingEmbedding, config, callbacks)
@@ -497,9 +505,9 @@ async function stepComputeEmbeddings(
             }
         }
         
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', `已完成 ${articlesNeedingEmbedding.length} 篇文章的向量计算`, 100)
+        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.embeddingsComputed", { count: articlesNeedingEmbedding.length }), 100)
     } catch (error) {
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', '计算向量失败，继续使用已有向量')
+        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.computeEmbeddingsFailed"))
         // 继续执行，只使用已有embedding的文章
     }
 }
@@ -511,7 +519,7 @@ export async function stepVectorizeText(
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<number[]> {
-    callbacks.updateStepStatus('vectorize-text', 'in_progress', '开始文本向量化...')
+    callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.startVectorization"))
     
     const trimmedTopic = topic.trim()
     
@@ -525,10 +533,10 @@ export async function stepVectorizeText(
         // 子步骤3: 计算新文章向量
         await stepComputeEmbeddings(items, config, callbacks)
         
-        callbacks.updateStepStatus('vectorize-text', 'completed', '文本向量化完成')
+        callbacks.updateStepStatus('vectorize-text', 'completed', intl.get("settings.aiMode.progress.messages.vectorizationCompleted"))
         return topicEmbedding
     } catch (error) {
-        callbacks.updateStepStatus('vectorize-text', 'error', '文本向量化失败')
+        callbacks.updateStepStatus('vectorize-text', 'error', intl.get("settings.aiMode.progress.messages.vectorizationFailed"))
         throw error
     }
 }
@@ -540,7 +548,7 @@ export async function stepCalculateSimilarity(
     topk: number,
     callbacks: ConsolidateCallbacks
 ): Promise<RSSItem[]> {
-    callbacks.updateStepStatus('calculate-similarity', 'in_progress', '正在计算文章相似度...', 0)
+    callbacks.updateStepStatus('calculate-similarity', 'in_progress', intl.get("settings.aiMode.progress.messages.calculatingSimilarity"), 0)
     
     // 过滤出有embedding的文章
     const articlesWithEmbedding = items.filter(item => 
@@ -548,7 +556,7 @@ export async function stepCalculateSimilarity(
     )
     
     if (articlesWithEmbedding.length === 0) {
-        callbacks.updateStepStatus('calculate-similarity', 'completed', '没有可计算相似度的文章')
+        callbacks.updateStepStatus('calculate-similarity', 'completed', intl.get("settings.aiMode.progress.messages.noArticlesForSimilarity"))
         return []
     }
     
@@ -585,7 +593,7 @@ export async function stepCalculateSimilarity(
         // 更新进度
         const processedCount = Math.min(i + batchSize, totalItems)
         const progress = Math.floor((processedCount / totalItems) * 100)
-        callbacks.updateStepStatus('calculate-similarity', 'in_progress', `正在计算相似度... (${processedCount}/${totalItems})`, progress)
+        callbacks.updateStepStatus('calculate-similarity', 'in_progress', intl.get("settings.aiMode.progress.messages.calculatingSimilarityProgress", { processed: processedCount, total: totalItems }), progress)
     }
 
     // 按相似度降序排序
@@ -596,7 +604,7 @@ export async function stepCalculateSimilarity(
         .slice(0, topk)
         .map(item => item.article)
 
-    callbacks.updateStepStatus('calculate-similarity', 'completed', `计算了 ${articlesWithSimilarity.length} 篇文章的相似度，已选择前 ${selectedArticles.length} 篇`)
+    callbacks.updateStepStatus('calculate-similarity', 'completed', intl.get("settings.aiMode.progress.messages.similarityCalculated", { total: articlesWithSimilarity.length, selected: selectedArticles.length }))
 
     return selectedArticles
 }
@@ -608,32 +616,32 @@ export async function stepLLMRefine(
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<RSSItem[]> {
-    const { apiEndpoint, apiKey, model } = config
+    const { chatApiEndpoint, chatApiKey, model } = config
 
     if (articles.length === 0) {
         return []
     }
 
     // 验证API配置
-    if (!apiEndpoint || !apiEndpoint.trim()) {
-        callbacks.updateStepStatus('llm-refine', 'error', '请先配置API Endpoint（在设置中配置）')
+    if (!chatApiEndpoint || !chatApiEndpoint.trim()) {
+        callbacks.updateStepStatus('llm-refine', 'error', intl.get("settings.aiMode.progress.messages.configChatApiEndpoint"))
         return articles // 容错：返回所有文章
     }
-    if (!apiKey || !apiKey.trim()) {
-        callbacks.updateStepStatus('llm-refine', 'error', '请先配置API Key（在设置中配置）')
+    if (!chatApiKey || !chatApiKey.trim()) {
+        callbacks.updateStepStatus('llm-refine', 'error', intl.get("settings.aiMode.progress.messages.configChatApiKey"))
         return articles // 容错：返回所有文章
     }
     if (!model || !model.trim()) {
-        callbacks.updateStepStatus('llm-refine', 'error', '请先配置模型名称（在设置中配置）')
+        callbacks.updateStepStatus('llm-refine', 'error', intl.get("settings.aiMode.progress.messages.configModelName"))
         return articles // 容错：返回所有文章
     }
 
-    callbacks.updateStepStatus('llm-refine', 'in_progress', `正在使用LLM严格筛选 ${articles.length} 篇文章...`, 0)
+    callbacks.updateStepStatus('llm-refine', 'in_progress', intl.get("settings.aiMode.progress.messages.llmFiltering", { count: articles.length }), 0)
 
     // 规范化endpoint URL
-    let normalizedEndpoint = apiEndpoint.trim()
+    let normalizedEndpoint = chatApiEndpoint.trim()
     if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-        callbacks.updateStepStatus('llm-refine', 'error', 'API Endpoint必须以http://或https://开头')
+        callbacks.updateStepStatus('llm-refine', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointInvalid"))
         return articles // 容错：返回所有文章
     }
 
@@ -647,7 +655,7 @@ export async function stepLLMRefine(
             baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
         }
     } catch (error) {
-        callbacks.updateStepStatus('llm-refine', 'error', `无效的API Endpoint URL: ${normalizedEndpoint}`)
+        callbacks.updateStepStatus('llm-refine', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointUrlInvalid", { url: normalizedEndpoint }))
         return articles // 容错：返回所有文章
     }
 
@@ -672,8 +680,13 @@ export async function stepLLMRefine(
     const updateProgress = () => {
         completedCount++
         const progress = Math.floor((completedCount / totalBatches) * 100)
-        callbacks.updateStepStatus('llm-refine', 'in_progress', 
-            `正在并行使用LLM筛选... 已完成 ${completedCount}/${totalBatches} 批 (${Math.min(completedCount * batchSize, totalArticles)}/${totalArticles})`, 
+            callbacks.updateStepStatus('llm-refine', 'in_progress', 
+            intl.get("settings.aiMode.progress.messages.llmFilteringInParallel", { 
+                completed: completedCount, 
+                total: totalBatches, 
+                processed: Math.min(completedCount * batchSize, totalArticles), 
+                totalArticles: totalArticles 
+            }), 
             progress)
     }
     
@@ -719,7 +732,7 @@ ${articlesText}
 请返回JSON格式的筛选结果：`
 
             const openai = new OpenAI({
-                apiKey: apiKey,
+                apiKey: chatApiKey,
                 baseURL: baseURL,
                 dangerouslyAllowBrowser: true
             })
@@ -797,11 +810,11 @@ ${articlesText}
     
     // 如果筛选后没有文章，返回空数组
     if (refinedArticles.length === 0) {
-        callbacks.updateStepStatus('llm-refine', 'completed', `LLM筛选后没有相关文章`)
+        callbacks.updateStepStatus('llm-refine', 'completed', intl.get("settings.aiMode.progress.messages.noRelatedArticlesAfterLLM"))
         return []
     }
     
-    callbacks.updateStepStatus('llm-refine', 'completed', `已完成LLM筛选，从 ${articles.length} 篇中精选出 ${refinedArticles.length} 篇相关文章`)
+    callbacks.updateStepStatus('llm-refine', 'completed', intl.get("settings.aiMode.progress.messages.llmFilteringCompleted", { total: articles.length, refined: refinedArticles.length }))
     return refinedArticles
 }
 
@@ -836,14 +849,14 @@ export async function consolidate(
         // 注意：分类步骤由调用方根据是否有分类依据决定是否添加
         if (callbacks.updateQueryProgress) {
             const steps: QueryProgressStep[] = [
-                { id: 'query-db', title: '根据时间范围筛选', status: 'completed', message: `已查询到 ${items.length} 篇文章`, visible: true },
-                { id: 'llm-refine', title: 'LLM精选', status: 'pending', visible: true }
+                { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
+                { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'pending', visible: true }
             ]
             
             callbacks.updateQueryProgress({
                 steps,
                 currentStepIndex: 1, // 指向LLM精选步骤
-                currentMessage: `文章数量(${items.length})小于等于TopK(${topk})，跳过相似度计算`
+                currentMessage: intl.get("settings.aiMode.progress.messages.skipSimilarityCalculation", { count: items.length, topk: topk })
             })
         }
         
@@ -900,30 +913,30 @@ export async function clusterArticles(
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<ArticleCluster[]> {
-    const { apiEndpoint, apiKey, model } = config
+    const { chatApiEndpoint, chatApiKey, model } = config
 
     if (articles.length === 0) {
         return []
     }
 
     // 验证API配置
-    if (!apiEndpoint || !apiEndpoint.trim()) {
-        throw new Error('请先配置API Endpoint（在设置中配置）')
+    if (!chatApiEndpoint || !chatApiEndpoint.trim()) {
+        throw new Error('请先配置Chat API Endpoint（在设置中配置）')
     }
-    if (!apiKey || !apiKey.trim()) {
-        throw new Error('请先配置API Key（在设置中配置）')
+    if (!chatApiKey || !chatApiKey.trim()) {
+        throw new Error('请先配置Chat API Key（在设置中配置）')
     }
     if (!model || !model.trim()) {
         throw new Error('请先配置模型名称（在设置中配置）')
     }
 
     // 更新进度：开始分类
-    callbacks.updateStepStatus('cluster-articles', 'in_progress', `正在分析 ${articles.length} 篇文章的内容并进行分类...`)
+    callbacks.updateStepStatus('cluster-articles', 'in_progress', intl.get("settings.aiMode.progress.messages.analyzingAndClassifying", { count: articles.length }))
 
     // 规范化endpoint URL
-    let normalizedEndpoint = apiEndpoint.trim()
+    let normalizedEndpoint = chatApiEndpoint.trim()
     if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-        throw new Error('API Endpoint必须以http://或https://开头')
+        throw new Error('Chat API Endpoint必须以http://或https://开头')
     }
 
     // 提取base URL
@@ -936,7 +949,7 @@ export async function clusterArticles(
             baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
         }
     } catch (error) {
-        throw new Error(`无效的API Endpoint URL: ${normalizedEndpoint}`)
+        throw new Error(`无效的Chat API Endpoint URL: ${normalizedEndpoint}`)
     }
 
     // 准备文章内容（限制数量以避免token过多）
@@ -962,8 +975,13 @@ export async function clusterArticles(
     const updateProgress = () => {
         completedCount++
         const progress = Math.floor((completedCount / totalBatches) * 100)
-        callbacks.updateStepStatus('cluster-articles', 'in_progress', 
-            `正在并行分类文章... 已完成 ${completedCount}/${totalBatches} 批 (${Math.min(completedCount * batchSize, totalArticles)}/${totalArticles})`, 
+            callbacks.updateStepStatus('cluster-articles', 'in_progress', 
+            intl.get("settings.aiMode.progress.messages.classifyingInParallel", { 
+                completed: completedCount, 
+                total: totalBatches, 
+                processed: Math.min(completedCount * batchSize, totalArticles), 
+                totalArticles: totalArticles 
+            }), 
             progress)
     }
 
@@ -1014,7 +1032,7 @@ ${articlesText}
 请返回JSON格式的分类结果：`
 
             const openai = new OpenAI({
-                apiKey: apiKey,
+                apiKey: chatApiKey,
                 baseURL: baseURL,
                 dangerouslyAllowBrowser: true
             })
@@ -1094,7 +1112,7 @@ ${articlesText}
 
     // 如果没有任何分类结果，返回空数组
     if (allClassifications.length === 0) {
-        callbacks.updateStepStatus('cluster-articles', 'completed', '分类完成，但没有有效的分类结果')
+        callbacks.updateStepStatus('cluster-articles', 'completed', intl.get("settings.aiMode.progress.messages.classificationCompletedNoResults"))
         return []
     }
 
@@ -1107,10 +1125,10 @@ ${articlesText}
         
         if (uniqueCategories.length > 0) {
             try {
-                callbacks.updateStepStatus('cluster-articles', 'in_progress', '正在合并重复的分类...')
+                callbacks.updateStepStatus('cluster-articles', 'in_progress', intl.get("settings.aiMode.progress.messages.mergingDuplicateCategories"))
 
                 const openai = new OpenAI({
-                    apiKey: apiKey,
+                    apiKey: chatApiKey,
                     baseURL: baseURL,
                     dangerouslyAllowBrowser: true
                 })
@@ -1221,7 +1239,7 @@ ${uniqueCategories.map((cat, idx) => `${idx}. ${cat}`).join('\n')}
         return {
             id: `cluster-${index}`,
             title: category,
-            description: `共 ${uniqueIndices.length} 篇文章`,
+            description: intl.get("settings.aiMode.results.clusterDescription", { count: uniqueIndices.length }),
             articles: uniqueIndices.map(idx => articlesToAnalyze[idx])
         }
     })
@@ -1239,13 +1257,13 @@ ${uniqueCategories.map((cat, idx) => `${idx}. ${cat}`).join('\n')}
     if (unassignedArticles.length > 0) {
         clusters.push({
             id: 'cluster-other',
-            title: '其他',
-            description: '未明确分类的文章',
+            title: intl.get("settings.aiMode.results.otherCategory"),
+            description: intl.get("settings.aiMode.results.unclassifiedDescription"),
             articles: unassignedArticles
         })
     }
 
-    callbacks.updateStepStatus('cluster-articles', 'completed', `已完成分类，共 ${clusters.length} 个分类`)
+    callbacks.updateStepStatus('cluster-articles', 'completed', intl.get("settings.aiMode.progress.messages.classificationCompleted", { count: clusters.length }))
     return clusters
 }
 

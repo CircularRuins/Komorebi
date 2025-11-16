@@ -9,23 +9,29 @@ import { PrimaryButton, DefaultButton } from "@fluentui/react/lib/Button"
 
 type AIConfigProps = {
     display: boolean
-    tempApiEndpoint: string
-    tempApiKey: string
+    tempChatApiEndpoint: string
+    tempChatApiKey: string
+    tempEmbeddingApiEndpoint: string
+    tempEmbeddingApiKey: string
     tempModel: string
     tempEmbeddingModel: string
     tempTopk: string
-    apiEndpoint: string
-    apiKey: string
+    chatApiEndpoint: string
+    chatApiKey: string
+    embeddingApiEndpoint: string
+    embeddingApiKey: string
     model: string
     embeddingModel: string
     topk: number
-    onApiEndpointChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
-    onApiKeyChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
+    onChatApiEndpointChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
+    onChatApiKeyChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
+    onEmbeddingApiEndpointChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
+    onEmbeddingApiKeyChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onModelChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onEmbeddingModelChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onTopkChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
-    onConfirm: (tempApiEndpoint: string, tempApiKey: string, tempModel: string, tempEmbeddingModel: string, tempTopk: string) => void
-    onCancel: (apiEndpoint: string, apiKey: string, model: string, embeddingModel: string, topk: number) => void
+    onConfirm: (tempChatApiEndpoint: string, tempChatApiKey: string, tempEmbeddingApiEndpoint: string, tempEmbeddingApiKey: string, tempModel: string, tempEmbeddingModel: string, tempTopk: string) => void
+    onCancel: (chatApiEndpoint: string, chatApiKey: string, embeddingApiEndpoint: string, embeddingApiKey: string, model: string, embeddingModel: string, topk: number) => void
 }
 
 class AIConfig extends React.Component<AIConfigProps> {
@@ -35,7 +41,7 @@ class AIConfig extends React.Component<AIConfigProps> {
 
     onKeyDown = (event: KeyboardEvent) => {
         if (event.key === "Escape" && this.props.display) {
-            this.props.onCancel(this.props.apiEndpoint, this.props.apiKey, this.props.model, this.props.embeddingModel, this.props.topk)
+            this.props.onCancel(this.props.chatApiEndpoint, this.props.chatApiKey, this.props.embeddingApiEndpoint, this.props.embeddingApiKey, this.props.model, this.props.embeddingModel, this.props.topk)
         }
     }
 
@@ -66,7 +72,7 @@ class AIConfig extends React.Component<AIConfigProps> {
                     <a
                         className="btn"
                         title={intl.get("settings.exit")}
-                        onClick={() => this.props.onCancel(this.props.apiEndpoint, this.props.apiKey, this.props.model, this.props.embeddingModel, this.props.topk)}>
+                        onClick={() => this.props.onCancel(this.props.chatApiEndpoint, this.props.chatApiKey, this.props.embeddingApiEndpoint, this.props.embeddingApiKey, this.props.model, this.props.embeddingModel, this.props.topk)}>
                         <Icon iconName="Back" />
                     </a>
                 </div>
@@ -77,50 +83,81 @@ class AIConfig extends React.Component<AIConfigProps> {
                             itemIcon="Cloud"
                             itemKey="ai-config">
                             <div className="tab-body">
-                            <Label>API Endpoint</Label>
+                            <Label style={{ fontSize: '16px', fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>{intl.get("settings.aiMode.config.chatModelTitle")}</Label>
+                            <Label>{intl.get("settings.aiMode.config.chatApiEndpoint")}</Label>
                             <Stack horizontal>
                                 <Stack.Item grow>
                                     <TextField
-                                        value={this.props.tempApiEndpoint}
-                                        onChange={this.props.onApiEndpointChange}
+                                        value={this.props.tempChatApiEndpoint}
+                                        onChange={this.props.onChatApiEndpointChange}
                                         placeholder="https://api.openai.com/v1/chat/completions"
                                     />
                                 </Stack.Item>
                             </Stack>
                             <span className="settings-hint up">
-                                OpenAI兼容的API端点地址。必须是完整的URL，包含协议(https://)和完整路径(如/v1/chat/completions)
+                                {intl.get("settings.aiMode.config.chatApiEndpointHint")}
                             </span>
 
-                            <Label>API Key</Label>
+                            <Label>{intl.get("settings.aiMode.config.chatApiKey")}</Label>
                             <Stack horizontal>
                                 <Stack.Item grow>
                                     <TextField
                                         type="password"
-                                        value={this.props.tempApiKey}
-                                        onChange={this.props.onApiKeyChange}
+                                        value={this.props.tempChatApiKey}
+                                        onChange={this.props.onChatApiKeyChange}
                                         placeholder="sk-..."
                                     />
                                 </Stack.Item>
                             </Stack>
                             <span className="settings-hint up">
-                                您的API密钥
+                                {intl.get("settings.aiMode.config.chatApiKeyHint")}
                             </span>
 
-                            <Label>模型名称</Label>
+                            <Label>{intl.get("settings.aiMode.config.chatModelName")}</Label>
                             <Stack horizontal>
                                 <Stack.Item grow>
                                     <TextField
                                         value={this.props.tempModel}
                                         onChange={this.props.onModelChange}
-                                        placeholder="请输入模型名称"
+                                        placeholder={intl.get("settings.aiMode.config.chatModelPlaceholder")}
                                     />
                                 </Stack.Item>
                             </Stack>
                             <span className="settings-hint up">
-                                要使用的模型名称，例如：gpt-3.5-turbo, gpt-4, claude-3-opus 等
+                                {intl.get("settings.aiMode.config.chatModelHint")}
                             </span>
 
-                            <Label>Embedding模型名称</Label>
+                            <Label style={{ fontSize: '16px', fontWeight: 600, marginTop: '24px', marginBottom: '8px' }}>{intl.get("settings.aiMode.config.embeddingModelTitle")}</Label>
+                            <Label>{intl.get("settings.aiMode.config.embeddingApiEndpoint")}</Label>
+                            <Stack horizontal>
+                                <Stack.Item grow>
+                                    <TextField
+                                        value={this.props.tempEmbeddingApiEndpoint}
+                                        onChange={this.props.onEmbeddingApiEndpointChange}
+                                        placeholder="https://api.openai.com/v1/embeddings"
+                                    />
+                                </Stack.Item>
+                            </Stack>
+                            <span className="settings-hint up">
+                                {intl.get("settings.aiMode.config.embeddingApiEndpointHint")}
+                            </span>
+
+                            <Label>{intl.get("settings.aiMode.config.embeddingApiKey")}</Label>
+                            <Stack horizontal>
+                                <Stack.Item grow>
+                                    <TextField
+                                        type="password"
+                                        value={this.props.tempEmbeddingApiKey}
+                                        onChange={this.props.onEmbeddingApiKeyChange}
+                                        placeholder="sk-..."
+                                    />
+                                </Stack.Item>
+                            </Stack>
+                            <span className="settings-hint up">
+                                {intl.get("settings.aiMode.config.embeddingApiKeyHint")}
+                            </span>
+
+                            <Label>{intl.get("settings.aiMode.config.embeddingModelName")}</Label>
                             <Stack horizontal>
                                 <Stack.Item grow>
                                     <TextField
@@ -131,10 +168,10 @@ class AIConfig extends React.Component<AIConfigProps> {
                                 </Stack.Item>
                             </Stack>
                             <span className="settings-hint up">
-                                用于计算文章embedding的模型名称，例如：text-embedding-ada-002, text-embedding-3-small 等
+                                {intl.get("settings.aiMode.config.embeddingModelHint")}
                             </span>
 
-                            <Label>TopK 结果数量</Label>
+                            <Label>{intl.get("settings.aiMode.config.topk")}</Label>
                             <Stack horizontal>
                                 <Stack.Item grow>
                                     <TextField
@@ -148,20 +185,20 @@ class AIConfig extends React.Component<AIConfigProps> {
                                 </Stack.Item>
                             </Stack>
                             <span className="settings-hint up">
-                                选择相似度最高的前K篇文章。必须是正整数，建议值：50-200
+                                {intl.get("settings.aiMode.config.topkHint")}
                             </span>
 
                             <Stack horizontal>
                                 <Stack.Item>
                                     <DefaultButton
-                                        text="取消"
-                                        onClick={() => this.props.onCancel(this.props.apiEndpoint, this.props.apiKey, this.props.model, this.props.embeddingModel, this.props.topk)}
+                                        text={intl.get("settings.aiMode.config.cancel")}
+                                        onClick={() => this.props.onCancel(this.props.chatApiEndpoint, this.props.chatApiKey, this.props.embeddingApiEndpoint, this.props.embeddingApiKey, this.props.model, this.props.embeddingModel, this.props.topk)}
                                     />
                                 </Stack.Item>
                                 <Stack.Item>
                                     <PrimaryButton
-                                        text="确认"
-                                        onClick={() => this.props.onConfirm(this.props.tempApiEndpoint, this.props.tempApiKey, this.props.tempModel, this.props.tempEmbeddingModel, this.props.tempTopk)}
+                                        text={intl.get("settings.aiMode.config.confirm")}
+                                        onClick={() => this.props.onConfirm(this.props.tempChatApiEndpoint, this.props.tempChatApiKey, this.props.tempEmbeddingApiEndpoint, this.props.tempEmbeddingApiKey, this.props.tempModel, this.props.tempEmbeddingModel, this.props.tempTopk)}
                                     />
                                 </Stack.Item>
                             </Stack>

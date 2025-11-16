@@ -44,14 +44,22 @@ export class AIModeState {
     isLoading: boolean = false
     isClustering: boolean = false
     error: string | null = null
-    apiEndpoint: string = ''
-    apiKey: string = ''
+    apiEndpoint: string = ''  // 保留用于向后兼容
+    apiKey: string = ''  // 保留用于向后兼容
+    chatApiEndpoint: string = ''
+    chatApiKey: string = ''
+    embeddingApiEndpoint: string = ''
+    embeddingApiKey: string = ''
     model: string = ''
     embeddingModel: string = ''
     topk: number = 100
     showConfigPanel: boolean = false
-    tempApiEndpoint: string = ''
-    tempApiKey: string = ''
+    tempApiEndpoint: string = ''  // 保留用于向后兼容
+    tempApiKey: string = ''  // 保留用于向后兼容
+    tempChatApiEndpoint: string = ''
+    tempChatApiKey: string = ''
+    tempEmbeddingApiEndpoint: string = ''
+    tempEmbeddingApiKey: string = ''
     tempModel: string = ''
     tempEmbeddingModel: string = ''
     tempTopk: string = '100'
@@ -89,6 +97,14 @@ export const UPDATE_AI_MODE_TEMP_API_KEY = "UPDATE_AI_MODE_TEMP_API_KEY"
 export const UPDATE_AI_MODE_TEMP_MODEL = "UPDATE_AI_MODE_TEMP_MODEL"
 export const UPDATE_AI_MODE_TEMP_EMBEDDING_MODEL = "UPDATE_AI_MODE_TEMP_EMBEDDING_MODEL"
 export const UPDATE_AI_MODE_TEMP_TOPK = "UPDATE_AI_MODE_TEMP_TOPK"
+export const UPDATE_AI_MODE_CHAT_API_ENDPOINT = "UPDATE_AI_MODE_CHAT_API_ENDPOINT"
+export const UPDATE_AI_MODE_CHAT_API_KEY = "UPDATE_AI_MODE_CHAT_API_KEY"
+export const UPDATE_AI_MODE_EMBEDDING_API_ENDPOINT = "UPDATE_AI_MODE_EMBEDDING_API_ENDPOINT"
+export const UPDATE_AI_MODE_EMBEDDING_API_KEY = "UPDATE_AI_MODE_EMBEDDING_API_KEY"
+export const UPDATE_AI_MODE_TEMP_CHAT_API_ENDPOINT = "UPDATE_AI_MODE_TEMP_CHAT_API_ENDPOINT"
+export const UPDATE_AI_MODE_TEMP_CHAT_API_KEY = "UPDATE_AI_MODE_TEMP_CHAT_API_KEY"
+export const UPDATE_AI_MODE_TEMP_EMBEDDING_API_ENDPOINT = "UPDATE_AI_MODE_TEMP_EMBEDDING_API_ENDPOINT"
+export const UPDATE_AI_MODE_TEMP_EMBEDDING_API_KEY = "UPDATE_AI_MODE_TEMP_EMBEDDING_API_KEY"
 export const SET_AI_MODE_SHOW_ERROR_DIALOG = "SET_AI_MODE_SHOW_ERROR_DIALOG"
 export const SET_AI_MODE_ERROR_DIALOG_MESSAGE = "SET_AI_MODE_ERROR_DIALOG_MESSAGE"
 export const SET_AI_MODE_ARTICLE_COUNT = "SET_AI_MODE_ARTICLE_COUNT"
@@ -216,6 +232,46 @@ export interface UpdateAIModeTempTopkAction {
     tempTopk: string
 }
 
+export interface UpdateAIModeChatApiEndpointAction {
+    type: typeof UPDATE_AI_MODE_CHAT_API_ENDPOINT
+    chatApiEndpoint: string
+}
+
+export interface UpdateAIModeChatApiKeyAction {
+    type: typeof UPDATE_AI_MODE_CHAT_API_KEY
+    chatApiKey: string
+}
+
+export interface UpdateAIModeEmbeddingApiEndpointAction {
+    type: typeof UPDATE_AI_MODE_EMBEDDING_API_ENDPOINT
+    embeddingApiEndpoint: string
+}
+
+export interface UpdateAIModeEmbeddingApiKeyAction {
+    type: typeof UPDATE_AI_MODE_EMBEDDING_API_KEY
+    embeddingApiKey: string
+}
+
+export interface UpdateAIModeTempChatApiEndpointAction {
+    type: typeof UPDATE_AI_MODE_TEMP_CHAT_API_ENDPOINT
+    tempChatApiEndpoint: string
+}
+
+export interface UpdateAIModeTempChatApiKeyAction {
+    type: typeof UPDATE_AI_MODE_TEMP_CHAT_API_KEY
+    tempChatApiKey: string
+}
+
+export interface UpdateAIModeTempEmbeddingApiEndpointAction {
+    type: typeof UPDATE_AI_MODE_TEMP_EMBEDDING_API_ENDPOINT
+    tempEmbeddingApiEndpoint: string
+}
+
+export interface UpdateAIModeTempEmbeddingApiKeyAction {
+    type: typeof UPDATE_AI_MODE_TEMP_EMBEDDING_API_KEY
+    tempEmbeddingApiKey: string
+}
+
 export interface SetAIModeShowErrorDialogAction {
     type: typeof SET_AI_MODE_SHOW_ERROR_DIALOG
     showErrorDialog: boolean
@@ -287,6 +343,14 @@ export type AIModeActionTypes =
     | UpdateAIModeTempModelAction
     | UpdateAIModeTempEmbeddingModelAction
     | UpdateAIModeTempTopkAction
+    | UpdateAIModeChatApiEndpointAction
+    | UpdateAIModeChatApiKeyAction
+    | UpdateAIModeEmbeddingApiEndpointAction
+    | UpdateAIModeEmbeddingApiKeyAction
+    | UpdateAIModeTempChatApiEndpointAction
+    | UpdateAIModeTempChatApiKeyAction
+    | UpdateAIModeTempEmbeddingApiEndpointAction
+    | UpdateAIModeTempEmbeddingApiKeyAction
     | SetAIModeShowErrorDialogAction
     | SetAIModeErrorDialogMessageAction
     | SetAIModeArticleCountAction
@@ -460,6 +524,62 @@ export function updateAIModeTempTopk(tempTopk: string): AIModeActionTypes {
     }
 }
 
+export function updateAIModeChatApiEndpoint(chatApiEndpoint: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_CHAT_API_ENDPOINT,
+        chatApiEndpoint
+    }
+}
+
+export function updateAIModeChatApiKey(chatApiKey: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_CHAT_API_KEY,
+        chatApiKey
+    }
+}
+
+export function updateAIModeEmbeddingApiEndpoint(embeddingApiEndpoint: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_EMBEDDING_API_ENDPOINT,
+        embeddingApiEndpoint
+    }
+}
+
+export function updateAIModeEmbeddingApiKey(embeddingApiKey: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_EMBEDDING_API_KEY,
+        embeddingApiKey
+    }
+}
+
+export function updateAIModeTempChatApiEndpoint(tempChatApiEndpoint: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_TEMP_CHAT_API_ENDPOINT,
+        tempChatApiEndpoint
+    }
+}
+
+export function updateAIModeTempChatApiKey(tempChatApiKey: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_TEMP_CHAT_API_KEY,
+        tempChatApiKey
+    }
+}
+
+export function updateAIModeTempEmbeddingApiEndpoint(tempEmbeddingApiEndpoint: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_TEMP_EMBEDDING_API_ENDPOINT,
+        tempEmbeddingApiEndpoint
+    }
+}
+
+export function updateAIModeTempEmbeddingApiKey(tempEmbeddingApiKey: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_TEMP_EMBEDDING_API_KEY,
+        tempEmbeddingApiKey
+    }
+}
+
 export function setAIModeShowErrorDialog(showErrorDialog: boolean): AIModeActionTypes {
     return {
         type: SET_AI_MODE_SHOW_ERROR_DIALOG,
@@ -528,8 +648,35 @@ export function setAIModeShowResults(showResults: boolean): AIModeActionTypes {
 
 // 初始化状态：从 localStorage 读取配置
 function getInitialState(): AIModeState {
-    const savedEndpoint = localStorage.getItem('ai-api-endpoint') || 'https://api.openai.com/v1/chat/completions'
-    const savedKey = localStorage.getItem('ai-api-key') || ''
+    // 向后兼容：检查新字段是否存在，如果不存在则从旧字段迁移
+    const savedChatEndpoint = localStorage.getItem('ai-chat-api-endpoint')
+    const savedChatKey = localStorage.getItem('ai-chat-api-key')
+    const savedEmbeddingEndpoint = localStorage.getItem('ai-embedding-api-endpoint')
+    const savedEmbeddingKey = localStorage.getItem('ai-embedding-api-key')
+    
+    // 如果新字段不存在，尝试从旧字段迁移
+    const oldEndpoint = localStorage.getItem('ai-api-endpoint') || 'https://api.openai.com/v1/chat/completions'
+    const oldKey = localStorage.getItem('ai-api-key') || ''
+    
+    const chatApiEndpoint = savedChatEndpoint || oldEndpoint
+    const chatApiKey = savedChatKey || oldKey
+    const embeddingApiEndpoint = savedEmbeddingEndpoint || oldEndpoint
+    const embeddingApiKey = savedEmbeddingKey || oldKey
+    
+    // 如果从旧字段迁移，保存到新字段
+    if (!savedChatEndpoint && oldEndpoint) {
+        localStorage.setItem('ai-chat-api-endpoint', chatApiEndpoint)
+    }
+    if (!savedChatKey && oldKey) {
+        localStorage.setItem('ai-chat-api-key', chatApiKey)
+    }
+    if (!savedEmbeddingEndpoint && oldEndpoint) {
+        localStorage.setItem('ai-embedding-api-endpoint', embeddingApiEndpoint)
+    }
+    if (!savedEmbeddingKey && oldKey) {
+        localStorage.setItem('ai-embedding-api-key', embeddingApiKey)
+    }
+    
     const savedModel = localStorage.getItem('ai-model') || ''
     const savedEmbeddingModel = localStorage.getItem('ai-embedding-model') || 'text-embedding-ada-002'
     const savedTopk = parseInt(localStorage.getItem('ai-topk') || '100', 10)
@@ -539,15 +686,26 @@ function getInitialState(): AIModeState {
     const recentClassificationStandards = savedRecentClassificationStandards ? JSON.parse(savedRecentClassificationStandards) : []
 
     const state = new AIModeState()
-    state.apiEndpoint = savedEndpoint
-    state.apiKey = savedKey
+    // 保留旧字段用于向后兼容
+    state.apiEndpoint = oldEndpoint
+    state.apiKey = oldKey
+    // 新字段
+    state.chatApiEndpoint = chatApiEndpoint
+    state.chatApiKey = chatApiKey
+    state.embeddingApiEndpoint = embeddingApiEndpoint
+    state.embeddingApiKey = embeddingApiKey
     state.model = savedModel
     state.embeddingModel = savedEmbeddingModel
     state.topk = savedTopk
     state.recentTopics = recentTopics
     state.recentClassificationStandards = recentClassificationStandards
-    state.tempApiEndpoint = savedEndpoint
-    state.tempApiKey = savedKey
+    // 临时字段
+    state.tempApiEndpoint = oldEndpoint
+    state.tempApiKey = oldKey
+    state.tempChatApiEndpoint = chatApiEndpoint
+    state.tempChatApiKey = chatApiKey
+    state.tempEmbeddingApiEndpoint = embeddingApiEndpoint
+    state.tempEmbeddingApiKey = embeddingApiKey
     state.tempModel = savedModel
     state.tempEmbeddingModel = savedEmbeddingModel
     state.tempTopk = savedTopk.toString()
@@ -641,6 +799,38 @@ export function aiModeReducer(
 
         case UPDATE_AI_MODE_TEMP_TOPK:
             return { ...state, tempTopk: action.tempTopk }
+
+        case UPDATE_AI_MODE_CHAT_API_ENDPOINT:
+            // 同步到 localStorage
+            localStorage.setItem('ai-chat-api-endpoint', action.chatApiEndpoint)
+            return { ...state, chatApiEndpoint: action.chatApiEndpoint }
+
+        case UPDATE_AI_MODE_CHAT_API_KEY:
+            // 同步到 localStorage
+            localStorage.setItem('ai-chat-api-key', action.chatApiKey)
+            return { ...state, chatApiKey: action.chatApiKey }
+
+        case UPDATE_AI_MODE_EMBEDDING_API_ENDPOINT:
+            // 同步到 localStorage
+            localStorage.setItem('ai-embedding-api-endpoint', action.embeddingApiEndpoint)
+            return { ...state, embeddingApiEndpoint: action.embeddingApiEndpoint }
+
+        case UPDATE_AI_MODE_EMBEDDING_API_KEY:
+            // 同步到 localStorage
+            localStorage.setItem('ai-embedding-api-key', action.embeddingApiKey)
+            return { ...state, embeddingApiKey: action.embeddingApiKey }
+
+        case UPDATE_AI_MODE_TEMP_CHAT_API_ENDPOINT:
+            return { ...state, tempChatApiEndpoint: action.tempChatApiEndpoint }
+
+        case UPDATE_AI_MODE_TEMP_CHAT_API_KEY:
+            return { ...state, tempChatApiKey: action.tempChatApiKey }
+
+        case UPDATE_AI_MODE_TEMP_EMBEDDING_API_ENDPOINT:
+            return { ...state, tempEmbeddingApiEndpoint: action.tempEmbeddingApiEndpoint }
+
+        case UPDATE_AI_MODE_TEMP_EMBEDDING_API_KEY:
+            return { ...state, tempEmbeddingApiKey: action.tempEmbeddingApiKey }
 
         case SET_AI_MODE_SHOW_ERROR_DIALOG:
             return { ...state, showErrorDialog: action.showErrorDialog }

@@ -1,4 +1,5 @@
 import * as React from "react"
+import intl from "react-intl-universal"
 import { TextField } from "@fluentui/react/lib/TextField"
 import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown"
 import { Label } from "@fluentui/react/lib/Label"
@@ -30,7 +31,7 @@ export const AIModeMenuContent: React.FC = () => {
     if (!context) {
         return (
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--neutralSecondary)' }}>
-                AI模式菜单加载中...
+                {intl.get("settings.aiMode.menu.loading")}
             </div>
         )
     }
@@ -82,17 +83,17 @@ export const AIModeMenuContent: React.FC = () => {
 
     const getTimeRangeOptions = (): IDropdownOption[] => {
         return [
-            { key: '1', text: '1天内' },
-            { key: '3', text: '3天内' },
-            { key: '7', text: '7天内' },
-            { key: '14', text: '14天内' }
+            { key: '1', text: intl.get("settings.aiMode.menu.timeRangeOptions.1") },
+            { key: '3', text: intl.get("settings.aiMode.menu.timeRangeOptions.3") },
+            { key: '7', text: intl.get("settings.aiMode.menu.timeRangeOptions.7") },
+            { key: '14', text: intl.get("settings.aiMode.menu.timeRangeOptions.14") }
         ]
     }
 
     return (
         <>
             <div style={{ marginBottom: '8px' }}>
-                <Label style={{ fontSize: '13px', fontWeight: 600, fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>时间范围（必选）</Label>
+                <Label style={{ fontSize: '13px', fontWeight: 600, fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>{intl.get("settings.aiMode.menu.timeRange")}</Label>
                 <Dropdown
                     selectedKey={timeRange}
                     options={getTimeRangeOptions()}
@@ -104,13 +105,10 @@ export const AIModeMenuContent: React.FC = () => {
                     disabled={isLoading}
                     required={true}
                 />
-                <Label styles={{ root: { fontSize: '11px', color: 'var(--neutralSecondary)', marginTop: '4px', fontWeight: 'normal', fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' } }}>
-                    根据文章发布时间筛选。
-                </Label>
             </div>
 
             <div style={{ marginBottom: '8px' }}>
-                <Label style={{ fontSize: '13px', fontWeight: 600, fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>主题（必填）</Label>
+                <Label style={{ fontSize: '13px', fontWeight: 600, fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>{intl.get("settings.aiMode.menu.topic")}</Label>
                 <div style={{ position: 'relative', marginTop: '4px' }}>
                     <TextField
                         componentRef={topicInputRef}
@@ -143,15 +141,12 @@ export const AIModeMenuContent: React.FC = () => {
                         {localTopicInput.length}/300
                     </div>
                 </div>
-                <Label styles={{ root: { fontSize: '11px', color: 'var(--neutralSecondary)', marginTop: '18px', fontWeight: 'normal', fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif', display: 'block' } }}>
-                    灵活输入您关注的主题，如：AI编程领域的进展、建材行业的最新动态等。
-                </Label>
                 
                 {/* 常选主题 */}
                 {recentTopics && recentTopics.length > 0 && (
                     <div style={{ marginTop: '8px' }}>
                         <Label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--neutralSecondary)', marginBottom: '4px', fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>
-                            常选主题
+                            {intl.get("settings.aiMode.menu.recentTopics")}
                         </Label>
                         <div style={{
                             display: 'flex',
@@ -198,7 +193,7 @@ export const AIModeMenuContent: React.FC = () => {
             </div>
 
             <div style={{ marginBottom: '8px' }}>
-                <Label style={{ fontSize: '13px', fontWeight: 600, fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>分类标准（可选）</Label>
+                <Label style={{ fontSize: '13px', fontWeight: 600, fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>{intl.get("settings.aiMode.menu.classificationStandard")}</Label>
                 <div style={{ position: 'relative', marginTop: '4px' }}>
                     <TextField
                         componentRef={classificationStandardInputRef}
@@ -230,15 +225,12 @@ export const AIModeMenuContent: React.FC = () => {
                         {localClassificationStandardInput.length}/300
                     </div>
                 </div>
-                <Label styles={{ root: { fontSize: '11px', color: 'var(--neutralSecondary)', marginTop: '18px', fontWeight: 'normal', fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif', display: 'block' } }}>
-                    可选：输入分类标准，指导AI如何对文章进行分组，如：按行业分类、按事件类型分类等。
-                </Label>
                 
                 {/* 常用分类标准 */}
                 {recentClassificationStandards && recentClassificationStandards.length > 0 && (
                     <div style={{ marginTop: '8px' }}>
                         <Label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--neutralSecondary)', marginBottom: '4px', fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>
-                            常用分类标准
+                            {intl.get("settings.aiMode.menu.recentStandards")}
                         </Label>
                         <div style={{
                             display: 'flex',
@@ -287,7 +279,7 @@ export const AIModeMenuContent: React.FC = () => {
             <div style={{ display: 'flex', gap: '8px', flexDirection: 'column', marginTop: '8px', marginBottom: '8px' }}>
                 <PrimaryButton
                     iconProps={{ iconName: 'Search' }}
-                    text="整理汇总"
+                    text={intl.get("settings.aiMode.menu.generate")}
                     onClick={handleGenerateSummary}
                     disabled={isLoading || isClustering || !timeRange || (!localTopicInput.trim() && !topic)}
                     styles={{ root: { width: '100%' } }}
@@ -295,7 +287,7 @@ export const AIModeMenuContent: React.FC = () => {
                 {filteredArticles && filteredArticles.length > 0 && (
                     <DefaultButton
                         iconProps={{ iconName: 'Clear' }}
-                        text="清空结果"
+                        text={intl.get("settings.aiMode.menu.clear")}
                         onClick={handleClearSummary}
                         disabled={isLoading}
                         styles={{ root: { width: '100%' } }}
