@@ -697,39 +697,47 @@ export async function stepLLMRefine(
         try {
             // 准备当前批次的文章文本
             const articlesText = batch.map((article, index) => {
-                const dateStr = article.date.toLocaleDateString('zh-CN')
+                const dateStr = article.date.toLocaleDateString('en-US')
                 const snippet = article.snippet || (article.content ? article.content.substring(0, 300) : '')
-                return `文章${index}:
-标题: ${article.title}
-发布时间: ${dateStr}
-摘要: ${snippet}`
+                return `Article ${index}:
+Title: ${article.title}
+Published Date: ${dateStr}
+Summary: ${snippet}`
             }).join('\n\n')
 
-            const prompt = `请严格判断以下文章是否真正讨论用户关注的主题"${topic}"。
+            const prompt = `You are tasked with filtering articles to identify only those that truly discuss the topic "${topic}".
 
-要求：
-1. 仔细阅读每篇文章的标题和摘要
-2. 严格检查文章内容是否真正在讨论主题"${topic}"
-3. 只有文章的核心内容与主题"${topic}"直接相关时，才应该被包含在结果中
-4. 如果文章只是简单提及主题，但主要内容不涉及该主题，则不应该被包含
-5. 如果文章内容与主题完全无关，则不应该被包含
-6. 返回JSON格式，包含相关文章的索引：
+## Task
+Analyze each article and determine if it genuinely discusses "${topic}" as a core subject, not just a passing mention.
+
+## Decision Criteria
+Include an article ONLY if:
+- The topic "${topic}" is a central focus of the article's main content
+- The article provides substantial discussion, analysis, or information about "${topic}"
+- The article's primary purpose is to inform readers about "${topic}"
+
+Exclude an article if:
+- The topic is only mentioned briefly or in passing
+- The topic appears in the title/summary but the main content discusses something else
+- The article is completely unrelated to "${topic}"
+
+## Examples
+✅ INCLUDE: An article titled "Latest Developments in ${topic}" that analyzes recent trends and provides detailed insights
+❌ EXCLUDE: An article about "Technology News" that only mentions "${topic}" once in a list of topics
+❌ EXCLUDE: An article where "${topic}" appears in the summary but the body discusses a different subject
+
+## Output Format
+Return a JSON object with the indices (0-based) of articles that meet the criteria:
 {
   "relatedArticleIndices": [0, 2, 5, 7]
 }
 
-注意：
-- articleIndices是文章在列表中的索引（从0开始）
-- 必须严格检查，只有真正讨论主题"${topic}"的文章才应该被包含在relatedArticleIndices中
-- 不要包含只是简单提及主题但主要内容不相关的文章
-- 如果所有文章都真正讨论该主题，返回所有索引
-- 如果所有文章都不真正讨论该主题，返回空数组
-- 请保持严格的标准，确保返回的文章都是真正讨论用户关注主题的
+If all articles discuss the topic, return all indices. If none do, return an empty array.
 
-文章列表：
+## Articles to Analyze
 ${articlesText}
 
-请返回JSON格式的筛选结果：`
+Return the JSON result:`
 
             const openai = new OpenAI({
                 apiKey: chatApiKey,
@@ -743,7 +751,7 @@ ${articlesText}
                 messages: [
                     {
                         role: 'system',
-                        content: '你是一个专业的文章分析助手，擅长判断文章内容是否真正讨论特定主题。请严格按照JSON格式返回结果，只返回JSON对象，不要包含任何其他文本。'
+                        content: 'You are a professional article analysis assistant, skilled at judging whether article content truly discusses a specific topic. Return results strictly in JSON format, only return JSON objects, do not include any other text.'
                     },
                     {
                         role: 'user',
@@ -985,8 +993,8 @@ export async function clusterArticles(
             progress)
     }
 
-    const topicText = topic ? `，这些文章都与话题"${topic}"相关` : ''
-    const classificationStandardText = classificationStandard ? `\n\n分类标准：请按照"${classificationStandard}"的要求给每篇文章分配一个分类标签。例如，如果分类标准是"按公司名称分类"，则讲苹果公司新闻的文章应分类为"苹果"，讲谷歌公司新闻的文章应分类为"谷歌"。` : ''
+    const topicText = topic ? `\n## Context\nThese articles are all related to the topic "${topic}".` : ''
+    const classificationStandardText = classificationStandard ? `\n\n## Classification Standard\nYou must classify articles according to: "${classificationStandard}"\n\n**Example:** If the standard is "classify by company name":\n- Articles about Apple Inc. → "Apple"\n- Articles about Google → "Google"\n- Articles about Microsoft → "Microsoft"` : ''
 
     // 处理单个批次的函数
     const processBatch = async (batchInfo: { batch: RSSItem[], batchNumber: number, batchStart: number }) => {
@@ -995,41 +1003,57 @@ export async function clusterArticles(
         try {
             // 准备当前批次的文章文本
             const articlesText = batch.map((article, index) => {
-                const dateStr = article.date.toLocaleDateString('zh-CN')
+                const dateStr = article.date.toLocaleDateString('en-US')
                 const snippet = article.snippet || (article.content ? article.content.substring(0, 300) : '')
-                return `文章${index}:
-标题: ${article.title}
-发布时间: ${dateStr}
-摘要: ${snippet}`
+                return `Article ${index}:
+Title: ${article.title}
+Published Date: ${dateStr}
+Summary: ${snippet}`
             }).join('\n\n')
 
-            const prompt = `请根据分类标准给以下文章进行分类。
+            const prompt = `Classify the following articles according to the provided standard.${topicText}${classificationStandardText}
 
-${topicText}${classificationStandardText}
+## Task
+Assign one or more classification labels to each article based on the classification standard.
 
-要求：
-1. 仔细阅读每篇文章的标题和摘要
-2. 根据分类标准给每篇文章分配分类标签（一篇文章可以属于多个分类）
-3. 返回JSON格式，格式如下：
+## Classification Rules
+1. **Read carefully**: Analyze the title and summary of each article
+2. **Apply standard**: ${classificationStandard ? `Follow the classification standard "${classificationStandard}" strictly` : 'Classify based on the main content and subject matter'}
+3. **Multiple categories**: An article can belong to multiple categories if it covers multiple topics
+4. **Category names**: Keep category names concise (max 20 characters) and descriptive
+
+## Multi-Category Examples
+If an article discusses both "Apple" and "Google":
+  { "articleIndex": 0, "category": "Apple" }
+  { "articleIndex": 0, "category": "Google" }
+
+If an article is about "AI Technology" and "Healthcare":
+  { "articleIndex": 1, "category": "AI Technology" }
+  { "articleIndex": 1, "category": "Healthcare" }
+
+## Output Format
+Return a JSON array with classification records. Each record contains:
+- articleIndex: The article's position in the list (0-based)
+- category: The classification label (string, max 20 characters)
+
+Format:
 {
   "classifications": [
-    { "articleIndex": 0, "category": "分类名称1" },
-    { "articleIndex": 0, "category": "分类名称2" },
-    { "articleIndex": 1, "category": "分类名称1" }
+    { "articleIndex": 0, "category": "Category Name 1" },
+    { "articleIndex": 0, "category": "Category Name 2" },
+    { "articleIndex": 1, "category": "Category Name 1" }
   ]
 }
 
-注意：
-- articleIndex是文章在列表中的索引（从0开始）
-- category是分类名称，应该简洁明了（不超过20字）
-- 每篇文章至少被分配一个分类，但可以属于多个分类（如果文章内容涉及多个分类）
-- 如果一篇文章属于多个分类，应该在classifications数组中为每个分类添加一条记录
-- ${classificationStandard ? `分类应遵循分类标准"${classificationStandard}"的要求` : '分类应该准确反映文章的主要内容'}
+**Important:**
+- Every article must have at least one classification
+- If an article belongs to multiple categories, create separate records for each
+- Use consistent category names (e.g., don't mix "Apple" and "Apple Inc.")
 
-文章列表：
+## Articles to Classify
 ${articlesText}
 
-请返回JSON格式的分类结果：`
+Return the classification results in JSON format:`
 
             const openai = new OpenAI({
                 apiKey: chatApiKey,
@@ -1043,7 +1067,7 @@ ${articlesText}
                 messages: [
                     {
                         role: 'system',
-                        content: '你是一个专业的文章分析助手，擅长根据分类标准给文章分类。请严格按照JSON格式返回结果，只返回JSON对象，不要包含任何其他文本。'
+                        content: 'You are a professional article analysis assistant, skilled at categorizing articles according to classification standards. Return results strictly in JSON format, only return JSON objects, do not include any other text.'
                     },
                     {
                         role: 'user',
@@ -1133,42 +1157,89 @@ ${articlesText}
                     dangerouslyAllowBrowser: true
                 })
 
-                const deduplicationPrompt = `请识别以下分类名称中的同义词，将同义词合并为一个标准分类名称。
+                const deduplicationPrompt = `Identify synonyms and duplicate category names, then merge them into standardized groups.
 
-分类名称列表：
+## Category Names to Process
 ${uniqueCategories.map((cat, idx) => `${idx}. ${cat}`).join('\n')}
 
-要求：
-1. 识别完全重复的分类（如"苹果"和"苹果"）
-2. 识别同义词（如"苹果"、"Apple"、"苹果公司"应视为同一分类）
-3. 为每个同义词组选择一个标准分类名称（通常选择最常用的那个）
-4. 返回JSON格式，格式如下：
+## Task
+Group category names that refer to the same entity or concept, and select a standard name for each group.
+
+## Identification Rules
+
+### 1. Exact Duplicates
+Categories that are identical (case-insensitive):
+- "Apple" and "apple" → Same group
+- "Google" and "Google" → Same group
+
+### 2. Synonyms and Variations
+Categories that refer to the same entity:
+- **Company names**: "Apple", "Apple Inc.", "Apple Corporation" → Same group
+- **Abbreviations**: "AI", "Artificial Intelligence" → Same group
+- **Common variations**: "Machine Learning", "ML", "machine learning" → Same group
+- **Cross-language**: Categories in different languages referring to the same concept should be grouped together
+
+### 3. Standard Name Selection
+Choose the standard name using these criteria (in order):
+1. Most commonly used variant in the list
+2. Most formal/official name (e.g., "Apple Inc." over "Apple")
+3. Shortest clear name if equally common
+4. English name if cross-language synonyms exist
+
+## Examples
+
+**Example 1 - Company Names:**
+{
+  "standardName": "Apple",
+  "synonyms": ["Apple", "Apple Inc.", "Apple Corporation", "AAPL"]
+}
+
+**Example 2 - Technology Terms:**
+{
+  "standardName": "Artificial Intelligence",
+  "synonyms": ["AI", "Artificial Intelligence", "Machine Intelligence"]
+}
+
+**Example 3 - Standalone Category:**
+{
+  "standardName": "Healthcare",
+  "synonyms": ["Healthcare"]
+}
+
+## Output Format
+Return a JSON object with synonym groups:
 {
   "synonymGroups": [
     {
-      "standardName": "苹果",
-      "synonyms": ["苹果", "Apple", "苹果公司"]
+      "standardName": "Apple",
+      "synonyms": ["Apple", "Apple Inc.", "Apple Corporation"]
     },
     {
-      "standardName": "谷歌",
-      "synonyms": ["谷歌", "Google", "谷歌公司"]
+      "standardName": "Google",
+      "synonyms": ["Google", "Google Inc.", "Alphabet"]
+    },
+    {
+      "standardName": "Healthcare",
+      "synonyms": ["Healthcare"]
     }
   ]
 }
 
-注意：
-- 如果某个分类没有同义词，它应该单独成组
-- standardName 应该是该组的标准分类名称
-- synonyms 数组应包含该组的所有同义词（包括standardName本身）
+## Important Notes
+- Every category name must appear in exactly one group
+- If a category has no synonyms, it forms a single-item group
+- The synonyms array must include standardName itself
+- Handle cross-language synonyms appropriately (group them together)
+- Be consistent: if "Apple" and "Apple Inc." are synonyms, always group them
 
-请返回JSON格式的同义词分组结果：`
+Return the synonym grouping results in JSON format:`
 
                 const completionParams: any = {
                     model: model,
                     messages: [
                         {
                             role: 'system',
-                            content: '你是一个专业的文本分析助手，擅长识别同义词。请严格按照JSON格式返回结果，只返回JSON对象，不要包含任何其他文本。'
+                            content: 'You are a professional text analysis assistant, skilled at identifying synonyms. Return results strictly in JSON format, only return JSON objects, do not include any other text.'
                         },
                         {
                             role: 'user',
