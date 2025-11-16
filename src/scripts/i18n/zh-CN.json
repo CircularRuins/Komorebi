@@ -239,7 +239,11 @@
                 "filteredArticles": "筛选后的文章 ({count} 篇)",
                 "clusterDescription": "共 {count} 篇文章",
                 "otherCategory": "其他",
-                "unclassifiedDescription": "未明确分类的文章"
+                "unclassifiedDescription": "未明确分类的文章",
+                "noArticlesInTimeRange": "所选时间范围内没有文章",
+                "noArticlesInTimeRangeDescription": "请尝试选择不同的时间范围。",
+                "noArticlesMatchTopic": "没有符合主题的文章",
+                "noArticlesMatchTopicDescription": "请尝试调整主题，或选择不同的时间范围。"
             },
             "errors": {
                 "selectTimeRange": "请先选择文章发布时间",

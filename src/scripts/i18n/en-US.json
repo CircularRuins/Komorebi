@@ -241,7 +241,11 @@
                 "filteredArticles": "Filtered Articles ({count} articles)",
                 "clusterDescription": "{count} articles in total",
                 "otherCategory": "Other",
-                "unclassifiedDescription": "Unclassified articles"
+                "unclassifiedDescription": "Unclassified articles",
+                "noArticlesInTimeRange": "No articles found in the selected time range",
+                "noArticlesInTimeRangeDescription": "Please try selecting a different time range.",
+                "noArticlesMatchTopic": "No articles match the topic",
+                "noArticlesMatchTopicDescription": "Please try adjusting the topic, or select a different time range."
             },
             "errors": {
                 "selectTimeRange": "Please select article publication time first",

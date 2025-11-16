@@ -57,6 +57,7 @@ import {
     setAIModeArticleCount,
     setAIModeFilteredArticles,
     setAIModeClusters,
+    setAIModeTimeRangeHasArticles,
     updateAIModeQueryProgress,
     updateAIModeStepStatus,
     setAIModeShowResults,
@@ -98,6 +99,7 @@ export type AIModeContextType = {
     setTopic: (topic: string) => void
     setTopicInput: (topicInput: string) => void
     setIsComposing: (isComposing: boolean) => void
+    queryProgress: QueryProgress | null
     handleGenerateSummary: () => void
     handleClearSummary: () => void
     handleConfigPanelOpen: () => void
@@ -162,6 +164,7 @@ type AIModeProps = {
     setArticleCount: (articleCount: number) => void
     setFilteredArticles: (filteredArticles: RSSItem[]) => void
     setClusters: (clusters: ArticleCluster[]) => void
+    setTimeRangeHasArticles: (timeRangeHasArticles: boolean) => void
     updateQueryProgress: (queryProgress: QueryProgress | null) => void
     updateStepStatus: (stepId: string, status: QueryProgressStep['status'], message?: string, progress?: number) => void
     setShowResults: (showResults: boolean) => void
@@ -274,6 +277,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             error: aiMode.error,
             filteredArticles: aiMode.filteredArticles,
             clusters: aiMode.clusters,
+            queryProgress: aiMode.queryProgress,
             setTimeRange: updateTimeRange,
             setTopic: updateTopic,
             setTopicInput: updateTopicInput,
@@ -528,19 +532,16 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         return null
     }
 
-    // 初始化查询进度（默认5个步骤，如果文章数量<=topk会在consolidate中动态调整为3个步骤）
+    // 初始化查询进度（只添加第一步，后续步骤根据实际执行情况动态添加）
     initializeQueryProgress = (hasTopic: boolean, hasClassificationStandard: boolean): QueryProgress => {
+        // 只添加第一步，后续步骤根据实际执行情况动态添加
+        // 如果按时间范围筛选后没有文章，流程会提前结束，不会有后续步骤
         const steps: QueryProgressStep[] = [
-            { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: 'in_progress', message: intl.get("settings.aiMode.progress.messages.querying"), visible: true },
-            { id: 'vectorize-text', title: intl.get("settings.aiMode.progress.steps.vectorizeText"), status: 'pending', visible: false },
-            { id: 'calculate-similarity', title: intl.get("settings.aiMode.progress.steps.calculateSimilarity"), status: 'pending', visible: false },
-            { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'pending', visible: false }
+            { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: 'in_progress', message: intl.get("settings.aiMode.progress.messages.querying"), visible: true }
         ]
         
-        // 只有当有话题且有分类依据时，才添加分类步骤
-        if (hasTopic && hasClassificationStandard) {
-            steps.push({ id: 'cluster-articles', title: intl.get("settings.aiMode.progress.steps.clusterArticles"), status: 'pending', visible: false })
-        }
+        // 注意：所有后续步骤（vectorize-text, calculate-similarity, llm-refine, cluster-articles）
+        // 都根据实际执行情况动态添加，不在这里预先添加
         
         return {
             steps,
@@ -551,21 +552,40 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     }
 
     // 更新查询进度（现在直接使用 Redux action）
-    updateQueryProgress = (updates: Partial<QueryProgress>) => {
+    updateQueryProgress = (updates: Partial<QueryProgress> | QueryProgress) => {
         const { aiMode, updateQueryProgress } = this.props
+        
+        // 如果传入的是完整的 QueryProgress 对象（有 steps 且所有必需字段都存在），直接使用
+        if ('steps' in updates && 'currentStepIndex' in updates && 'overallProgress' in updates && 'currentMessage' in updates) {
+            updateQueryProgress(updates as QueryProgress)
+            return
+        }
+        
         if (!aiMode.queryProgress) return
         
-        const progress = { ...aiMode.queryProgress, ...updates }
-        
-        // 计算总体进度
-        const totalSteps = progress.steps.length
-        const completedSteps = progress.steps.filter(s => s.status === 'completed').length
-        const currentStep = progress.steps[progress.currentStepIndex]
-        const stepProgress = currentStep?.progress || 0
-        const baseProgress = (completedSteps / totalSteps) * 100
-        const currentStepWeight = 1 / totalSteps
-        const currentStepProgress = (stepProgress / 100) * currentStepWeight * 100
-        progress.overallProgress = Math.min(100, baseProgress + currentStepProgress)
+        // 如果传入了 steps，完全替换；否则合并
+        let progress: QueryProgress
+        if (updates.steps) {
+            // 完全替换，使用传入的 steps，确保移除所有未执行的步骤
+            progress = {
+                steps: updates.steps,
+                currentStepIndex: updates.currentStepIndex ?? (updates.steps.length - 1),
+                overallProgress: updates.overallProgress ?? 100,
+                currentMessage: updates.currentMessage ?? updates.steps[updates.steps.length - 1]?.message ?? intl.get("settings.aiMode.progress.messages.completed")
+            }
+        } else {
+            // 合并更新
+            progress = { ...aiMode.queryProgress, ...updates }
+            // 计算总体进度
+            const totalSteps = progress.steps.length
+            const completedSteps = progress.steps.filter(s => s.status === 'completed').length
+            const currentStep = progress.steps[progress.currentStepIndex]
+            const stepProgress = currentStep?.progress || 0
+            const baseProgress = (completedSteps / totalSteps) * 100
+            const currentStepWeight = 1 / totalSteps
+            const currentStepProgress = (stepProgress / 100) * currentStepWeight * 100
+            progress.overallProgress = Math.min(100, baseProgress + currentStepProgress)
+        }
         
         updateQueryProgress(progress)
     }
@@ -587,7 +607,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
 
 
     // ==================== 主函数: 查询符合条件的文章（使用consolidate函数）====================
-    queryArticles = async (timeRangeDays: number | null, topic: string | null): Promise<RSSItem[]> => {
+    queryArticles = async (timeRangeDays: number | null, topic: string | null): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean }> => {
         const { aiMode, updateQueryProgress } = this.props
         
         const config: ConsolidateConfig = {
@@ -603,6 +623,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         const callbacks: ConsolidateCallbacks = {
             updateStepStatus: this.updateStepStatus,
             updateQueryProgress: updateQueryProgress,
+            getCurrentQueryProgress: () => aiMode.queryProgress,
         }
         
         return await consolidate(timeRangeDays, topic, config, callbacks)
@@ -725,7 +746,7 @@ ${articlesText}
     handleGenerateSummary = async () => {
         const { aiMode } = this.props
         const { timeRange, topicInput } = aiMode
-        const { updateTopic, updateTopicInput, updateClassificationStandard, updateClassificationStandardInput, setLoading, setClustering, setError, setSummary, setArticleCount, setFilteredArticles, setClusters, updateQueryProgress, setShowResults, setShowErrorDialog, setErrorDialogMessage } = this.props
+        const { updateTopic, updateTopicInput, updateClassificationStandard, updateClassificationStandardInput, setLoading, setClustering, setError, setSummary, setArticleCount, setFilteredArticles, setClusters, setTimeRangeHasArticles, updateQueryProgress, setShowResults, setShowErrorDialog, setErrorDialogMessage } = this.props
 
         // 验证时间范围必须选择
         if (!timeRange) {
@@ -787,20 +808,12 @@ ${articlesText}
             const timeRangeDays = this.parseTimeRange(timeRange)
 
             // 查询文章（根据时间范围和话题）
-            const articles = await this.queryArticles(timeRangeDays, currentTopic)
+            const result = await this.queryArticles(timeRangeDays, currentTopic)
+            const { articles, timeRangeHasArticles } = result
             
-            if (articles.length === 0) {
-                const topicMessage = currentTopic ? intl.get("settings.aiMode.errors.noArticlesWithTopic", { topic: currentTopic }) : ''
-                setLoading(false)
-                setError(intl.get("settings.aiMode.errors.noArticles", { message: topicMessage }))
-                updateQueryProgress(null)
-                if (typeof window !== 'undefined') {
-                    const event = new CustomEvent('aiModeUpdated')
-                    window.dispatchEvent(event)
-                }
-                return
-            }
-
+            // 保存时间范围内是否有文章的信息
+            setTimeRangeHasArticles(timeRangeHasArticles)
+            
             // 将文章添加到 Redux store，确保可以点击查看
             const { sources } = this.props
             
@@ -817,7 +830,23 @@ ${articlesText}
             setArticleCount(articlesWithValidSources.length)
             setFilteredArticles(articlesWithValidSources)
             setClusters([])
+            setError(null) // 清除错误状态
             setLoading(false)
+            
+            // 如果无文章，完成查询进度并保持在进度界面
+            // consolidate 函数已经更新了 queryProgress，只包含实际执行的步骤，移除了所有未执行的步骤
+            // 这里不需要再做任何处理，直接使用 consolidate 函数更新后的 queryProgress
+            if (articlesWithValidSources.length === 0) {
+                // 确保分类相关状态已清除
+                setClustering(false)
+                setClusters([])
+                
+                if (typeof window !== 'undefined') {
+                    const event = new CustomEvent('aiModeUpdated')
+                    window.dispatchEvent(event)
+                }
+                return
+            }
             
             // 检查是否有话题和分类依据
             const hasTopic = currentTopic && currentTopic.trim()
@@ -835,6 +864,25 @@ ${articlesText}
             }
             
             // 有分类依据，执行分类步骤
+            // 只有在真正需要执行分类时，才添加 cluster-articles 步骤
+            if (aiMode.queryProgress) {
+                // 检查是否已经有 cluster-articles 步骤
+                const hasClusterStep = aiMode.queryProgress.steps.some(step => step.id === 'cluster-articles')
+                if (!hasClusterStep) {
+                    // 添加 cluster-articles 步骤
+                    const updatedSteps: QueryProgressStep[] = [
+                        ...aiMode.queryProgress.steps,
+                        { id: 'cluster-articles', title: intl.get("settings.aiMode.progress.steps.clusterArticles"), status: 'pending' as const, visible: false }
+                    ]
+                    updateQueryProgress({
+                        steps: updatedSteps,
+                        currentStepIndex: aiMode.queryProgress.currentStepIndex,
+                        overallProgress: aiMode.queryProgress.overallProgress,
+                        currentMessage: aiMode.queryProgress.currentMessage
+                    })
+                }
+            }
+            
             setClustering(true)
             if (typeof window !== 'undefined') {
                 const event = new CustomEvent('aiModeUpdated')
@@ -889,6 +937,14 @@ ${articlesText}
         setClusters([])
         setShowResults(false)
         updateQueryProgress(null)
+        
+        // 延迟触发事件，确保 Redux 状态更新完成后再更新 Context
+        if (typeof window !== 'undefined') {
+            setTimeout(() => {
+                const event = new CustomEvent('aiModeUpdated')
+                window.dispatchEvent(event)
+            }, 0)
+        }
     }
 
     handleShowResults = () => {
@@ -952,17 +1008,21 @@ ${articlesText}
         const currentProgress = queryProgress || aiMode.queryProgress
         const hasResults = filteredArticles.length > 0
         
-        // 检查所有步骤是否完成
-        const allStepsCompleted = currentProgress ? 
-            currentProgress.steps.every(step => step.status === 'completed' || step.status === 'error') : 
-            false
+        // 动态检查所有可见步骤是否完成
+        const allStepsCompleted = currentProgress ? (() => {
+            const visibleSteps = currentProgress.steps.filter(step => step.visible !== false)
+            // 确保没有 in_progress 的步骤，且所有可见步骤都是 completed 或 error
+            const hasInProgress = visibleSteps.some(step => step.status === 'in_progress')
+            const allVisibleCompleted = visibleSteps.length > 0 && visibleSteps.every(step => step.status === 'completed' || step.status === 'error')
+            return !hasInProgress && allVisibleCompleted
+        })() : false
         
-        // 关键逻辑：如果所有步骤完成且有结果但未显示结果，必须显示进度界面（带"查看结果"按钮）
+        // 关键逻辑：如果所有步骤完成但未显示结果，必须显示进度界面（带"查看结果"按钮或"无结果"提示）
         // 这个条件优先级最高，确保步骤完成后页面不会消失
-        // 即使没有 currentProgress，只要有结果且不在加载中，也认为步骤已完成
-        const shouldShowProgressForCompleted = !showResults && hasResults && !isLoading && !isClustering && (
-            allStepsCompleted ||  // 有进度且所有步骤完成
-            (!currentProgress && hasResults)  // 没有进度但有结果（说明步骤已完成，只是进度信息丢失了）
+        // 即使没有 currentProgress，只要不在加载中且已完成查询，也认为步骤已完成
+        const shouldShowProgressForCompleted = !showResults && !isLoading && !isClustering && (
+            (hasResults && (allStepsCompleted || !currentProgress)) ||  // 有结果且步骤完成
+            (!hasResults && allStepsCompleted && currentProgress)  // 无结果但步骤完成（显示无结果提示）
         )
         
         // 其他情况显示进度界面：正在加载或聚类中，或有进度但未完成
@@ -1145,25 +1205,28 @@ ${articlesText}
                     const actualStepCount = progress?.steps?.length || 0
                     const needsRecreate = !progress || actualStepCount === 0
                     
+                    // 确保 shouldShowProgressForCompleted 是布尔值
+                    const isCompleted = Boolean(shouldShowProgressForCompleted)
+                    
                     // 只有在确实没有进度时才创建默认进度
                     // 如果 aiMode.queryProgress 存在，即使步骤数量不对，也不要重新创建，因为状态可能正在更新中
                     // 步骤数量可能是2（文章数量<=topk且无分类依据）、3（文章数量<=topk且有分类依据）、6（文章数量>topk且无分类依据）或7（文章数量>topk且有分类依据）
                     if (needsRecreate && !aiMode.queryProgress) {
-                        const defaultStatus = shouldShowProgressForCompleted ? 'completed' as const : 'in_progress' as const
-                        const defaultMessage = shouldShowProgressForCompleted ? intl.get("settings.aiMode.progress.messages.completed") : intl.get("settings.aiMode.progress.messages.querying")
+                        const defaultStatus = isCompleted ? 'completed' as const : 'in_progress' as const
+                        const defaultMessage = isCompleted ? intl.get("settings.aiMode.progress.messages.completed") : intl.get("settings.aiMode.progress.messages.querying")
                         
                         // 注意：分类步骤由 initializeQueryProgress 根据是否有话题和分类依据决定是否添加
                         progress = {
                             steps: [
                                 { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: defaultStatus, message: defaultMessage, visible: true },
-                                { id: 'compute-topic-embedding', title: intl.get("settings.aiMode.progress.steps.computeTopicEmbedding"), status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
-                                { id: 'load-embeddings', title: intl.get("settings.aiMode.progress.steps.loadEmbeddings"), status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
-                                { id: 'compute-embeddings', title: intl.get("settings.aiMode.progress.steps.computeEmbeddings"), status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
-                                { id: 'calculate-similarity', title: intl.get("settings.aiMode.progress.steps.calculateSimilarity"), status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted },
-                                { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: shouldShowProgressForCompleted ? 'completed' as const : 'pending' as const, visible: shouldShowProgressForCompleted }
+                                { id: 'compute-topic-embedding', title: intl.get("settings.aiMode.progress.steps.computeTopicEmbedding"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted },
+                                { id: 'load-embeddings', title: intl.get("settings.aiMode.progress.steps.loadEmbeddings"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted },
+                                { id: 'compute-embeddings', title: intl.get("settings.aiMode.progress.steps.computeEmbeddings"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted },
+                                { id: 'calculate-similarity', title: intl.get("settings.aiMode.progress.steps.calculateSimilarity"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted },
+                                { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted }
                             ],
-                            currentStepIndex: shouldShowProgressForCompleted ? 5 : 0,
-                            overallProgress: shouldShowProgressForCompleted ? 100 : 0,
+                            currentStepIndex: isCompleted ? 5 : 0,
+                            overallProgress: isCompleted ? 100 : 0,
                             currentMessage: defaultMessage
                         }
                     }
@@ -1390,65 +1453,121 @@ ${articlesText}
                                 </div>
                             </div>
 
-                            {/* 所有步骤完成后的"查看结果"按钮 - 深色卡片 */}
+                            {/* 所有步骤完成后的"查看结果"按钮或"无结果"提示 - 深色卡片 */}
                             {(() => {
-                                const allStepsCompleted = progress.steps.every(step => 
-                                    step.status === 'completed' || step.status === 'error'
-                                )
+                                // 动态检查所有可见步骤是否完成
+                                const allStepsCompleted = progress ? (() => {
+                                    const visibleSteps = progress.steps.filter(step => step.visible !== false)
+                                    // 确保没有 in_progress 的步骤，且所有可见步骤都是 completed 或 error
+                                    const hasInProgress = visibleSteps.some(step => step.status === 'in_progress')
+                                    const allVisibleCompleted = visibleSteps.length > 0 && visibleSteps.every(step => step.status === 'completed' || step.status === 'error')
+                                    return !hasInProgress && allVisibleCompleted
+                                })() : false
                                 const hasResults = filteredArticles.length > 0
                                 
-                                if (allStepsCompleted && hasResults && !showResults) {
-                                    return (
-                                        <div style={{
-                                            backgroundColor: '#1e1e1e', // Cursor风格的深色背景
-                                            borderRadius: '8px',
-                                            padding: '24px',
-                                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                                            textAlign: 'center',
-                                            flexShrink: 0
-                                        }}>
+                                // 如果所有步骤完成且未显示结果，显示提示
+                                if (allStepsCompleted && !showResults) {
+                                    // 有结果时显示"查看结果"按钮
+                                    if (hasResults) {
+                                        return (
                                             <div style={{
-                                                fontSize: '16px',
-                                                fontWeight: 500,
-                                                color: '#ffffff',
-                                                marginBottom: '12px'
+                                                backgroundColor: '#1e1e1e', // Cursor风格的深色背景
+                                                borderRadius: '8px',
+                                                padding: '24px',
+                                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                                textAlign: 'center',
+                                                flexShrink: 0
                                             }}>
-                                                {intl.get("settings.aiMode.progress.messages.completed")}
+                                                <div style={{
+                                                    fontSize: '16px',
+                                                    fontWeight: 500,
+                                                    color: '#ffffff',
+                                                    marginBottom: '12px'
+                                                }}>
+                                                    {intl.get("settings.aiMode.progress.messages.completed")}
+                                                </div>
+                                                <div style={{
+                                                    fontSize: '13px',
+                                                    color: '#858585',
+                                                    marginBottom: '20px'
+                                                }}>
+                                                    {intl.get("settings.aiMode.progress.foundArticles", { 
+                                                        count: filteredArticles.length, 
+                                                        clusters: clusters.length > 0 
+                                                            ? intl.get("settings.aiMode.progress.foundArticlesWithClusters", { count: clusters.length })
+                                                            : intl.get("settings.aiMode.progress.foundArticlesNoClusters")
+                                                    })}
+                                                </div>
+                                                <PrimaryButton
+                                                    iconProps={{ iconName: 'View' }}
+                                                    text={intl.get("settings.aiMode.progress.viewResults")}
+                                                    onClick={this.handleShowResults}
+                                                    styles={{
+                                                        root: {
+                                                            backgroundColor: '#4ec9b0',
+                                                            borderColor: '#4ec9b0',
+                                                            minWidth: '150px'
+                                                        },
+                                                        rootHovered: {
+                                                            backgroundColor: '#5ed9c0',
+                                                            borderColor: '#5ed9c0'
+                                                        },
+                                                        rootPressed: {
+                                                            backgroundColor: '#3eb9a0',
+                                                            borderColor: '#3eb9a0'
+                                                        }
+                                                    }}
+                                                />
                                             </div>
+                                        )
+                                    } else {
+                                        // 无结果时显示"无结果"提示卡片
+                                        const { aiMode } = this.props
+                                        const timeRangeHasArticles = aiMode.timeRangeHasArticles
+                                        const noResultTitle = timeRangeHasArticles 
+                                            ? intl.get("settings.aiMode.results.noArticlesMatchTopic")
+                                            : intl.get("settings.aiMode.results.noArticlesInTimeRange")
+                                        const noResultDescription = timeRangeHasArticles
+                                            ? intl.get("settings.aiMode.results.noArticlesMatchTopicDescription")
+                                            : intl.get("settings.aiMode.results.noArticlesInTimeRangeDescription")
+                                        
+                                        return (
                                             <div style={{
-                                                fontSize: '13px',
-                                                color: '#858585',
-                                                marginBottom: '20px'
+                                                backgroundColor: '#1e1e1e', // Cursor风格的深色背景
+                                                borderRadius: '8px',
+                                                padding: '24px',
+                                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                                textAlign: 'center',
+                                                flexShrink: 0
                                             }}>
-                                                {intl.get("settings.aiMode.progress.foundArticles", { 
-                                                    count: filteredArticles.length, 
-                                                    clusters: clusters.length > 0 
-                                                        ? intl.get("settings.aiMode.progress.foundArticlesWithClusters", { count: clusters.length })
-                                                        : intl.get("settings.aiMode.progress.foundArticlesNoClusters")
-                                                })}
+                                                <Icon 
+                                                    iconName="Info" 
+                                                    style={{ 
+                                                        fontSize: '48px', 
+                                                        color: '#4ec9b0',
+                                                        marginBottom: '16px'
+                                                    }} 
+                                                />
+                                                <div style={{
+                                                    fontSize: '16px',
+                                                    fontWeight: 500,
+                                                    color: '#ffffff',
+                                                    marginBottom: '12px'
+                                                }}>
+                                                    {noResultTitle}
+                                                </div>
+                                                <div style={{
+                                                    fontSize: '13px',
+                                                    color: '#858585',
+                                                    lineHeight: '1.5',
+                                                    maxWidth: '500px',
+                                                    margin: '0 auto'
+                                                }}>
+                                                    {noResultDescription}
+                                                </div>
                                             </div>
-                                            <PrimaryButton
-                                                iconProps={{ iconName: 'View' }}
-                                                text={intl.get("settings.aiMode.progress.viewResults")}
-                                                onClick={this.handleShowResults}
-                                                styles={{
-                                                    root: {
-                                                        backgroundColor: '#4ec9b0',
-                                                        borderColor: '#4ec9b0',
-                                                        minWidth: '150px'
-                                                    },
-                                                    rootHovered: {
-                                                        backgroundColor: '#5ed9c0',
-                                                        borderColor: '#5ed9c0'
-                                                    },
-                                                    rootPressed: {
-                                                        backgroundColor: '#3eb9a0',
-                                                        borderColor: '#3eb9a0'
-                                                    }
-                                                }}
-                                            />
-                                        </div>
-                                    )
+                                        )
+                                    }
                                 }
                                 return null
                             })()}
@@ -1459,7 +1578,8 @@ ${articlesText}
                 })()}
                 
 
-                {error && !isLoading && filteredArticles.length === 0 && (
+                {/* 只在真正的错误（非无文章情况）时显示错误提示 */}
+                {error && !isLoading && filteredArticles.length === 0 && !shouldShowDarkProgress && !shouldShowProgressForCompleted && (
                     <div style={{ 
                         display: 'flex', 
                         flexDirection: 'column',
@@ -1636,6 +1756,7 @@ const mapDispatchToProps = dispatch => ({
     setArticleCount: (articleCount: number) => dispatch(setAIModeArticleCount(articleCount)),
     setFilteredArticles: (filteredArticles: RSSItem[]) => dispatch(setAIModeFilteredArticles(filteredArticles)),
     setClusters: (clusters: ArticleCluster[]) => dispatch(setAIModeClusters(clusters)),
+    setTimeRangeHasArticles: (timeRangeHasArticles: boolean) => dispatch(setAIModeTimeRangeHasArticles(timeRangeHasArticles)),
     updateQueryProgress: (queryProgress: QueryProgress | null) => dispatch(updateAIModeQueryProgress(queryProgress)),
     updateStepStatus: (stepId: string, status: QueryProgressStep['status'], message?: string, progress?: number) => 
         dispatch(updateAIModeStepStatus(stepId, status, message, progress)),

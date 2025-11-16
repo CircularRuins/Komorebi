@@ -1,5 +1,6 @@
 import { AppThunk } from "../utils"
 import { RSSItem } from "./item"
+import intl from "react-intl-universal"
 
 // ==================== 共享类型定义 ====================
 
@@ -70,6 +71,7 @@ export class AIModeState {
     clusters: ArticleCluster[] = []
     queryProgress: QueryProgress | null = null
     showResults: boolean = false
+    timeRangeHasArticles: boolean = false
 }
 
 // ==================== Action Types ====================
@@ -110,6 +112,7 @@ export const SET_AI_MODE_ERROR_DIALOG_MESSAGE = "SET_AI_MODE_ERROR_DIALOG_MESSAG
 export const SET_AI_MODE_ARTICLE_COUNT = "SET_AI_MODE_ARTICLE_COUNT"
 export const SET_AI_MODE_FILTERED_ARTICLES = "SET_AI_MODE_FILTERED_ARTICLES"
 export const SET_AI_MODE_CLUSTERS = "SET_AI_MODE_CLUSTERS"
+export const SET_AI_MODE_TIME_RANGE_HAS_ARTICLES = "SET_AI_MODE_TIME_RANGE_HAS_ARTICLES"
 export const UPDATE_AI_MODE_QUERY_PROGRESS = "UPDATE_AI_MODE_QUERY_PROGRESS"
 export const UPDATE_AI_MODE_STEP_STATUS = "UPDATE_AI_MODE_STEP_STATUS"
 export const SET_AI_MODE_SHOW_RESULTS = "SET_AI_MODE_SHOW_RESULTS"
@@ -297,6 +300,11 @@ export interface SetAIModeClustersAction {
     clusters: ArticleCluster[]
 }
 
+export interface SetAIModeTimeRangeHasArticlesAction {
+    type: typeof SET_AI_MODE_TIME_RANGE_HAS_ARTICLES
+    timeRangeHasArticles: boolean
+}
+
 export interface UpdateAIModeQueryProgressAction {
     type: typeof UPDATE_AI_MODE_QUERY_PROGRESS
     queryProgress: QueryProgress | null
@@ -356,6 +364,7 @@ export type AIModeActionTypes =
     | SetAIModeArticleCountAction
     | SetAIModeFilteredArticlesAction
     | SetAIModeClustersAction
+    | SetAIModeTimeRangeHasArticlesAction
     | UpdateAIModeQueryProgressAction
     | UpdateAIModeStepStatusAction
     | SetAIModeShowResultsAction
@@ -615,6 +624,13 @@ export function setAIModeClusters(clusters: ArticleCluster[]): AIModeActionTypes
     }
 }
 
+export function setAIModeTimeRangeHasArticles(timeRangeHasArticles: boolean): AIModeActionTypes {
+    return {
+        type: SET_AI_MODE_TIME_RANGE_HAS_ARTICLES,
+        timeRangeHasArticles
+    }
+}
+
 export function updateAIModeQueryProgress(queryProgress: QueryProgress | null): AIModeActionTypes {
     return {
         type: UPDATE_AI_MODE_QUERY_PROGRESS,
@@ -847,19 +863,51 @@ export function aiModeReducer(
         case SET_AI_MODE_CLUSTERS:
             return { ...state, clusters: action.clusters }
 
+        case SET_AI_MODE_TIME_RANGE_HAS_ARTICLES:
+            return { ...state, timeRangeHasArticles: action.timeRangeHasArticles }
+
         case UPDATE_AI_MODE_QUERY_PROGRESS:
             return { ...state, queryProgress: action.queryProgress }
 
         case UPDATE_AI_MODE_STEP_STATUS: {
             if (!state.queryProgress) return state
 
-            // 先更新步骤状态
-            const steps = state.queryProgress.steps.map(step => {
-                if (step.id === action.stepId) {
-                    return { ...step, status: action.status, message: action.message, progress: action.progress }
+            // 先更新步骤状态，如果步骤不存在则动态添加
+            let steps = state.queryProgress.steps
+            const existingStepIndex = steps.findIndex(step => step.id === action.stepId)
+            
+            if (existingStepIndex >= 0) {
+                // 步骤存在，更新它
+                steps = steps.map(step => {
+                    if (step.id === action.stepId) {
+                        return { 
+                            ...step, 
+                            status: action.status, 
+                            message: action.message !== undefined ? action.message : step.message,  // 如果 message 是 undefined，保留旧消息
+                            progress: action.progress !== undefined ? action.progress : step.progress  // 如果 progress 是 undefined，保留旧进度
+                        }
+                    }
+                    return step
+                })
+            } else {
+                // 步骤不存在，动态添加（根据步骤ID确定标题）
+                const stepTitles: { [key: string]: string } = {
+                    'vectorize-text': intl.get("settings.aiMode.progress.steps.vectorizeText"),
+                    'calculate-similarity': intl.get("settings.aiMode.progress.steps.calculateSimilarity"),
+                    'llm-refine': intl.get("settings.aiMode.progress.steps.llmRefine"),
+                    'cluster-articles': intl.get("settings.aiMode.progress.steps.clusterArticles")
                 }
-                return step
-            })
+                const stepTitle = stepTitles[action.stepId] || action.stepId
+                const newStep: QueryProgressStep = {
+                    id: action.stepId,
+                    title: stepTitle,
+                    status: action.status,
+                    message: action.message,
+                    progress: action.progress,
+                    visible: false
+                }
+                steps = [...steps, newStep]
+            }
 
             // 然后计算可见性（基于更新后的状态）
             const stepsWithVisibility = steps.map((step, index) => {

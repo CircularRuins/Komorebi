@@ -20,6 +20,7 @@ export interface ConsolidateConfig {
 export interface ConsolidateCallbacks {
     updateStepStatus: (stepId: string, status: QueryProgressStep['status'], message?: string, progress?: number) => void
     updateQueryProgress?: (progress: Partial<QueryProgress>) => void
+    getCurrentQueryProgress?: () => QueryProgress | null
 }
 
 // ==================== 缓存相关函数 ====================
@@ -619,6 +620,8 @@ export async function stepLLMRefine(
     const { chatApiEndpoint, chatApiKey, model } = config
 
     if (articles.length === 0) {
+        // 即使没有文章，也要更新步骤状态，确保步骤可见
+        callbacks.updateStepStatus('llm-refine', 'completed', intl.get("settings.aiMode.progress.messages.noRelatedArticlesAfterLLM"))
         return []
     }
 
@@ -782,7 +785,13 @@ Return the JSON result:`
                     const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
                     responseData = JSON.parse(jsonText)
                 } catch (parseError) {
-                    // 解析失败，保留当前批次的所有文章
+                    // 解析失败，保留当前批次的所有文章（容错处理）
+                    for (let i = 0; i < batch.length; i++) {
+                        const globalIndex = batchStart + i
+                        if (globalIndex >= 0 && globalIndex < articles.length) {
+                            allRelatedIndices.add(globalIndex)
+                        }
+                    }
                     updateProgress()
                     return
                 }
@@ -798,13 +807,35 @@ Return the JSON result:`
                             }
                         }
                     })
+                } else {
+                    // 如果响应格式不正确，保留当前批次的所有文章（容错处理）
+                    for (let i = 0; i < batch.length; i++) {
+                        const globalIndex = batchStart + i
+                        if (globalIndex >= 0 && globalIndex < articles.length) {
+                            allRelatedIndices.add(globalIndex)
+                        }
+                    }
+                }
+            } else {
+                // 如果API调用失败或没有响应，保留当前批次的所有文章（容错处理）
+                for (let i = 0; i < batch.length; i++) {
+                    const globalIndex = batchStart + i
+                    if (globalIndex >= 0 && globalIndex < articles.length) {
+                        allRelatedIndices.add(globalIndex)
+                    }
                 }
             }
             
             // 更新进度
             updateProgress()
         } catch (error) {
-            // 即使某个批次失败，也更新进度计数，并保留该批次的所有文章
+            // 即使某个批次失败，也更新进度计数，并保留该批次的所有文章（容错处理）
+            for (let i = 0; i < batch.length; i++) {
+                const globalIndex = batchStart + i
+                if (globalIndex >= 0 && globalIndex < articles.length) {
+                    allRelatedIndices.add(globalIndex)
+                }
+            }
             updateProgress()
             // 不抛出错误，避免影响其他批次
         }
@@ -834,18 +865,46 @@ export async function consolidate(
     topic: string | null,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
-): Promise<RSSItem[]> {
+): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean }> {
     // 步骤1: 根据时间范围筛选
     const items = await stepQueryDatabase(timeRangeDays, callbacks)
+    
+    // 记录时间范围内是否有文章
+    const timeRangeHasArticles = items.length > 0
 
-    // 如果时间范围筛选后没有文章，直接返回空数组
+    // 如果时间范围筛选后没有文章，更新 queryProgress，只保留 query-db 步骤，移除所有后续步骤
     if (items.length === 0) {
-        return []
+        if (callbacks.updateQueryProgress) {
+            // 如果存在当前的 queryProgress，从中读取 query-db 步骤的消息，否则使用默认消息
+            let queryDbMessage = intl.get("settings.aiMode.progress.messages.queryCompleted", { count: 0 })
+            if (callbacks.getCurrentQueryProgress) {
+                const currentProgress = callbacks.getCurrentQueryProgress()
+                if (currentProgress) {
+                    const queryDbStep = currentProgress.steps.find(step => step.id === 'query-db')
+                    if (queryDbStep && queryDbStep.message) {
+                        queryDbMessage = queryDbStep.message
+                    }
+                }
+            }
+            
+            const steps: QueryProgressStep[] = [
+                { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: 'completed', message: queryDbMessage, visible: true }
+            ]
+            
+            // 完全替换 steps，确保移除所有未执行的步骤（包括 cluster-articles）
+            callbacks.updateQueryProgress({
+                steps,
+                currentStepIndex: 0,
+                currentMessage: intl.get("settings.aiMode.progress.messages.completed"),
+                overallProgress: 100
+            })
+        }
+        return { articles: [], timeRangeHasArticles: false }
     }
 
     // 如果没有话题，直接返回所有文章
     if (!topic || !topic.trim()) {
-        return items
+        return { articles: items, timeRangeHasArticles: true }
     }
 
     const trimmedTopic = topic.trim()
@@ -871,12 +930,25 @@ export async function consolidate(
         // 步骤2: LLM精选
         const refinedArticles = await stepLLMRefine(items, trimmedTopic, config, callbacks)
         
-        // 如果LLM精选后没有文章，直接返回空数组
+        // 如果LLM精选后没有文章，更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤
         if (refinedArticles.length === 0) {
-            return []
+            if (callbacks.updateQueryProgress) {
+                const steps: QueryProgressStep[] = [
+                    { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
+                    { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.noRelatedArticlesAfterLLM"), visible: true }
+                ]
+                
+                callbacks.updateQueryProgress({
+                    steps,
+                    currentStepIndex: 1,
+                    overallProgress: 100,
+                    currentMessage: intl.get("settings.aiMode.progress.messages.completed")
+                })
+            }
+            return { articles: [], timeRangeHasArticles: true }
         }
         
-        return refinedArticles
+        return { articles: refinedArticles, timeRangeHasArticles: true }
     }
 
     try {
@@ -889,23 +961,49 @@ export async function consolidate(
         // 步骤4: LLM精选
         const refinedArticles = await stepLLMRefine(selectedArticles, trimmedTopic, config, callbacks)
         
-        // 如果LLM精选后没有文章，直接返回空数组
+        // 如果LLM精选后没有文章，立即更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤（包括 cluster-articles）
         if (refinedArticles.length === 0) {
-            return []
+            if (callbacks.updateQueryProgress && callbacks.getCurrentQueryProgress) {
+                const currentProgress = callbacks.getCurrentQueryProgress()
+                if (currentProgress) {
+                    // 只保留已执行的步骤（query-db, vectorize-text, calculate-similarity, llm-refine）
+                    // 明确排除 cluster-articles 和其他未执行的步骤
+                    const executedStepIds = ['query-db', 'vectorize-text', 'calculate-similarity', 'llm-refine']
+                    const executedSteps = currentProgress.steps
+                        .filter(step => executedStepIds.includes(step.id))
+                        .map(step => ({
+                            ...step,
+                            status: 'completed' as const,
+                            visible: true
+                        }))
+                    
+                    // 完全替换 steps，确保移除所有未执行的步骤（包括 cluster-articles）
+                    // 使用完整的 QueryProgress 对象，确保 reducer 不会重新计算可见性
+                    const finalProgress: QueryProgress = {
+                        steps: executedSteps,
+                        currentStepIndex: executedSteps.length - 1,
+                        overallProgress: 100,
+                        currentMessage: intl.get("settings.aiMode.progress.messages.completed")
+                    }
+                    callbacks.updateQueryProgress(finalProgress)
+                }
+            }
+            return { articles: [], timeRangeHasArticles: true }
         }
         
-        return refinedArticles
+        return { articles: refinedArticles, timeRangeHasArticles: true }
     } catch (error) {
         // 如果计算embedding失败，回退到全文匹配
         if (error instanceof Error && error.message.includes('计算话题向量失败')) {
             const topicRegex = new RegExp(trimmedTopic.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
-            return items.filter(item => {
+            const filteredItems = items.filter(item => {
                 return (
                     topicRegex.test(item.title) ||
                     topicRegex.test(item.snippet || '') ||
                     topicRegex.test(item.content || '')
                 )
             })
+            return { articles: filteredItems, timeRangeHasArticles: true }
         }
         throw error
     }
