@@ -723,6 +723,12 @@ async function stepRecognizeTopicIntent(
             if (responseData.rewrittenQuery && typeof responseData.rewrittenQuery === 'string') {
                 const rewrittenQuery = responseData.rewrittenQuery.trim()
                 if (rewrittenQuery.length > 0) {
+                    // 输出主题意图识别的LLM返回结果
+                    console.log('=== 主题意图识别 LLM 返回结果 ===')
+                    console.log('原始输入:', trimmedTopic)
+                    console.log('改写后的查询:', rewrittenQuery)
+                    console.log('=====================================')
+                    
                     callbacks.updateStepStatus('intent-recognition-topic', 'completed', intl.get("settings.aiMode.progress.messages.topicIntentRecognitionCompleted"))
                     return rewrittenQuery
                 }
@@ -842,6 +848,12 @@ async function stepRecognizeClassificationIntent(
             if (responseData.classificationGuidance && typeof responseData.classificationGuidance === 'string') {
                 const classificationGuidance = responseData.classificationGuidance.trim()
                 if (classificationGuidance.length > 0) {
+                    // 输出分类标准意图识别的LLM返回结果
+                    console.log('=== 分类标准意图识别 LLM 返回结果 ===')
+                    console.log('分类标准:', trimmedStandard)
+                    console.log('分类指导:', classificationGuidance)
+                    console.log('==========================================')
+                    
                     callbacks.updateStepStatus('intent-recognition-classification', 'completed', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionCompleted"))
                     return classificationGuidance
                 }
@@ -931,7 +943,7 @@ export async function stepLLMRefine(
         return articles // 容错：返回所有文章
     }
 
-    const batchSize = 10 // 每批最多10篇文章
+    const batchSize = 5 // 每批最多5篇文章
     const totalArticles = articles.length
     const totalBatches = Math.ceil(totalArticles / batchSize)
     
@@ -1318,7 +1330,7 @@ export async function classifyArticles(
 
     // 准备文章内容
     const articlesToAnalyze = articles  // 分析所有文章
-    const batchSize = 10  // 每批10篇文章
+    const batchSize = 5  // 每批5篇文章
     const totalArticles = articlesToAnalyze.length
     const totalBatches = Math.ceil(totalArticles / batchSize)
 
