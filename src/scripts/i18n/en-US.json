@@ -177,6 +177,7 @@
             "progress": {
                 "steps": {
                     "queryDb": "Filter by Time Range",
+                    "intentRecognition": "Intent Recognition",
                     "computeTopicEmbedding": "Compute Topic Embedding",
                     "loadEmbeddings": "Load Existing Article Embeddings",
                     "computeEmbeddings": "Compute New Article Embeddings",
@@ -227,7 +228,10 @@
                     "mergingDuplicateCategories": "Merging duplicate categories...",
                     "classificationCompleted": "Classification completed, {count} categories in total",
                     "filterByTimeRange": "Filter by Time Range",
-                    "skipSimilarityCalculation": "Article count ({count}) is less than or equal to TopK ({topk}), skipping similarity calculation"
+                    "skipSimilarityCalculation": "Article count ({count}) is less than or equal to TopK ({topk}), skipping similarity calculation",
+                    "recognizingIntent": "Recognizing query intent \"{topic}\"...",
+                    "intentRecognitionCompleted": "Intent recognition completed",
+                    "intentRecognitionFailed": "Intent recognition failed, using original topic"
                 },
                 "executionSteps": "Execution Steps",
                 "viewResults": "View Results",

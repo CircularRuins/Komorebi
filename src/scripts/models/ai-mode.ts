@@ -892,6 +892,7 @@ export function aiModeReducer(
             } else {
                 // 步骤不存在，动态添加（根据步骤ID确定标题）
                 const stepTitles: { [key: string]: string } = {
+                    'intent-recognition': intl.get("settings.aiMode.progress.steps.intentRecognition"),
                     'vectorize-text': intl.get("settings.aiMode.progress.steps.vectorizeText"),
                     'calculate-similarity': intl.get("settings.aiMode.progress.steps.calculateSimilarity"),
                     'llm-refine': intl.get("settings.aiMode.progress.steps.llmRefine"),

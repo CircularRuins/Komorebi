@@ -610,10 +610,198 @@ export async function stepCalculateSimilarity(
     return selectedArticles
 }
 
+// 步骤3.5: 意图识别（识别用户意图并确定查询的精细程度）
+export async function stepRecognizeIntent(
+    topic: string,
+    config: ConsolidateConfig,
+    callbacks: ConsolidateCallbacks
+): Promise<string> {
+    const { chatApiEndpoint, chatApiKey, model } = config
+
+    const trimmedTopic = topic.trim()
+
+    // 验证API配置
+    if (!chatApiEndpoint || !chatApiEndpoint.trim()) {
+        callbacks.updateStepStatus('intent-recognition', 'error', intl.get("settings.aiMode.progress.messages.configChatApiEndpoint"))
+        return trimmedTopic // 容错：返回原始topic
+    }
+    if (!chatApiKey || !chatApiKey.trim()) {
+        callbacks.updateStepStatus('intent-recognition', 'error', intl.get("settings.aiMode.progress.messages.configChatApiKey"))
+        return trimmedTopic // 容错：返回原始topic
+    }
+    if (!model || !model.trim()) {
+        callbacks.updateStepStatus('intent-recognition', 'error', intl.get("settings.aiMode.progress.messages.configModelName"))
+        return trimmedTopic // 容错：返回原始topic
+    }
+
+    callbacks.updateStepStatus('intent-recognition', 'in_progress', intl.get("settings.aiMode.progress.messages.recognizingIntent", { topic: trimmedTopic }))
+
+    // 规范化endpoint URL
+    let normalizedEndpoint = chatApiEndpoint.trim()
+    if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
+        callbacks.updateStepStatus('intent-recognition', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointInvalid"))
+        return trimmedTopic // 容错：返回原始topic
+    }
+
+    // 提取base URL
+    let baseURL = normalizedEndpoint
+    try {
+        const url = new URL(normalizedEndpoint)
+        if (url.pathname.includes('/v1/chat/completions')) {
+            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
+        } else {
+            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
+        }
+    } catch (error) {
+        callbacks.updateStepStatus('intent-recognition', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointUrlInvalid", { url: normalizedEndpoint }))
+        return trimmedTopic // 容错：返回原始topic
+    }
+
+    try {
+        const openai = new OpenAI({
+            apiKey: chatApiKey,
+            baseURL: baseURL,
+            dangerouslyAllowBrowser: true
+        })
+
+        const prompt = `You are tasked with recognizing the user's intent from their topic query and rewriting it into a more detailed and comprehensive guidance for article filtering. The key is to identify the user's intent and determine the granularity (specificity level) of the query.
+
+## User's Original Topic
+"${trimmedTopic}"
+
+## Task
+Analyze the user's query to determine its granularity level, then rewrite it into detailed guidance for article filtering.
+
+**IMPORTANT: The rewritten guidance MUST be written in English, regardless of the language of the user's original query.**
+
+### Step 1: Determine Query Granularity
+First, assess how specific or broad the user's query is:
+
+**Broad/General Query Examples:**
+- "ai" → Should match ALL articles related to AI (any aspect of artificial intelligence)
+- "technology" → Should match ALL technology-related articles
+- "health" → Should match ALL health-related articles
+
+**Specific/Narrow Query Examples:**
+- "AI programming tools" → Should ONLY match articles about AI programming tools, NOT general AI articles that don't discuss programming tools
+- "machine learning algorithms" → Should ONLY match articles about ML algorithms, NOT general ML articles that don't discuss algorithms
+- "medical AI applications" → Should ONLY match articles about medical AI applications, NOT general AI or general medical articles
+- "reinforcement learning in medical AI applications" → Should ONLY match articles about reinforcement learning in medical AI applications, NOT general AI or general medical articles, NOT general reinforcement learning articles that don't discuss medical AI applications
+
+### Step 2: Rewrite Based on Granularity
+
+**For Broad Queries:**
+- Expand to include all related aspects, synonyms, and variations
+- Include all sub-topics and related concepts
+- The guidance should be inclusive and comprehensive
+
+**For Specific Queries:**
+- Focus ONLY on the specific combination of concepts mentioned
+- Clearly define what should be INCLUDED
+- Clearly define what should be EXCLUDED (broader topics that don't match the specific combination)
+- Be precise about the boundaries
+
+### Step 3: Create Detailed Guidance
+
+The rewritten guidance should:
+1. Identify the granularity level (broad or specific)
+2. List key concepts and terms that should be included
+3. For specific queries, explicitly state what should be EXCLUDED
+4. Provide clear criteria for matching articles
+
+## Examples
+
+**Example 1 - Broad Query:**
+- Input: "ai"
+- Output: "Articles should discuss any aspect of artificial intelligence (AI), including but not limited to: machine learning, deep learning, neural networks, natural language processing, computer vision, AI applications, AI research, AI ethics, AI tools, AI frameworks, and any other AI-related topics. Include articles that mention AI in any meaningful way."
+
+**Example 2 - Specific Query:**
+- Input: "AI programming tools"
+- Output: "Articles should specifically discuss AI programming tools, such as AI code assistants, AI-powered development environments, AI coding frameworks, AI tools for software development, and similar tools that help programmers write code using AI. EXCLUDE: General AI articles that don't discuss programming tools, general programming articles that don't involve AI, or AI research papers that don't focus on programming tools."
+
+## Output Format
+Return a JSON object with the rewritten query:
+{
+  "rewrittenQuery": "detailed guidance text here"
+}
+
+**IMPORTANT: The rewrittenQuery MUST be written in English.**
+
+The rewritten query should be a clear, detailed description (typically 2-4 sentences) that:
+- States the granularity level
+- Defines what should be INCLUDED
+- For specific queries, explicitly states what should be EXCLUDED
+- Provides clear matching criteria
+- **All text must be in English**
+
+Return the JSON result:`
+
+        const completionParams: any = {
+            model: model,
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are a professional intent recognition assistant, skilled at analyzing user intent and determining query granularity (specificity level) to rewrite queries into detailed guidance for article filtering. You excel at distinguishing between broad queries (that should match all related topics) and specific queries (that should only match the exact combination of concepts). IMPORTANT: Always output the rewritten guidance in English, regardless of the input language. Return results strictly in JSON format, only return JSON objects, do not include any other text.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.3,
+            max_tokens: 500
+        }
+
+        // 某些模型可能不支持response_format，尝试添加但不强制
+        try {
+            completionParams.response_format = { type: "json_object" }
+        } catch (e) {
+            // 忽略错误，继续使用普通格式
+        }
+
+        const completion = await openai.chat.completions.create(completionParams)
+
+        if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
+            const responseText = completion.choices[0].message.content || ''
+
+            // 解析JSON响应
+            let responseData
+            try {
+                // 尝试提取JSON（可能包含markdown代码块）
+                const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
+                const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
+                responseData = JSON.parse(jsonText)
+            } catch (parseError) {
+                // 解析失败，回退到原始topic
+                callbacks.updateStepStatus('intent-recognition', 'completed', intl.get("settings.aiMode.progress.messages.intentRecognitionFailed"))
+                return trimmedTopic
+            }
+
+            // 提取改写后的查询
+            if (responseData.rewrittenQuery && typeof responseData.rewrittenQuery === 'string') {
+                const rewrittenQuery = responseData.rewrittenQuery.trim()
+                if (rewrittenQuery.length > 0) {
+                    callbacks.updateStepStatus('intent-recognition', 'completed', intl.get("settings.aiMode.progress.messages.intentRecognitionCompleted"))
+                    return rewrittenQuery
+                }
+            }
+        }
+
+        // 如果无法获取改写后的查询，回退到原始topic
+        callbacks.updateStepStatus('intent-recognition', 'completed', intl.get("settings.aiMode.progress.messages.intentRecognitionFailed"))
+        return trimmedTopic
+    } catch (error) {
+        // API调用失败，回退到原始topic
+        callbacks.updateStepStatus('intent-recognition', 'completed', intl.get("settings.aiMode.progress.messages.intentRecognitionFailed"))
+        return trimmedTopic
+    }
+}
+
 // 步骤4: LLM精选（使用LLM严格判断文章是否真正讨论用户关注的主题）
+// 注意：此函数使用意图识别后的指导（intentGuidance）而不是原始topic
 export async function stepLLMRefine(
     articles: RSSItem[],
-    topic: string,
+    intentGuidance: string,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<RSSItem[]> {
@@ -708,26 +896,44 @@ Published Date: ${dateStr}
 Summary: ${snippet}`
             }).join('\n\n')
 
-            const prompt = `You are tasked with filtering articles to identify only those that truly discuss the topic "${topic}".
+            const prompt = `You are tasked with filtering articles based on the following intent recognition guidance. This guidance has been carefully crafted to identify the user's intent and determine the query granularity (specificity level).
+
+## Intent Recognition Guidance
+${intentGuidance}
 
 ## Task
-Analyze each article and determine if it genuinely discusses "${topic}" as a core subject, not just a passing mention.
+Analyze each article and determine if it matches the criteria specified in the intent recognition guidance above. The guidance has already identified:
+1. The granularity level (broad or specific query)
+2. What should be INCLUDED
+3. What should be EXCLUDED (for specific queries)
 
 ## Decision Criteria
-Include an article ONLY if:
-- The topic "${topic}" is a central focus of the article's main content
-- The article provides substantial discussion, analysis, or information about "${topic}"
-- The article's primary purpose is to inform readers about "${topic}"
 
-Exclude an article if:
-- The topic is only mentioned briefly or in passing
-- The topic appears in the title/summary but the main content discusses something else
-- The article is completely unrelated to "${topic}"
+**For Broad Queries (general topics):**
+- Include articles that discuss ANY aspect related to the topic
+- Include articles with passing mentions if they are meaningfully related
+- Be inclusive and comprehensive
 
-## Examples
-✅ INCLUDE: An article titled "Latest Developments in ${topic}" that analyzes recent trends and provides detailed insights
-❌ EXCLUDE: An article about "Technology News" that only mentions "${topic}" once in a list of topics
-❌ EXCLUDE: An article where "${topic}" appears in the summary but the body discusses a different subject
+**For Specific Queries (narrow topics):**
+- Include articles ONLY if they match the specific combination of concepts mentioned
+- Strictly EXCLUDE articles that discuss broader topics but don't match the specific combination
+- Pay close attention to the exclusion criteria stated in the guidance
+
+## Important Rules
+1. **Follow the guidance strictly**: The intent recognition guidance above has already determined the appropriate granularity and boundaries. Follow it precisely.
+2. **Check inclusion criteria**: An article must meet ALL the inclusion criteria stated in the guidance.
+3. **Check exclusion criteria**: For specific queries, if the guidance explicitly states what to EXCLUDE, those articles must be excluded even if they seem related.
+
+## Examples Based on Guidance
+
+**If the guidance says to include "all AI-related topics" (broad query):**
+✅ INCLUDE: Any article about AI, machine learning, neural networks, etc.
+❌ EXCLUDE: Articles completely unrelated to AI
+
+**If the guidance says to include "AI programming tools" and exclude "general AI articles" (specific query):**
+✅ INCLUDE: Articles specifically about AI code assistants, AI development tools, etc.
+❌ EXCLUDE: General AI research papers that don't discuss programming tools
+❌ EXCLUDE: General programming articles that don't involve AI
 
 ## Output Format
 Return a JSON object with the indices (0-based) of articles that meet the criteria:
@@ -735,7 +941,7 @@ Return a JSON object with the indices (0-based) of articles that meet the criter
   "relatedArticleIndices": [0, 2, 5, 7]
 }
 
-If all articles discuss the topic, return all indices. If none do, return an empty array.
+If all articles match the guidance, return all indices. If none do, return an empty array.
 
 ## Articles to Analyze
 ${articlesText}
@@ -754,7 +960,7 @@ Return the JSON result:`
                 messages: [
                     {
                         role: 'system',
-                        content: 'You are a professional article analysis assistant, skilled at judging whether article content truly discusses a specific topic. Return results strictly in JSON format, only return JSON objects, do not include any other text.'
+                        content: 'You are a professional article filtering assistant, skilled at judging whether articles match the intent recognition guidance. You carefully follow the inclusion and exclusion criteria specified in the guidance, paying special attention to query granularity (broad vs specific). Return results strictly in JSON format, only return JSON objects, do not include any other text.'
                     },
                     {
                         role: 'user',
@@ -910,37 +1116,42 @@ export async function consolidate(
     const trimmedTopic = topic.trim()
     const { topk } = config
 
+    // 步骤1.5: 意图识别（识别用户意图并确定查询的精细程度）
+    const rewrittenQuery = await stepRecognizeIntent(trimmedTopic, config, callbacks)
+
     // 如果文章数量小于等于topk，不需要计算embedding和相似度，直接进行LLM精选
     if (items.length <= topk) {
-        // 更新queryProgress，移除embedding相关步骤，只保留步骤1和LLM精选
+        // 更新queryProgress，移除embedding相关步骤，只保留步骤1、意图识别和LLM精选
         // 注意：分类步骤由调用方根据是否有分类依据决定是否添加
         if (callbacks.updateQueryProgress) {
             const steps: QueryProgressStep[] = [
                 { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
+                { id: 'intent-recognition', title: intl.get("settings.aiMode.progress.steps.intentRecognition"), status: 'completed', visible: true },
                 { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'pending', visible: true }
             ]
             
             callbacks.updateQueryProgress({
                 steps,
-                currentStepIndex: 1, // 指向LLM精选步骤
+                currentStepIndex: 2, // 指向LLM精选步骤
                 currentMessage: intl.get("settings.aiMode.progress.messages.skipSimilarityCalculation", { count: items.length, topk: topk })
             })
         }
         
-        // 步骤2: LLM精选
-        const refinedArticles = await stepLLMRefine(items, trimmedTopic, config, callbacks)
+        // 步骤2: LLM精选（使用改写后的查询）
+        const refinedArticles = await stepLLMRefine(items, rewrittenQuery, config, callbacks)
         
         // 如果LLM精选后没有文章，更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤
         if (refinedArticles.length === 0) {
             if (callbacks.updateQueryProgress) {
                 const steps: QueryProgressStep[] = [
                     { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
+                    { id: 'intent-recognition', title: intl.get("settings.aiMode.progress.steps.intentRecognition"), status: 'completed', visible: true },
                     { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.noRelatedArticlesAfterLLM"), visible: true }
                 ]
                 
                 callbacks.updateQueryProgress({
                     steps,
-                    currentStepIndex: 1,
+                    currentStepIndex: 2,
                     overallProgress: 100,
                     currentMessage: intl.get("settings.aiMode.progress.messages.completed")
                 })
@@ -952,23 +1163,23 @@ export async function consolidate(
     }
 
     try {
-        // 步骤2: 文本向量化
+        // 步骤2: 文本向量化（仍使用原始topic，因为向量化需要语义表示）
         const topicEmbedding = await stepVectorizeText(trimmedTopic, items, config, callbacks)
         
         // 步骤3: 计算相似度并筛选
         const selectedArticles = await stepCalculateSimilarity(items, topicEmbedding, topk, callbacks)
         
-        // 步骤4: LLM精选
-        const refinedArticles = await stepLLMRefine(selectedArticles, trimmedTopic, config, callbacks)
+        // 步骤4: LLM精选（使用改写后的查询）
+        const refinedArticles = await stepLLMRefine(selectedArticles, rewrittenQuery, config, callbacks)
         
         // 如果LLM精选后没有文章，立即更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤（包括 cluster-articles）
         if (refinedArticles.length === 0) {
             if (callbacks.updateQueryProgress && callbacks.getCurrentQueryProgress) {
                 const currentProgress = callbacks.getCurrentQueryProgress()
                 if (currentProgress) {
-                    // 只保留已执行的步骤（query-db, vectorize-text, calculate-similarity, llm-refine）
+                    // 只保留已执行的步骤（query-db, intent-recognition, vectorize-text, calculate-similarity, llm-refine）
                     // 明确排除 cluster-articles 和其他未执行的步骤
-                    const executedStepIds = ['query-db', 'vectorize-text', 'calculate-similarity', 'llm-refine']
+                    const executedStepIds = ['query-db', 'intent-recognition', 'vectorize-text', 'calculate-similarity', 'llm-refine']
                     const executedSteps = currentProgress.steps
                         .filter(step => executedStepIds.includes(step.id))
                         .map(step => ({
