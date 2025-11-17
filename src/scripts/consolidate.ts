@@ -4,6 +4,18 @@ import lf from "lovefield"
 import intl from "react-intl-universal"
 import type { RSSItem } from "./models/item"
 import type { QueryProgressStep, QueryProgress, ArticleCluster } from "./models/ai-mode"
+import {
+    TOPIC_INTENT_RECOGNITION_SYSTEM_MESSAGE,
+    getTopicIntentRecognitionPrompt,
+    CLASSIFICATION_INTENT_RECOGNITION_SYSTEM_MESSAGE,
+    getClassificationIntentRecognitionPrompt,
+    LLM_REFINE_SYSTEM_MESSAGE,
+    getLLMRefinePrompt,
+    CLASSIFY_ARTICLES_SYSTEM_MESSAGE,
+    getClassifyArticlesPrompt,
+    CLASSIFICATION_DEDUPLICATION_SYSTEM_MESSAGE,
+    getClassificationDeduplicationPrompt
+} from "./prompts"
 
 // ==================== 配置和回调接口 ====================
 
@@ -610,8 +622,8 @@ export async function stepCalculateSimilarity(
     return selectedArticles
 }
 
-// 步骤3.5: 意图识别（识别用户意图并确定查询的精细程度）
-export async function stepRecognizeIntent(
+// 子步骤: 主题意图识别（识别用户意图并确定查询的精细程度）
+async function stepRecognizeTopicIntent(
     topic: string,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
@@ -622,24 +634,24 @@ export async function stepRecognizeIntent(
 
     // 验证API配置
     if (!chatApiEndpoint || !chatApiEndpoint.trim()) {
-        callbacks.updateStepStatus('intent-recognition', 'error', intl.get("settings.aiMode.progress.messages.configChatApiEndpoint"))
+        callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.configChatApiEndpoint"))
         return trimmedTopic // 容错：返回原始topic
     }
     if (!chatApiKey || !chatApiKey.trim()) {
-        callbacks.updateStepStatus('intent-recognition', 'error', intl.get("settings.aiMode.progress.messages.configChatApiKey"))
+        callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.configChatApiKey"))
         return trimmedTopic // 容错：返回原始topic
     }
     if (!model || !model.trim()) {
-        callbacks.updateStepStatus('intent-recognition', 'error', intl.get("settings.aiMode.progress.messages.configModelName"))
+        callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.configModelName"))
         return trimmedTopic // 容错：返回原始topic
     }
 
-    callbacks.updateStepStatus('intent-recognition', 'in_progress', intl.get("settings.aiMode.progress.messages.recognizingIntent", { topic: trimmedTopic }))
+    callbacks.updateStepStatus('intent-recognition-topic', 'in_progress', intl.get("settings.aiMode.progress.messages.recognizingTopicIntent", { topic: trimmedTopic }))
 
     // 规范化endpoint URL
     let normalizedEndpoint = chatApiEndpoint.trim()
     if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-        callbacks.updateStepStatus('intent-recognition', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointInvalid"))
+        callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointInvalid"))
         return trimmedTopic // 容错：返回原始topic
     }
 
@@ -653,7 +665,7 @@ export async function stepRecognizeIntent(
             baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
         }
     } catch (error) {
-        callbacks.updateStepStatus('intent-recognition', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointUrlInvalid", { url: normalizedEndpoint }))
+        callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointUrlInvalid", { url: normalizedEndpoint }))
         return trimmedTopic // 容错：返回原始topic
     }
 
@@ -664,84 +676,14 @@ export async function stepRecognizeIntent(
             dangerouslyAllowBrowser: true
         })
 
-        const prompt = `You are tasked with recognizing the user's intent from their topic query and rewriting it into a more detailed and comprehensive guidance for article filtering. The key is to identify the user's intent and determine the granularity (specificity level) of the query.
-
-## User's Original Topic
-"${trimmedTopic}"
-
-## Task
-Analyze the user's query to determine its granularity level, then rewrite it into detailed guidance for article filtering.
-
-**IMPORTANT: The rewritten guidance MUST be written in English, regardless of the language of the user's original query.**
-
-### Step 1: Determine Query Granularity
-First, assess how specific or broad the user's query is:
-
-**Broad/General Query Examples:**
-- "ai" → Should match ALL articles related to AI (any aspect of artificial intelligence)
-- "technology" → Should match ALL technology-related articles
-- "health" → Should match ALL health-related articles
-
-**Specific/Narrow Query Examples:**
-- "AI programming tools" → Should ONLY match articles about AI programming tools, NOT general AI articles that don't discuss programming tools
-- "machine learning algorithms" → Should ONLY match articles about ML algorithms, NOT general ML articles that don't discuss algorithms
-- "medical AI applications" → Should ONLY match articles about medical AI applications, NOT general AI or general medical articles
-- "reinforcement learning in medical AI applications" → Should ONLY match articles about reinforcement learning in medical AI applications, NOT general AI or general medical articles, NOT general reinforcement learning articles that don't discuss medical AI applications
-
-### Step 2: Rewrite Based on Granularity
-
-**For Broad Queries:**
-- Expand to include all related aspects, synonyms, and variations
-- Include all sub-topics and related concepts
-- The guidance should be inclusive and comprehensive
-
-**For Specific Queries:**
-- Focus ONLY on the specific combination of concepts mentioned
-- Clearly define what should be INCLUDED
-- Clearly define what should be EXCLUDED (broader topics that don't match the specific combination)
-- Be precise about the boundaries
-
-### Step 3: Create Detailed Guidance
-
-The rewritten guidance should:
-1. Identify the granularity level (broad or specific)
-2. List key concepts and terms that should be included
-3. For specific queries, explicitly state what should be EXCLUDED
-4. Provide clear criteria for matching articles
-
-## Examples
-
-**Example 1 - Broad Query:**
-- Input: "ai"
-- Output: "Articles should discuss any aspect of artificial intelligence (AI), including but not limited to: machine learning, deep learning, neural networks, natural language processing, computer vision, AI applications, AI research, AI ethics, AI tools, AI frameworks, and any other AI-related topics. Include articles that mention AI in any meaningful way."
-
-**Example 2 - Specific Query:**
-- Input: "AI programming tools"
-- Output: "Articles should specifically discuss AI programming tools, such as AI code assistants, AI-powered development environments, AI coding frameworks, AI tools for software development, and similar tools that help programmers write code using AI. EXCLUDE: General AI articles that don't discuss programming tools, general programming articles that don't involve AI, or AI research papers that don't focus on programming tools."
-
-## Output Format
-Return a JSON object with the rewritten query:
-{
-  "rewrittenQuery": "detailed guidance text here"
-}
-
-**IMPORTANT: The rewrittenQuery MUST be written in English.**
-
-The rewritten query should be a clear, detailed description (typically 2-4 sentences) that:
-- States the granularity level
-- Defines what should be INCLUDED
-- For specific queries, explicitly states what should be EXCLUDED
-- Provides clear matching criteria
-- **All text must be in English**
-
-Return the JSON result:`
+        const prompt = getTopicIntentRecognitionPrompt(trimmedTopic)
 
         const completionParams: any = {
             model: model,
             messages: [
                 {
                     role: 'system',
-                    content: 'You are a professional intent recognition assistant, skilled at analyzing user intent and determining query granularity (specificity level) to rewrite queries into detailed guidance for article filtering. You excel at distinguishing between broad queries (that should match all related topics) and specific queries (that should only match the exact combination of concepts). IMPORTANT: Always output the rewritten guidance in English, regardless of the input language. Return results strictly in JSON format, only return JSON objects, do not include any other text.'
+                    content: TOPIC_INTENT_RECOGNITION_SYSTEM_MESSAGE
                 },
                 {
                     role: 'user',
@@ -773,7 +715,7 @@ Return the JSON result:`
                 responseData = JSON.parse(jsonText)
             } catch (parseError) {
                 // 解析失败，回退到原始topic
-                callbacks.updateStepStatus('intent-recognition', 'completed', intl.get("settings.aiMode.progress.messages.intentRecognitionFailed"))
+                callbacks.updateStepStatus('intent-recognition-topic', 'completed', intl.get("settings.aiMode.progress.messages.topicIntentRecognitionFailed"))
                 return trimmedTopic
             }
 
@@ -781,20 +723,159 @@ Return the JSON result:`
             if (responseData.rewrittenQuery && typeof responseData.rewrittenQuery === 'string') {
                 const rewrittenQuery = responseData.rewrittenQuery.trim()
                 if (rewrittenQuery.length > 0) {
-                    callbacks.updateStepStatus('intent-recognition', 'completed', intl.get("settings.aiMode.progress.messages.intentRecognitionCompleted"))
+                    callbacks.updateStepStatus('intent-recognition-topic', 'completed', intl.get("settings.aiMode.progress.messages.topicIntentRecognitionCompleted"))
                     return rewrittenQuery
                 }
             }
         }
 
         // 如果无法获取改写后的查询，回退到原始topic
-        callbacks.updateStepStatus('intent-recognition', 'completed', intl.get("settings.aiMode.progress.messages.intentRecognitionFailed"))
+        callbacks.updateStepStatus('intent-recognition-topic', 'completed', intl.get("settings.aiMode.progress.messages.topicIntentRecognitionFailed"))
         return trimmedTopic
     } catch (error) {
         // API调用失败，回退到原始topic
-        callbacks.updateStepStatus('intent-recognition', 'completed', intl.get("settings.aiMode.progress.messages.intentRecognitionFailed"))
+        callbacks.updateStepStatus('intent-recognition-topic', 'completed', intl.get("settings.aiMode.progress.messages.topicIntentRecognitionFailed"))
         return trimmedTopic
     }
+}
+
+// 子步骤: 分类标准意图识别（使用LLM理解如何分类）
+async function stepRecognizeClassificationIntent(
+    topicGuidance: string,
+    classificationStandard: string,
+    config: ConsolidateConfig,
+    callbacks: ConsolidateCallbacks
+): Promise<string> {
+    const { chatApiEndpoint, chatApiKey, model } = config
+
+    const trimmedTopicGuidance = topicGuidance.trim()
+    const trimmedStandard = classificationStandard.trim()
+
+    // 验证API配置
+    if (!chatApiEndpoint || !chatApiEndpoint.trim()) {
+        callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.configChatApiEndpoint"))
+        return trimmedStandard // 容错：返回原始分类标准
+    }
+    if (!chatApiKey || !chatApiKey.trim()) {
+        callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.configChatApiKey"))
+        return trimmedStandard // 容错：返回原始分类标准
+    }
+    if (!model || !model.trim()) {
+        callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.configModelName"))
+        return trimmedStandard // 容错：返回原始分类标准
+    }
+
+    callbacks.updateStepStatus('intent-recognition-classification', 'in_progress', intl.get("settings.aiMode.progress.messages.recognizingClassificationIntent", { standard: trimmedStandard }))
+
+    // 规范化endpoint URL
+    let normalizedEndpoint = chatApiEndpoint.trim()
+    if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
+        callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointInvalid"))
+        return trimmedStandard // 容错：返回原始分类标准
+    }
+
+    // 提取base URL
+    let baseURL = normalizedEndpoint
+    try {
+        const url = new URL(normalizedEndpoint)
+        if (url.pathname.includes('/v1/chat/completions')) {
+            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
+        } else {
+            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
+        }
+    } catch (error) {
+        callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointUrlInvalid", { url: normalizedEndpoint }))
+        return trimmedStandard // 容错：返回原始分类标准
+    }
+
+    try {
+        const openai = new OpenAI({
+            apiKey: chatApiKey,
+            baseURL: baseURL,
+            dangerouslyAllowBrowser: true
+        })
+
+        const prompt = getClassificationIntentRecognitionPrompt(trimmedTopicGuidance, trimmedStandard)
+
+        const completionParams: any = {
+            model: model,
+            messages: [
+                {
+                    role: 'system',
+                    content: CLASSIFICATION_INTENT_RECOGNITION_SYSTEM_MESSAGE
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.3,
+            max_tokens: 500
+        }
+
+        // 某些模型可能不支持response_format，尝试添加但不强制
+        try {
+            completionParams.response_format = { type: "json_object" }
+        } catch (e) {
+            // 忽略错误，继续使用普通格式
+        }
+
+        const completion = await openai.chat.completions.create(completionParams)
+
+        if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
+            const responseText = completion.choices[0].message.content || ''
+
+            // 解析JSON响应
+            let responseData
+            try {
+                // 尝试提取JSON（可能包含markdown代码块）
+                const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
+                const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
+                responseData = JSON.parse(jsonText)
+            } catch (parseError) {
+                // 解析失败，回退到原始分类标准
+                callbacks.updateStepStatus('intent-recognition-classification', 'completed', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
+                return trimmedStandard
+            }
+
+            // 提取分类指导信息
+            if (responseData.classificationGuidance && typeof responseData.classificationGuidance === 'string') {
+                const classificationGuidance = responseData.classificationGuidance.trim()
+                if (classificationGuidance.length > 0) {
+                    callbacks.updateStepStatus('intent-recognition-classification', 'completed', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionCompleted"))
+                    return classificationGuidance
+                }
+            }
+        }
+
+        // 如果无法获取分类指导信息，回退到原始分类标准
+        callbacks.updateStepStatus('intent-recognition-classification', 'completed', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
+        return trimmedStandard
+    } catch (error) {
+        // API调用失败，回退到原始分类标准
+        callbacks.updateStepStatus('intent-recognition-classification', 'completed', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
+        return trimmedStandard
+    }
+}
+
+// 步骤3.5: 意图识别（包含主题意图识别和分类标准意图识别两个子步骤）
+export async function stepRecognizeIntent(
+    topic: string,
+    classificationStandard: string | null,
+    config: ConsolidateConfig,
+    callbacks: ConsolidateCallbacks
+): Promise<{ topicGuidance: string, classificationGuidance: string | null }> {
+    // 子步骤1: 主题意图识别（总是执行）
+    const topicGuidance = await stepRecognizeTopicIntent(topic, config, callbacks)
+    
+    // 子步骤2: 分类标准意图识别（仅当有分类标准时执行）
+    // 使用话题意图识别后的指导（topicGuidance）而不是原始topic
+    let classificationGuidance: string | null = null
+    if (classificationStandard && classificationStandard.trim()) {
+        classificationGuidance = await stepRecognizeClassificationIntent(topicGuidance, classificationStandard, config, callbacks)
+    }
+    
+    return { topicGuidance, classificationGuidance }
 }
 
 // 步骤4: LLM精选（使用LLM严格判断文章是否真正讨论用户关注的主题）
@@ -896,57 +977,7 @@ Published Date: ${dateStr}
 Summary: ${snippet}`
             }).join('\n\n')
 
-            const prompt = `You are tasked with filtering articles based on the following intent recognition guidance. This guidance has been carefully crafted to identify the user's intent and determine the query granularity (specificity level).
-
-## Intent Recognition Guidance
-${intentGuidance}
-
-## Task
-Analyze each article and determine if it matches the criteria specified in the intent recognition guidance above. The guidance has already identified:
-1. The granularity level (broad or specific query)
-2. What should be INCLUDED
-3. What should be EXCLUDED (for specific queries)
-
-## Decision Criteria
-
-**For Broad Queries (general topics):**
-- Include articles that discuss ANY aspect related to the topic
-- Include articles with passing mentions if they are meaningfully related
-- Be inclusive and comprehensive
-
-**For Specific Queries (narrow topics):**
-- Include articles ONLY if they match the specific combination of concepts mentioned
-- Strictly EXCLUDE articles that discuss broader topics but don't match the specific combination
-- Pay close attention to the exclusion criteria stated in the guidance
-
-## Important Rules
-1. **Follow the guidance strictly**: The intent recognition guidance above has already determined the appropriate granularity and boundaries. Follow it precisely.
-2. **Check inclusion criteria**: An article must meet ALL the inclusion criteria stated in the guidance.
-3. **Check exclusion criteria**: For specific queries, if the guidance explicitly states what to EXCLUDE, those articles must be excluded even if they seem related.
-
-## Examples Based on Guidance
-
-**If the guidance says to include "all AI-related topics" (broad query):**
-✅ INCLUDE: Any article about AI, machine learning, neural networks, etc.
-❌ EXCLUDE: Articles completely unrelated to AI
-
-**If the guidance says to include "AI programming tools" and exclude "general AI articles" (specific query):**
-✅ INCLUDE: Articles specifically about AI code assistants, AI development tools, etc.
-❌ EXCLUDE: General AI research papers that don't discuss programming tools
-❌ EXCLUDE: General programming articles that don't involve AI
-
-## Output Format
-Return a JSON object with the indices (0-based) of articles that meet the criteria:
-{
-  "relatedArticleIndices": [0, 2, 5, 7]
-}
-
-If all articles match the guidance, return all indices. If none do, return an empty array.
-
-## Articles to Analyze
-${articlesText}
-
-Return the JSON result:`
+            const prompt = getLLMRefinePrompt(intentGuidance, articlesText)
 
             const openai = new OpenAI({
                 apiKey: chatApiKey,
@@ -960,7 +991,7 @@ Return the JSON result:`
                 messages: [
                     {
                         role: 'system',
-                        content: 'You are a professional article filtering assistant, skilled at judging whether articles match the intent recognition guidance. You carefully follow the inclusion and exclusion criteria specified in the guidance, paying special attention to query granularity (broad vs specific). Return results strictly in JSON format, only return JSON objects, do not include any other text.'
+                        content: LLM_REFINE_SYSTEM_MESSAGE
                     },
                     {
                         role: 'user',
@@ -1069,9 +1100,10 @@ Return the JSON result:`
 export async function consolidate(
     timeRangeDays: number | null,
     topic: string | null,
+    classificationStandard: string | null,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
-): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean }> {
+): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, classificationGuidance: string | null }> {
     // 步骤1: 根据时间范围筛选
     const items = await stepQueryDatabase(timeRangeDays, callbacks)
     
@@ -1097,7 +1129,7 @@ export async function consolidate(
                 { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: 'completed', message: queryDbMessage, visible: true }
             ]
             
-            // 完全替换 steps，确保移除所有未执行的步骤（包括 cluster-articles）
+            // 完全替换 steps，确保移除所有未执行的步骤（包括 classify-articles）
             callbacks.updateQueryProgress({
                 steps,
                 currentStepIndex: 0,
@@ -1105,61 +1137,73 @@ export async function consolidate(
                 overallProgress: 100
             })
         }
-        return { articles: [], timeRangeHasArticles: false }
+        return { articles: [], timeRangeHasArticles: false, topicGuidance: null, classificationGuidance: null }
     }
 
     // 如果没有话题，直接返回所有文章
     if (!topic || !topic.trim()) {
-        return { articles: items, timeRangeHasArticles: true }
+        return { articles: items, timeRangeHasArticles: true, topicGuidance: null, classificationGuidance: null }
     }
 
     const trimmedTopic = topic.trim()
     const { topk } = config
 
     // 步骤1.5: 意图识别（识别用户意图并确定查询的精细程度）
-    const rewrittenQuery = await stepRecognizeIntent(trimmedTopic, config, callbacks)
+    const { topicGuidance, classificationGuidance } = await stepRecognizeIntent(trimmedTopic, classificationStandard, config, callbacks)
 
     // 如果文章数量小于等于topk，不需要计算embedding和相似度，直接进行LLM精选
     if (items.length <= topk) {
         // 更新queryProgress，移除embedding相关步骤，只保留步骤1、意图识别和LLM精选
         // 注意：分类步骤由调用方根据是否有分类依据决定是否添加
         if (callbacks.updateQueryProgress) {
+            const intentSteps: QueryProgressStep[] = [
+                { id: 'intent-recognition-topic', title: intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"), status: 'completed', visible: true }
+            ]
+            if (classificationStandard && classificationStandard.trim()) {
+                intentSteps.push({ id: 'intent-recognition-classification', title: intl.get("settings.aiMode.progress.steps.intentRecognitionClassification"), status: 'completed', visible: true })
+            }
             const steps: QueryProgressStep[] = [
                 { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
-                { id: 'intent-recognition', title: intl.get("settings.aiMode.progress.steps.intentRecognition"), status: 'completed', visible: true },
+                ...intentSteps,
                 { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'pending', visible: true }
             ]
             
             callbacks.updateQueryProgress({
                 steps,
-                currentStepIndex: 2, // 指向LLM精选步骤
+                currentStepIndex: intentSteps.length + 1, // 指向LLM精选步骤
                 currentMessage: intl.get("settings.aiMode.progress.messages.skipSimilarityCalculation", { count: items.length, topk: topk })
             })
         }
         
         // 步骤2: LLM精选（使用改写后的查询）
-        const refinedArticles = await stepLLMRefine(items, rewrittenQuery, config, callbacks)
+        const refinedArticles = await stepLLMRefine(items, topicGuidance, config, callbacks)
         
         // 如果LLM精选后没有文章，更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤
         if (refinedArticles.length === 0) {
             if (callbacks.updateQueryProgress) {
+                const intentSteps: QueryProgressStep[] = [
+                    { id: 'intent-recognition-topic', title: intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"), status: 'completed', visible: true }
+                ]
+                if (classificationStandard && classificationStandard.trim()) {
+                    intentSteps.push({ id: 'intent-recognition-classification', title: intl.get("settings.aiMode.progress.steps.intentRecognitionClassification"), status: 'completed', visible: true })
+                }
                 const steps: QueryProgressStep[] = [
                     { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
-                    { id: 'intent-recognition', title: intl.get("settings.aiMode.progress.steps.intentRecognition"), status: 'completed', visible: true },
+                    ...intentSteps,
                     { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.noRelatedArticlesAfterLLM"), visible: true }
                 ]
                 
                 callbacks.updateQueryProgress({
                     steps,
-                    currentStepIndex: 2,
+                    currentStepIndex: intentSteps.length + 1,
                     overallProgress: 100,
                     currentMessage: intl.get("settings.aiMode.progress.messages.completed")
                 })
             }
-            return { articles: [], timeRangeHasArticles: true }
+            return { articles: [], timeRangeHasArticles: true, topicGuidance, classificationGuidance }
         }
         
-        return { articles: refinedArticles, timeRangeHasArticles: true }
+        return { articles: refinedArticles, timeRangeHasArticles: true, topicGuidance, classificationGuidance }
     }
 
     try {
@@ -1170,16 +1214,19 @@ export async function consolidate(
         const selectedArticles = await stepCalculateSimilarity(items, topicEmbedding, topk, callbacks)
         
         // 步骤4: LLM精选（使用改写后的查询）
-        const refinedArticles = await stepLLMRefine(selectedArticles, rewrittenQuery, config, callbacks)
+        const refinedArticles = await stepLLMRefine(selectedArticles, topicGuidance, config, callbacks)
         
-        // 如果LLM精选后没有文章，立即更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤（包括 cluster-articles）
+        // 如果LLM精选后没有文章，立即更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤（包括 classify-articles）
         if (refinedArticles.length === 0) {
             if (callbacks.updateQueryProgress && callbacks.getCurrentQueryProgress) {
                 const currentProgress = callbacks.getCurrentQueryProgress()
                 if (currentProgress) {
-                    // 只保留已执行的步骤（query-db, intent-recognition, vectorize-text, calculate-similarity, llm-refine）
-                    // 明确排除 cluster-articles 和其他未执行的步骤
-                    const executedStepIds = ['query-db', 'intent-recognition', 'vectorize-text', 'calculate-similarity', 'llm-refine']
+                    // 只保留已执行的步骤（query-db, intent-recognition-topic, intent-recognition-classification, vectorize-text, calculate-similarity, llm-refine）
+                    // 明确排除 classify-articles 和其他未执行的步骤
+                    const executedStepIds = ['query-db', 'intent-recognition-topic', 'vectorize-text', 'calculate-similarity', 'llm-refine']
+                    if (classificationStandard && classificationStandard.trim()) {
+                        executedStepIds.splice(2, 0, 'intent-recognition-classification')
+                    }
                     const executedSteps = currentProgress.steps
                         .filter(step => executedStepIds.includes(step.id))
                         .map(step => ({
@@ -1188,7 +1235,7 @@ export async function consolidate(
                             visible: true
                         }))
                     
-                    // 完全替换 steps，确保移除所有未执行的步骤（包括 cluster-articles）
+                    // 完全替换 steps，确保移除所有未执行的步骤（包括 classify-articles）
                     // 使用完整的 QueryProgress 对象，确保 reducer 不会重新计算可见性
                     const finalProgress: QueryProgress = {
                         steps: executedSteps,
@@ -1199,10 +1246,10 @@ export async function consolidate(
                     callbacks.updateQueryProgress(finalProgress)
                 }
             }
-            return { articles: [], timeRangeHasArticles: true }
+            return { articles: [], timeRangeHasArticles: true, topicGuidance, classificationGuidance }
         }
         
-        return { articles: refinedArticles, timeRangeHasArticles: true }
+        return { articles: refinedArticles, timeRangeHasArticles: true, topicGuidance, classificationGuidance }
     } catch (error) {
         // 如果计算embedding失败，回退到全文匹配
         if (error instanceof Error && error.message.includes('计算话题向量失败')) {
@@ -1214,7 +1261,7 @@ export async function consolidate(
                     topicRegex.test(item.content || '')
                 )
             })
-            return { articles: filteredItems, timeRangeHasArticles: true }
+            return { articles: filteredItems, timeRangeHasArticles: true, topicGuidance: null, classificationGuidance: null }
         }
         throw error
     }
@@ -1223,10 +1270,10 @@ export async function consolidate(
 // ==================== 分类函数 ====================
 
 // 对文章进行分类分析
-export async function clusterArticles(
+export async function classifyArticles(
     articles: RSSItem[],
-    topic: string | null,
-    classificationStandard: string | null,
+    topicGuidance: string | null,
+    classificationGuidance: string | null,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<ArticleCluster[]> {
@@ -1248,7 +1295,7 @@ export async function clusterArticles(
     }
 
     // 更新进度：开始分类
-    callbacks.updateStepStatus('cluster-articles', 'in_progress', intl.get("settings.aiMode.progress.messages.analyzingAndClassifying", { count: articles.length }))
+    callbacks.updateStepStatus('classify-articles', 'in_progress', intl.get("settings.aiMode.progress.messages.analyzingAndClassifying", { count: articles.length }))
 
     // 规范化endpoint URL
     let normalizedEndpoint = chatApiEndpoint.trim()
@@ -1269,8 +1316,8 @@ export async function clusterArticles(
         throw new Error(`无效的Chat API Endpoint URL: ${normalizedEndpoint}`)
     }
 
-    // 准备文章内容（限制数量以避免token过多）
-    const articlesToAnalyze = articles.slice(0, 100)  // 最多分析100篇文章
+    // 准备文章内容
+    const articlesToAnalyze = articles  // 分析所有文章
     const batchSize = 10  // 每批10篇文章
     const totalArticles = articlesToAnalyze.length
     const totalBatches = Math.ceil(totalArticles / batchSize)
@@ -1292,7 +1339,7 @@ export async function clusterArticles(
     const updateProgress = () => {
         completedCount++
         const progress = Math.floor((completedCount / totalBatches) * 100)
-            callbacks.updateStepStatus('cluster-articles', 'in_progress', 
+            callbacks.updateStepStatus('classify-articles', 'in_progress', 
             intl.get("settings.aiMode.progress.messages.classifyingInParallel", { 
                 completed: completedCount, 
                 total: totalBatches, 
@@ -1302,8 +1349,7 @@ export async function clusterArticles(
             progress)
     }
 
-    const topicText = topic ? `\n## Context\nThese articles are all related to the topic "${topic}".` : ''
-    const classificationStandardText = classificationStandard ? `\n\n## Classification Standard\nYou must classify articles according to: "${classificationStandard}"\n\n**Example:** If the standard is "classify by company name":\n- Articles about Apple Inc. → "Apple"\n- Articles about Google → "Google"\n- Articles about Microsoft → "Microsoft"` : ''
+    // 提示词将在 processBatch 中动态生成
 
     // 处理单个批次的函数
     const processBatch = async (batchInfo: { batch: RSSItem[], batchNumber: number, batchStart: number }) => {
@@ -1320,49 +1366,7 @@ Published Date: ${dateStr}
 Summary: ${snippet}`
             }).join('\n\n')
 
-            const prompt = `Classify the following articles according to the provided standard.${topicText}${classificationStandardText}
-
-## Task
-Assign one or more classification labels to each article based on the classification standard.
-
-## Classification Rules
-1. **Read carefully**: Analyze the title and summary of each article
-2. **Apply standard**: ${classificationStandard ? `Follow the classification standard "${classificationStandard}" strictly` : 'Classify based on the main content and subject matter'}
-3. **Multiple categories**: An article can belong to multiple categories if it covers multiple topics
-4. **Category names**: Keep category names concise (max 20 characters) and descriptive
-
-## Multi-Category Examples
-If an article discusses both "Apple" and "Google":
-  { "articleIndex": 0, "category": "Apple" }
-  { "articleIndex": 0, "category": "Google" }
-
-If an article is about "AI Technology" and "Healthcare":
-  { "articleIndex": 1, "category": "AI Technology" }
-  { "articleIndex": 1, "category": "Healthcare" }
-
-## Output Format
-Return a JSON array with classification records. Each record contains:
-- articleIndex: The article's position in the list (0-based)
-- category: The classification label (string, max 20 characters)
-
-Format:
-{
-  "classifications": [
-    { "articleIndex": 0, "category": "Category Name 1" },
-    { "articleIndex": 0, "category": "Category Name 2" },
-    { "articleIndex": 1, "category": "Category Name 1" }
-  ]
-}
-
-**Important:**
-- Every article must have at least one classification
-- If an article belongs to multiple categories, create separate records for each
-- Use consistent category names (e.g., don't mix "Apple" and "Apple Inc.")
-
-## Articles to Classify
-${articlesText}
-
-Return the classification results in JSON format:`
+            const prompt = getClassifyArticlesPrompt(topicGuidance, classificationGuidance, articlesText)
 
             const openai = new OpenAI({
                 apiKey: chatApiKey,
@@ -1376,7 +1380,7 @@ Return the classification results in JSON format:`
                 messages: [
                     {
                         role: 'system',
-                        content: 'You are a professional article analysis assistant, skilled at categorizing articles according to classification standards. Return results strictly in JSON format, only return JSON objects, do not include any other text.'
+                        content: CLASSIFY_ARTICLES_SYSTEM_MESSAGE
                     },
                     {
                         role: 'user',
@@ -1445,7 +1449,7 @@ Return the classification results in JSON format:`
 
     // 如果没有任何分类结果，返回空数组
     if (allClassifications.length === 0) {
-        callbacks.updateStepStatus('cluster-articles', 'completed', intl.get("settings.aiMode.progress.messages.classificationCompletedNoResults"))
+        callbacks.updateStepStatus('classify-articles', 'completed', intl.get("settings.aiMode.progress.messages.classificationCompletedNoResults"))
         return []
     }
 
@@ -1458,7 +1462,7 @@ Return the classification results in JSON format:`
         
         if (uniqueCategories.length > 0) {
             try {
-                callbacks.updateStepStatus('cluster-articles', 'in_progress', intl.get("settings.aiMode.progress.messages.mergingDuplicateCategories"))
+                callbacks.updateStepStatus('classify-articles', 'in_progress', intl.get("settings.aiMode.progress.messages.mergingDuplicateCategories"))
 
                 const openai = new OpenAI({
                     apiKey: chatApiKey,
@@ -1466,89 +1470,14 @@ Return the classification results in JSON format:`
                     dangerouslyAllowBrowser: true
                 })
 
-                const deduplicationPrompt = `Identify synonyms and duplicate category names, then merge them into standardized groups.
-
-## Category Names to Process
-${uniqueCategories.map((cat, idx) => `${idx}. ${cat}`).join('\n')}
-
-## Task
-Group category names that refer to the same entity or concept, and select a standard name for each group.
-
-## Identification Rules
-
-### 1. Exact Duplicates
-Categories that are identical (case-insensitive):
-- "Apple" and "apple" → Same group
-- "Google" and "Google" → Same group
-
-### 2. Synonyms and Variations
-Categories that refer to the same entity:
-- **Company names**: "Apple", "Apple Inc.", "Apple Corporation" → Same group
-- **Abbreviations**: "AI", "Artificial Intelligence" → Same group
-- **Common variations**: "Machine Learning", "ML", "machine learning" → Same group
-- **Cross-language**: Categories in different languages referring to the same concept should be grouped together
-
-### 3. Standard Name Selection
-Choose the standard name using these criteria (in order):
-1. Most commonly used variant in the list
-2. Most formal/official name (e.g., "Apple Inc." over "Apple")
-3. Shortest clear name if equally common
-4. English name if cross-language synonyms exist
-
-## Examples
-
-**Example 1 - Company Names:**
-{
-  "standardName": "Apple",
-  "synonyms": ["Apple", "Apple Inc.", "Apple Corporation", "AAPL"]
-}
-
-**Example 2 - Technology Terms:**
-{
-  "standardName": "Artificial Intelligence",
-  "synonyms": ["AI", "Artificial Intelligence", "Machine Intelligence"]
-}
-
-**Example 3 - Standalone Category:**
-{
-  "standardName": "Healthcare",
-  "synonyms": ["Healthcare"]
-}
-
-## Output Format
-Return a JSON object with synonym groups:
-{
-  "synonymGroups": [
-    {
-      "standardName": "Apple",
-      "synonyms": ["Apple", "Apple Inc.", "Apple Corporation"]
-    },
-    {
-      "standardName": "Google",
-      "synonyms": ["Google", "Google Inc.", "Alphabet"]
-    },
-    {
-      "standardName": "Healthcare",
-      "synonyms": ["Healthcare"]
-    }
-  ]
-}
-
-## Important Notes
-- Every category name must appear in exactly one group
-- If a category has no synonyms, it forms a single-item group
-- The synonyms array must include standardName itself
-- Handle cross-language synonyms appropriately (group them together)
-- Be consistent: if "Apple" and "Apple Inc." are synonyms, always group them
-
-Return the synonym grouping results in JSON format:`
+                const deduplicationPrompt = getClassificationDeduplicationPrompt(uniqueCategories)
 
                 const completionParams: any = {
                     model: model,
                     messages: [
                         {
                             role: 'system',
-                            content: 'You are a professional text analysis assistant, skilled at identifying synonyms. Return results strictly in JSON format, only return JSON objects, do not include any other text.'
+                            content: CLASSIFICATION_DEDUPLICATION_SYSTEM_MESSAGE
                         },
                         {
                             role: 'user',
@@ -1643,7 +1572,7 @@ Return the synonym grouping results in JSON format:`
         })
     }
 
-    callbacks.updateStepStatus('cluster-articles', 'completed', intl.get("settings.aiMode.progress.messages.classificationCompleted", { count: clusters.length }))
+    callbacks.updateStepStatus('classify-articles', 'completed', intl.get("settings.aiMode.progress.messages.classificationCompleted", { count: clusters.length }))
     return clusters
 }
 

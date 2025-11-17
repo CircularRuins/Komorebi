@@ -178,13 +178,15 @@
                 "steps": {
                     "queryDb": "Filter by Time Range",
                     "intentRecognition": "Intent Recognition",
+                    "intentRecognitionTopic": "Topic Intent Recognition",
+                    "intentRecognitionClassification": "Classification Standard Intent Recognition",
                     "computeTopicEmbedding": "Compute Topic Embedding",
                     "loadEmbeddings": "Load Existing Article Embeddings",
                     "computeEmbeddings": "Compute New Article Embeddings",
                     "vectorizeText": "Text Vectorization",
                     "calculateSimilarity": "Calculate Similarity and Filter",
                     "llmRefine": "LLM Refinement",
-                    "clusterArticles": "Classify Articles"
+                    "classifyArticles": "Classify Articles"
                 },
                 "messages": {
                     "querying": "Querying articles from database...",
@@ -231,7 +233,13 @@
                     "skipSimilarityCalculation": "Article count ({count}) is less than or equal to TopK ({topk}), skipping similarity calculation",
                     "recognizingIntent": "Recognizing query intent \"{topic}\"...",
                     "intentRecognitionCompleted": "Intent recognition completed",
-                    "intentRecognitionFailed": "Intent recognition failed, using original topic"
+                    "intentRecognitionFailed": "Intent recognition failed, using original topic",
+                    "recognizingTopicIntent": "Recognizing topic intent \"{topic}\"...",
+                    "topicIntentRecognitionCompleted": "Topic intent recognition completed",
+                    "topicIntentRecognitionFailed": "Topic intent recognition failed, using original topic",
+                    "recognizingClassificationIntent": "Recognizing classification standard intent (standard: \"{standard}\")...",
+                    "classificationIntentRecognitionCompleted": "Classification standard intent recognition completed",
+                    "classificationIntentRecognitionFailed": "Classification standard intent recognition failed, using original classification standard"
                 },
                 "executionSteps": "Execution Steps",
                 "viewResults": "View Results",

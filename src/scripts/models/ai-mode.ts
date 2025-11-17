@@ -893,10 +893,12 @@ export function aiModeReducer(
                 // 步骤不存在，动态添加（根据步骤ID确定标题）
                 const stepTitles: { [key: string]: string } = {
                     'intent-recognition': intl.get("settings.aiMode.progress.steps.intentRecognition"),
+                    'intent-recognition-topic': intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"),
+                    'intent-recognition-classification': intl.get("settings.aiMode.progress.steps.intentRecognitionClassification"),
                     'vectorize-text': intl.get("settings.aiMode.progress.steps.vectorizeText"),
                     'calculate-similarity': intl.get("settings.aiMode.progress.steps.calculateSimilarity"),
                     'llm-refine': intl.get("settings.aiMode.progress.steps.llmRefine"),
-                    'cluster-articles': intl.get("settings.aiMode.progress.steps.clusterArticles")
+                    'classify-articles': intl.get("settings.aiMode.progress.steps.classifyArticles")
                 }
                 const stepTitle = stepTitles[action.stepId] || action.stepId
                 const newStep: QueryProgressStep = {

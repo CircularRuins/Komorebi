@@ -176,13 +176,15 @@
                 "steps": {
                     "queryDb": "根据时间范围筛选",
                     "intentRecognition": "意图识别",
+                    "intentRecognitionTopic": "主题意图识别",
+                    "intentRecognitionClassification": "分类标准意图识别",
                     "computeTopicEmbedding": "计算话题向量",
                     "loadEmbeddings": "加载已有文章向量",
                     "computeEmbeddings": "计算新文章向量",
                     "vectorizeText": "文本向量化",
                     "calculateSimilarity": "计算相似度并筛选",
                     "llmRefine": "LLM精选",
-                    "clusterArticles": "分类文章"
+                    "classifyArticles": "分类文章"
                 },
                 "messages": {
                     "querying": "正在从数据库查询文章...",
@@ -229,7 +231,13 @@
                     "skipSimilarityCalculation": "文章数量({count})小于等于TopK({topk})，跳过相似度计算",
                     "recognizingIntent": "正在识别查询意图\"{topic}\"...",
                     "intentRecognitionCompleted": "意图识别完成",
-                    "intentRecognitionFailed": "意图识别失败，使用原始主题"
+                    "intentRecognitionFailed": "意图识别失败，使用原始主题",
+                    "recognizingTopicIntent": "正在识别主题意图\"{topic}\"...",
+                    "topicIntentRecognitionCompleted": "主题意图识别完成",
+                    "topicIntentRecognitionFailed": "主题意图识别失败，使用原始主题",
+                    "recognizingClassificationIntent": "正在识别分类标准意图（标准：\"{standard}\"）...",
+                    "classificationIntentRecognitionCompleted": "分类标准意图识别完成",
+                    "classificationIntentRecognitionFailed": "分类标准意图识别失败，使用原始分类标准"
                 },
                 "executionSteps": "执行步骤",
                 "viewResults": "查看结果",

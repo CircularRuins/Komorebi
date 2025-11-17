@@ -64,7 +64,7 @@ import {
 } from "../scripts/models/ai-mode"
 import {
     consolidate,
-    clusterArticles as consolidateClusterArticles,
+    classifyArticles as consolidateClassifyArticles,
     ConsolidateConfig,
     ConsolidateCallbacks,
 } from "../scripts/consolidate"
@@ -543,7 +543,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: 'in_progress', message: intl.get("settings.aiMode.progress.messages.querying"), visible: true }
         ]
         
-        // 注意：所有后续步骤（vectorize-text, calculate-similarity, llm-refine, cluster-articles）
+        // 注意：所有后续步骤（vectorize-text, calculate-similarity, llm-refine, classify-articles）
         // 都根据实际执行情况动态添加，不在这里预先添加
         
         return {
@@ -610,7 +610,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
 
 
     // ==================== 主函数: 查询符合条件的文章（使用consolidate函数）====================
-    queryArticles = async (timeRangeDays: number | null, topic: string | null): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean }> => {
+    queryArticles = async (timeRangeDays: number | null, topic: string | null, classificationStandard: string | null = null): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, classificationGuidance: string | null }> => {
         const { aiMode, updateQueryProgress } = this.props
         
         const config: ConsolidateConfig = {
@@ -629,12 +629,12 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             getCurrentQueryProgress: () => aiMode.queryProgress,
         }
         
-        return await consolidate(timeRangeDays, topic, config, callbacks)
+        return await consolidate(timeRangeDays, topic, classificationStandard, config, callbacks)
     }
 
 
     // 对文章进行分类分析
-    clusterArticles = async (articles: RSSItem[], topic: string | null, classificationStandard: string | null = null): Promise<ArticleCluster[]> => {
+    classifyArticles = async (articles: RSSItem[], topicGuidance: string | null = null, classificationGuidance: string | null = null): Promise<ArticleCluster[]> => {
         const { aiMode } = this.props
         
         const config: ConsolidateConfig = {
@@ -651,7 +651,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             updateStepStatus: this.updateStepStatus,
         }
         
-        return await consolidateClusterArticles(articles, topic, classificationStandard, config, callbacks)
+        return await consolidateClassifyArticles(articles, topicGuidance, classificationGuidance, config, callbacks)
     }
 
     // 生成总结
@@ -811,8 +811,8 @@ ${articlesText}
             const timeRangeDays = this.parseTimeRange(timeRange)
 
             // 查询文章（根据时间范围和话题）
-            const result = await this.queryArticles(timeRangeDays, currentTopic)
-            const { articles, timeRangeHasArticles } = result
+            const result = await this.queryArticles(timeRangeDays, currentTopic, trimmedClassificationStandard)
+            const { articles, timeRangeHasArticles, topicGuidance, classificationGuidance } = result
             
             // 保存时间范围内是否有文章的信息
             setTimeRangeHasArticles(timeRangeHasArticles)
@@ -867,15 +867,15 @@ ${articlesText}
             }
             
             // 有分类依据，执行分类步骤
-            // 只有在真正需要执行分类时，才添加 cluster-articles 步骤
+            // 只有在真正需要执行分类时，才添加 classify-articles 步骤
             if (aiMode.queryProgress) {
-                // 检查是否已经有 cluster-articles 步骤
-                const hasClusterStep = aiMode.queryProgress.steps.some(step => step.id === 'cluster-articles')
-                if (!hasClusterStep) {
-                    // 添加 cluster-articles 步骤
+                // 检查是否已经有 classify-articles 步骤
+                const hasClassifyStep = aiMode.queryProgress.steps.some(step => step.id === 'classify-articles')
+                if (!hasClassifyStep) {
+                    // 添加 classify-articles 步骤
                     const updatedSteps: QueryProgressStep[] = [
                         ...aiMode.queryProgress.steps,
-                        { id: 'cluster-articles', title: intl.get("settings.aiMode.progress.steps.clusterArticles"), status: 'pending' as const, visible: false }
+                        { id: 'classify-articles', title: intl.get("settings.aiMode.progress.steps.classifyArticles"), status: 'pending' as const, visible: false }
                     ]
                     updateQueryProgress({
                         steps: updatedSteps,
@@ -894,7 +894,7 @@ ${articlesText}
 
             // 使用LLM对文章进行分类分析
             try {
-                const clusters = await this.clusterArticles(articlesWithValidSources, currentTopic, currentClassificationStandard)
+                const clusters = await this.classifyArticles(articlesWithValidSources, topicGuidance, classificationGuidance)
                 
                 setClusters(clusters)
                 setClustering(false)
