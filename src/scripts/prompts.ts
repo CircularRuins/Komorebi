@@ -161,17 +161,17 @@ function formatClassificationIntentRecognitionExamples(): string {
     const ex2 = PROMPT_EXAMPLES.classificationIntentRecognition.example2
     const ex3 = PROMPT_EXAMPLES.classificationIntentRecognition.example3
     return `**${ex1.title}**
-- Topic Guidance: "${ex1.topicGuidance}"
+- Topic: "${ex1.topicGuidance}"
 - Classification Standard: "${ex1.classificationStandard}"
 - Output: "${ex1.output}"
 
 **${ex2.title}**
-- Topic Guidance: "${ex2.topicGuidance}"
+- Topic: "${ex2.topicGuidance}"
 - Classification Standard: "${ex2.classificationStandard}"
 - Output: "${ex2.output}"
 
 **${ex3.title}**
-- Topic Guidance: "${ex3.topicGuidance}"
+- Topic: "${ex3.topicGuidance}"
 - Classification Standard: "${ex3.classificationStandard}"
 - Output: "${ex3.output}"`
 }
@@ -294,19 +294,19 @@ Return the JSON result:`
 
 export const CLASSIFICATION_INTENT_RECOGNITION_SYSTEM_MESSAGE = `You are a professional classification guidance assistant, skilled at understanding classification standards and generating detailed guidance for article classification. You excel at interpreting classification standards in the context of specific topics and providing clear, actionable guidance. IMPORTANT: Always output the classification guidance in English, regardless of the input language. Return results strictly in JSON format, only return JSON objects, do not include any other text.`
 
-export function getClassificationIntentRecognitionPrompt(topicGuidance: string, classificationStandard: string): string {
-    return `You are tasked with understanding how to classify articles based on topic guidance (from intent recognition) and a classification standard. Your goal is to generate detailed classification guidance that will help accurately categorize articles.
+export function getClassificationIntentRecognitionPrompt(topic: string, classificationStandard: string): string {
+    return `You are tasked with understanding how to classify articles based on topic and a classification standard. Your goal is to generate detailed classification guidance that will help accurately categorize articles.
 
-## Topic Guidance (from Intent Recognition)
-${topicGuidance}
+## Topic
+${topic}
 
 ## Classification Standard
 "${classificationStandard}"
 
 ## Task
-Analyze the topic guidance and classification standard to understand:
-1. What the classification standard means in the context of the topic guidance
-2. How to apply the classification standard to articles that match the topic guidance
+Analyze the topic and classification standard to understand:
+1. What the classification standard means in the context of the topic
+2. How to apply the classification standard to articles that match the topic
 3. What categories or labels should be used - **ONLY categories that are RELEVANT to the topic**
 4. Any specific rules or criteria for classification
 
@@ -315,7 +315,7 @@ Analyze the topic guidance and classification standard to understand:
 ## Classification Guidance Requirements
 
 The guidance should:
-1. **Interpret the standard**: Explain what the classification standard means in the context of the topic guidance
+1. **Interpret the standard**: Explain what the classification standard means in the context of the topic
 2. **Define categories**: Identify what categories or labels should be used based on the standard - **ONLY categories relevant to the topic**
 3. **Provide criteria**: Specify clear criteria for assigning articles to each category, emphasizing that only topic-relevant classifications should be extracted
 4. **Handle edge cases**: Address how to handle articles that might fit multiple categories or none, and explicitly state that unrelated classifications should be ignored
@@ -534,6 +534,50 @@ Return a JSON object with synonym groups:
 - The synonyms array must include standardName itself
 - Handle cross-language synonyms appropriately (group them together)
 - Be consistent: if "Apple" and "Apple Inc." are synonyms, always group them
+
+Return the JSON result:`
+}
+
+// ==================== HyDE (Hypothetical Document Embeddings) ====================
+
+export const HYDE_SYSTEM_MESSAGE = `You are a professional RSS article generation assistant, skilled at creating hypothetical RSS feed articles based on topics. Your task is to generate a realistic RSS article (with title and snippet) that would be relevant to the given topic. The generated article should mimic the format and style of real RSS feed articles, with a headline-style title and a news-style snippet/summary. The generated article should be comprehensive enough to serve as a good representation for semantic search in a RAG system. Return results strictly in JSON format, only return JSON objects, do not include any other text.`
+
+export function getHyDEPrompt(topic: string): string {
+    return `You are tasked with generating a hypothetical RSS article based on the following topic. This hypothetical article will be used for semantic search and vectorization in a RAG (Retrieval-Augmented Generation) system, so it should mimic the format and style of real RSS feed articles.
+
+## Topic
+"${topic}"
+
+## Task
+Generate a hypothetical RSS article that would be relevant to this topic. The article should mimic the format of real RSS feed articles, which typically include:
+1. A clear and descriptive title (similar to news article headlines)
+2. A snippet/summary that provides a concise overview of the article content (typically 100-300 words)
+
+## RSS Article Format Requirements
+The generated article should:
+- **Title**: Be written like a real RSS article headline - concise, informative, and attention-grabbing
+- **Snippet**: Be written like a real RSS article summary/abstract - it should:
+  * Provide a clear overview of the topic
+  * Include key information and main points
+  * Be written in a news/article style (not overly technical or academic)
+  * Be comprehensive enough for semantic search (typically 100-300 words)
+  * Mimic the style of real RSS feed summaries
+
+## Output Format
+Return a JSON object with the hypothetical RSS article:
+{
+  "title": "Article title here (RSS headline style)",
+  "snippet": "Article snippet/summary here (RSS summary style, 100-300 words)"
+}
+
+**IMPORTANT: The title and snippet MUST be written in English, regardless of the language of the input topic.**
+
+The snippet should be written like a real RSS article summary that:
+- Introduces the topic clearly
+- Explains key concepts and main points
+- Provides relevant details and context
+- Covers important aspects of the topic
+- Is written in a natural, news/article style (similar to RSS feed summaries)
 
 Return the JSON result:`
 }

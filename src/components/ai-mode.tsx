@@ -543,7 +543,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: 'in_progress', message: intl.get("settings.aiMode.progress.messages.querying"), visible: true }
         ]
         
-        // 注意：所有后续步骤（vectorize-text, calculate-similarity, llm-refine, classify-articles）
+        // 注意：所有后续步骤（vector-retrieval, calculate-similarity, llm-refine, classify-articles）
         // 都根据实际执行情况动态添加，不在这里预先添加
         
         return {

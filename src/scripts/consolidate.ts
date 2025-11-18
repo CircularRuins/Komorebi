@@ -14,7 +14,9 @@ import {
     CLASSIFY_ARTICLES_SYSTEM_MESSAGE,
     getClassifyArticlesPrompt,
     CLASSIFICATION_DEDUPLICATION_SYSTEM_MESSAGE,
-    getClassificationDeduplicationPrompt
+    getClassificationDeduplicationPrompt,
+    HYDE_SYSTEM_MESSAGE,
+    getHyDEPrompt
 } from "./prompts"
 
 // ==================== 配置和回调接口 ====================
@@ -129,9 +131,12 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
 }
 
 // 计算话题的embedding
+// textToVectorize: 实际用于计算embedding的文本（可能是HyDE生成的文章或原始主题）
+// cacheKeyTopic: 用于缓存key的主题（如果使用HyDE，应该是原始topic；否则为undefined，使用textToVectorize）
 export async function computeTopicEmbedding(
-    topic: string,
-    config: ConsolidateConfig
+    textToVectorize: string,
+    config: ConsolidateConfig,
+    cacheKeyTopic?: string
 ): Promise<number[]> {
     const { embeddingApiEndpoint, embeddingApiKey, embeddingModel } = config
 
@@ -147,10 +152,12 @@ export async function computeTopicEmbedding(
     }
 
     const modelToUse = embeddingModel.trim()
-    const trimmedTopic = topic.trim()
+    const trimmedText = textToVectorize.trim()
+    // 如果提供了cacheKeyTopic（使用HyDE的情况），使用它作为缓存key；否则使用实际文本
+    const cacheKey = cacheKeyTopic ? cacheKeyTopic.trim() : trimmedText
 
-    // 先尝试从缓存加载
-    const cachedEmbedding = loadTopicEmbeddingFromCache(trimmedTopic, modelToUse)
+    // 先尝试从缓存加载（使用缓存key）
+    const cachedEmbedding = loadTopicEmbeddingFromCache(cacheKey, modelToUse)
     if (cachedEmbedding) {
         return cachedEmbedding
     }
@@ -183,17 +190,17 @@ export async function computeTopicEmbedding(
             dangerouslyAllowBrowser: true
         })
 
-        // 调用embedding API
+        // 调用embedding API（使用实际文本计算embedding）
         const response = await openai.embeddings.create({
             model: modelToUse,
-            input: trimmedTopic,
+            input: trimmedText,
         })
 
         if (response.data && response.data.length > 0 && response.data[0].embedding) {
             const embedding = response.data[0].embedding
             
-            // 保存到缓存
-            saveTopicEmbeddingToCache(trimmedTopic, modelToUse, embedding)
+            // 保存到缓存（使用缓存key）
+            saveTopicEmbeddingToCache(cacheKey, modelToUse, embedding)
             
             return embedding
         } else {
@@ -292,7 +299,7 @@ export async function computeAndStoreEmbeddings(
         const updateProgress = () => {
             completedCount++
             const progress = Math.floor((completedCount / totalBatches) * 100)
-            callbacks.updateStepStatus('vectorize-text', 'in_progress', 
+            callbacks.updateStepStatus('vector-retrieval', 'in_progress', 
                 intl.get("settings.aiMode.progress.messages.computingVectorsInParallel", { 
                     completed: completedCount, 
                     total: totalBatches, 
@@ -405,19 +412,24 @@ export async function stepQueryDatabase(
 
 // 子步骤: 计算话题向量
 async function stepComputeTopicEmbedding(
-    topic: string,
+    textToVectorize: string,
+    originalTopic: string,
     config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks
+    callbacks: ConsolidateCallbacks,
+    isHyDE: boolean = false
 ): Promise<number[]> {
-    const trimmedTopic = topic.trim()
-    callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.computingTopicEmbedding", { topic: trimmedTopic }))
+    const trimmedText = textToVectorize.trim()
+    // 如果使用HyDE，显示原始主题；否则显示实际文本
+    const displayTopic = isHyDE ? originalTopic.substring(0, 50) : trimmedText.substring(0, 50)
+    callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.computingTopicEmbedding", { topic: displayTopic }))
     
     try {
-        const topicEmbedding = await computeTopicEmbedding(trimmedTopic, config)
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.topicEmbeddingCompleted"))
+        // 如果使用HyDE，缓存key应该基于原始topic，但实际计算使用假设文章
+        const topicEmbedding = await computeTopicEmbedding(trimmedText, config, isHyDE ? originalTopic : undefined)
+        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.topicEmbeddingCompleted"))
         return topicEmbedding
     } catch (error) {
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.topicEmbeddingFailed"))
+        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.topicEmbeddingFailed"))
         throw error
     }
 }
@@ -427,11 +439,11 @@ async function stepLoadEmbeddings(
     items: RSSItem[],
     callbacks: ConsolidateCallbacks
 ): Promise<void> {
-    callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.loadingEmbeddings"))
+    callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.loadingEmbeddings"))
     
     const itemIds = items.map(item => item._id)
     if (itemIds.length === 0) {
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.noArticlesToLoad"))
+        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.noArticlesToLoad"))
         return
     }
 
@@ -461,9 +473,9 @@ async function stepLoadEmbeddings(
             }
         }
         
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.embeddingsLoaded", { count: loadedCount }))
+        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.embeddingsLoaded", { count: loadedCount }))
     } catch (error) {
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.loadEmbeddingsFailed"))
+        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.loadEmbeddingsFailed"))
     }
 }
 
@@ -481,11 +493,11 @@ async function stepComputeEmbeddings(
     })
 
     if (articlesNeedingEmbedding.length === 0) {
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.allArticlesHaveEmbeddings"), 100)
+        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.allArticlesHaveEmbeddings"), 100)
         return
     }
 
-    callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.needComputeEmbeddings", { count: articlesNeedingEmbedding.length }), 0)
+    callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.needComputeEmbeddings", { count: articlesNeedingEmbedding.length }), 0)
     
     try {
         await computeAndStoreEmbeddings(articlesNeedingEmbedding, config, callbacks)
@@ -518,27 +530,31 @@ async function stepComputeEmbeddings(
             }
         }
         
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.embeddingsComputed", { count: articlesNeedingEmbedding.length }), 100)
+        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.embeddingsComputed", { count: articlesNeedingEmbedding.length }), 100)
     } catch (error) {
-        callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.computeEmbeddingsFailed"))
+        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.computeEmbeddingsFailed"))
         // 继续执行，只使用已有embedding的文章
     }
 }
 
-// 步骤2: 文本向量化（合并原步骤2、3、4）
-export async function stepVectorizeText(
+// 步骤2: 向量检索（合并原步骤2、3、4）
+export async function stepVectorRetrieval(
     topic: string,
     items: RSSItem[],
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<number[]> {
-    callbacks.updateStepStatus('vectorize-text', 'in_progress', intl.get("settings.aiMode.progress.messages.startVectorization"))
+    callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.startVectorRetrieval"))
     
     const trimmedTopic = topic.trim()
     
     try {
-        // 子步骤1: 计算话题向量
-        const topicEmbedding = await stepComputeTopicEmbedding(trimmedTopic, config, callbacks)
+        // 子步骤0: 生成HyDE假设文章（失败时直接抛出错误）
+        const hypotheticalArticle = await stepGenerateHyDE(trimmedTopic, config, callbacks)
+        
+        // 子步骤1: 计算话题向量（使用假设文章）
+        // 传入原始topic作为缓存key，但实际计算使用假设文章
+        const topicEmbedding = await stepComputeTopicEmbedding(hypotheticalArticle, trimmedTopic, config, callbacks, true)
         
         // 子步骤2: 加载已有文章向量
         await stepLoadEmbeddings(items, callbacks)
@@ -546,10 +562,10 @@ export async function stepVectorizeText(
         // 子步骤3: 计算新文章向量
         await stepComputeEmbeddings(items, config, callbacks)
         
-        callbacks.updateStepStatus('vectorize-text', 'completed', intl.get("settings.aiMode.progress.messages.vectorizationCompleted"))
+        callbacks.updateStepStatus('vector-retrieval', 'completed', intl.get("settings.aiMode.progress.messages.vectorRetrievalCompleted"))
         return topicEmbedding
     } catch (error) {
-        callbacks.updateStepStatus('vectorize-text', 'error', intl.get("settings.aiMode.progress.messages.vectorizationFailed"))
+        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.vectorRetrievalFailed"))
         throw error
     }
 }
@@ -747,14 +763,14 @@ async function stepRecognizeTopicIntent(
 
 // 子步骤: 分类标准意图识别（使用LLM理解如何分类）
 async function stepRecognizeClassificationIntent(
-    topicGuidance: string,
+    topic: string,
     classificationStandard: string,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<string> {
     const { chatApiEndpoint, chatApiKey, model } = config
 
-    const trimmedTopicGuidance = topicGuidance.trim()
+    const trimmedTopic = topic.trim()
     const trimmedStandard = classificationStandard.trim()
 
     // 验证API配置
@@ -801,7 +817,7 @@ async function stepRecognizeClassificationIntent(
             dangerouslyAllowBrowser: true
         })
 
-        const prompt = getClassificationIntentRecognitionPrompt(trimmedTopicGuidance, trimmedStandard)
+        const prompt = getClassificationIntentRecognitionPrompt(trimmedTopic, trimmedStandard)
 
         const completionParams: any = {
             model: model,
@@ -870,24 +886,138 @@ async function stepRecognizeClassificationIntent(
     }
 }
 
-// 步骤3.5: 意图识别（包含主题意图识别和分类标准意图识别两个子步骤）
-export async function stepRecognizeIntent(
+
+// 子步骤: HyDE生成（根据主题生成假设文章）
+async function stepGenerateHyDE(
     topic: string,
-    classificationStandard: string | null,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
-): Promise<{ topicGuidance: string, classificationGuidance: string | null }> {
-    // 子步骤1: 主题意图识别（总是执行）
-    const topicGuidance = await stepRecognizeTopicIntent(topic, config, callbacks)
-    
-    // 子步骤2: 分类标准意图识别（仅当有分类标准时执行）
-    // 使用话题意图识别后的指导（topicGuidance）而不是原始topic
-    let classificationGuidance: string | null = null
-    if (classificationStandard && classificationStandard.trim()) {
-        classificationGuidance = await stepRecognizeClassificationIntent(topicGuidance, classificationStandard, config, callbacks)
+): Promise<string> {
+    const { chatApiEndpoint, chatApiKey, model } = config
+
+    const trimmedTopic = topic.trim()
+
+    // 验证API配置
+    if (!chatApiEndpoint || !chatApiEndpoint.trim()) {
+        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.configChatApiEndpoint"))
+        throw new Error('请先配置Chat API Endpoint（在设置中配置）')
     }
-    
-    return { topicGuidance, classificationGuidance }
+    if (!chatApiKey || !chatApiKey.trim()) {
+        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.configChatApiKey"))
+        throw new Error('请先配置Chat API Key（在设置中配置）')
+    }
+    if (!model || !model.trim()) {
+        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.configModelName"))
+        throw new Error('请先配置模型名称（在设置中配置）')
+    }
+
+    callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.generatingHyDE", { topic: trimmedTopic }))
+
+    // 规范化endpoint URL
+    let normalizedEndpoint = chatApiEndpoint.trim()
+    if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
+        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointInvalid"))
+        throw new Error('Chat API Endpoint必须以http://或https://开头')
+    }
+
+    // 提取base URL
+    let baseURL = normalizedEndpoint
+    try {
+        const url = new URL(normalizedEndpoint)
+        if (url.pathname.includes('/v1/chat/completions')) {
+            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
+        } else {
+            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
+        }
+    } catch (error) {
+        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointUrlInvalid", { url: normalizedEndpoint }))
+        throw new Error(`无效的Chat API Endpoint URL: ${normalizedEndpoint}`)
+    }
+
+    try {
+        const openai = new OpenAI({
+            apiKey: chatApiKey,
+            baseURL: baseURL,
+            dangerouslyAllowBrowser: true
+        })
+
+        const prompt = getHyDEPrompt(trimmedTopic)
+
+        const completionParams: any = {
+            model: model,
+            messages: [
+                {
+                    role: 'system',
+                    content: HYDE_SYSTEM_MESSAGE
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.7,
+            max_tokens: 1000
+        }
+
+        // 某些模型可能不支持response_format，尝试添加但不强制
+        try {
+            completionParams.response_format = { type: "json_object" }
+        } catch (e) {
+            // 忽略错误，继续使用普通格式
+        }
+
+        const completion = await openai.chat.completions.create(completionParams)
+
+        if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
+            const responseText = completion.choices[0].message.content || ''
+
+            // 解析JSON响应
+            let responseData
+            try {
+                // 尝试提取JSON（可能包含markdown代码块）
+                const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
+                const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
+                responseData = JSON.parse(jsonText)
+            } catch (parseError) {
+                // 解析失败，抛出错误
+                callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.hydeGenerationFailed"))
+                throw new Error('HyDE生成失败：无法解析LLM返回的JSON响应')
+            }
+
+            // 提取生成的假设文章（RSS格式：title和snippet）
+            if (responseData.title && responseData.snippet && typeof responseData.title === 'string' && typeof responseData.snippet === 'string') {
+                // 使用与RSS文章向量化相同的格式：title\nsnippet
+                const hypotheticalArticle = `${responseData.title.trim()}\n${responseData.snippet.trim()}`.trim()
+                if (hypotheticalArticle.length > 0) {
+                    // 输出HyDE生成的假设文章
+                    console.log('=== HyDE 生成的假设文章 ===')
+                    console.log('假设文章（用于向量化）:', hypotheticalArticle)
+                    console.log('=====================================')
+                    
+                    // HyDE 生成完成，更新向量检索步骤的消息，然后继续执行向量检索的其他子步骤
+                    callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.hydeGenerationCompleted"))
+                    return hypotheticalArticle
+                }
+            }
+            
+            // 如果响应格式不正确，抛出错误
+            callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.hydeGenerationFailed"))
+            throw new Error('HyDE生成失败：LLM返回的响应格式不正确（缺少title或snippet字段）')
+        } else {
+            // 如果API没有返回有效响应，抛出错误
+            callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.hydeGenerationFailed"))
+            throw new Error('HyDE生成失败：LLM API没有返回有效响应')
+        }
+    } catch (error) {
+        // API调用失败，抛出错误
+        if (error instanceof Error) {
+            callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.hydeGenerationFailed"))
+            throw error
+        } else {
+            callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.hydeGenerationFailed"))
+            throw new Error(`HyDE生成失败: ${String(error)}`)
+        }
+    }
 }
 
 // 步骤4: LLM精选（使用LLM严格判断文章是否真正讨论用户关注的主题）
@@ -1160,8 +1290,22 @@ export async function consolidate(
     const trimmedTopic = topic.trim()
     const { topk } = config
 
-    // 步骤1.5: 意图识别（识别用户意图并确定查询的精细程度）
-    const { topicGuidance, classificationGuidance } = await stepRecognizeIntent(trimmedTopic, classificationStandard, config, callbacks)
+    // 步骤1.5: 主题意图识别和分类标准意图识别（并行执行）
+    // 使用原始topic而不是话题意图识别后的指导（topicGuidance）
+    let topicGuidance: string
+    let classificationGuidance: string | null = null
+    if (classificationStandard && classificationStandard.trim()) {
+        // 并行执行两个意图识别步骤
+        const [topicGuidanceResult, classificationGuidanceResult] = await Promise.all([
+            stepRecognizeTopicIntent(trimmedTopic, config, callbacks),
+            stepRecognizeClassificationIntent(trimmedTopic, classificationStandard, config, callbacks)
+        ])
+        topicGuidance = topicGuidanceResult
+        classificationGuidance = classificationGuidanceResult
+    } else {
+        // 只有主题意图识别
+        topicGuidance = await stepRecognizeTopicIntent(trimmedTopic, config, callbacks)
+    }
 
     // 如果文章数量小于等于topk，不需要计算embedding和相似度，直接进行LLM精选
     if (items.length <= topk) {
@@ -1219,8 +1363,8 @@ export async function consolidate(
     }
 
     try {
-        // 步骤2: 文本向量化（仍使用原始topic，因为向量化需要语义表示）
-        const topicEmbedding = await stepVectorizeText(trimmedTopic, items, config, callbacks)
+        // 步骤2: 向量检索（仍使用原始topic，因为向量检索需要语义表示）
+        const topicEmbedding = await stepVectorRetrieval(trimmedTopic, items, config, callbacks)
         
         // 步骤3: 计算相似度并筛选
         const selectedArticles = await stepCalculateSimilarity(items, topicEmbedding, topk, callbacks)
@@ -1233,9 +1377,10 @@ export async function consolidate(
             if (callbacks.updateQueryProgress && callbacks.getCurrentQueryProgress) {
                 const currentProgress = callbacks.getCurrentQueryProgress()
                 if (currentProgress) {
-                    // 只保留已执行的步骤（query-db, intent-recognition-topic, intent-recognition-classification, vectorize-text, calculate-similarity, llm-refine）
+                    // 只保留已执行的步骤（query-db, intent-recognition-topic, intent-recognition-classification, vector-retrieval, calculate-similarity, llm-refine）
+                    // 注意：hyde-generation 不再作为独立步骤，它现在是 vector-retrieval 的子步骤
                     // 明确排除 classify-articles 和其他未执行的步骤
-                    const executedStepIds = ['query-db', 'intent-recognition-topic', 'vectorize-text', 'calculate-similarity', 'llm-refine']
+                    const executedStepIds = ['query-db', 'intent-recognition-topic', 'vector-retrieval', 'calculate-similarity', 'llm-refine']
                     if (classificationStandard && classificationStandard.trim()) {
                         executedStepIds.splice(2, 0, 'intent-recognition-classification')
                     }

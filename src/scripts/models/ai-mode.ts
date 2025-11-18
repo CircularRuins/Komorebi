@@ -895,7 +895,8 @@ export function aiModeReducer(
                     'intent-recognition': intl.get("settings.aiMode.progress.steps.intentRecognition"),
                     'intent-recognition-topic': intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"),
                     'intent-recognition-classification': intl.get("settings.aiMode.progress.steps.intentRecognitionClassification"),
-                    'vectorize-text': intl.get("settings.aiMode.progress.steps.vectorizeText"),
+                    'hyde-generation': intl.get("settings.aiMode.progress.steps.hydeGeneration"),
+                    'vector-retrieval': intl.get("settings.aiMode.progress.steps.vectorRetrieval"),
                     'calculate-similarity': intl.get("settings.aiMode.progress.steps.calculateSimilarity"),
                     'llm-refine': intl.get("settings.aiMode.progress.steps.llmRefine"),
                     'classify-articles': intl.get("settings.aiMode.progress.steps.classifyArticles")
