@@ -16,6 +16,7 @@ import {
     selectAllArticlesTotal,
     selectTodayArticles,
     selectSources,
+    toggleSourcesPage,
 } from "../scripts/models/page"
 import { ViewType } from "../schema-types"
 import { initFeeds, ALL_TODAY } from "../scripts/models/feed"
@@ -122,7 +123,7 @@ const mapDispatchToProps = dispatch => ({
             if (type === "g") dispatch(toggleGroupExpansion(parseInt(index)))
         }
     },
-    openSourcesSettings: () => dispatch(openSettingsTab("sources")),
+    openSourcesSettings: () => dispatch(toggleSourcesPage(true)),
     openGroupingSettings: () => dispatch(openSettingsTab("grouping")),
     addSourceToGroup: (groupIndex: number, sid: number) => dispatch(addSourceToGroup(groupIndex, sid)),
     removeSourceFromGroup: (groupIndex: number, sids: number[]) => dispatch(removeSourceFromGroup(groupIndex, sids)),

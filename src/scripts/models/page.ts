@@ -26,6 +26,7 @@ export const SHOW_OFFSET_ITEM = "SHOW_OFFSET_ITEM"
 export const DISMISS_ITEM = "DISMISS_ITEM"
 export const APPLY_FILTER = "APPLY_FILTER"
 export const TOGGLE_SEARCH = "TOGGLE_SEARCH"
+export const TOGGLE_SOURCES_PAGE = "TOGGLE_SOURCES_PAGE"
 
 export enum PageType {
     AllArticles,
@@ -75,6 +76,11 @@ interface ToggleSearchAction {
     type: typeof TOGGLE_SEARCH
 }
 
+interface ToggleSourcesPageAction {
+    type: typeof TOGGLE_SOURCES_PAGE
+    show: boolean
+}
+
 export type PageActionTypes =
     | SelectPageAction
     | SwitchViewAction
@@ -83,6 +89,7 @@ export type PageActionTypes =
     | ApplyFilterAction
     | ToggleSearchAction
     | SetViewConfigsAction
+    | ToggleSourcesPageAction
 
 export function selectAllArticles(init = false): AppThunk {
     return (dispatch, getState) => {
@@ -277,6 +284,11 @@ export const toggleSearch = (): AppThunk => {
     }
 }
 
+export const toggleSourcesPage = (show: boolean): PageActionTypes => ({
+    type: TOGGLE_SOURCES_PAGE,
+    show: show,
+})
+
 export function showOffsetItem(offset: number): AppThunk {
     return (dispatch, getState) => {
         let state = getState()
@@ -385,6 +397,7 @@ export class PageState {
     itemId = null as number
     itemFromFeed = true
     searchOn = false
+    showSourcesPage = false
 }
 
 export function pageReducer(
@@ -475,6 +488,11 @@ export function pageReducer(
             return {
                 ...state,
                 searchOn: !state.searchOn,
+            }
+        case TOGGLE_SOURCES_PAGE:
+            return {
+                ...state,
+                showSourcesPage: action.show,
             }
         default:
             return state

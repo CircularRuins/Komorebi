@@ -81,6 +81,7 @@ export class AppState {
     fetchingItems = false
     fetchingProgress = 0
     fetchingTotal = 0
+    isOPMLImport = false
     lastFetched = new Date()
     menu = true
     menuKey = ALL
@@ -186,6 +187,7 @@ export const TOGGLE_SETTINGS = "TOGGLE_SETTINGS"
 export const OPEN_SETTINGS_TAB = "OPEN_SETTINGS_TAB"
 export const SAVE_SETTINGS = "SAVE_SETTINGS"
 export const FREE_MEMORY = "FREE_MEMORY"
+export const SET_OPML_IMPORT = "SET_OPML_IMPORT"
 
 interface ToggleSettingsAction {
     type: typeof TOGGLE_SETTINGS
@@ -204,11 +206,16 @@ interface FreeMemoryAction {
     type: typeof FREE_MEMORY
     iids: Set<number>
 }
+interface SetOPMLImportAction {
+    type: typeof SET_OPML_IMPORT
+    isOPMLImport: boolean
+}
 export type SettingsActionTypes =
     | ToggleSettingsAction
     | OpenSettingsTabAction
     | SaveSettingsAction
     | FreeMemoryAction
+    | SetOPMLImportAction
 
 export function closeContextMenu(): AppThunk {
     return (dispatch, getState) => {
@@ -282,6 +289,11 @@ export const toggleSettings = (open = true, sids = new Array<number>()) => ({
     type: TOGGLE_SETTINGS,
     open: open,
     sids: sids,
+})
+
+export const setOPMLImport = (isOPMLImport: boolean): SetOPMLImportAction => ({
+    type: SET_OPML_IMPORT,
+    isOPMLImport: isOPMLImport,
 })
 
 export const openSettingsTab = (tab: "sources" | "grouping" | "app") => ({
@@ -680,10 +692,17 @@ export function appReducer(
                 ...state,
                 settings: {
                     ...state.settings,
-                    display: true,
+                    // 只在设置弹窗已经打开时才保持 display: true
+                    // 如果设置弹窗没有打开，不要强制打开它（避免影响内容区域的订阅源页面）
+                    display: state.settings.display,
                     changed: true,
                     saving: !state.settings.saving,
                 },
+            }
+        case SET_OPML_IMPORT:
+            return {
+                ...state,
+                isOPMLImport: action.isOPMLImport,
             }
         case TOGGLE_SETTINGS:
             return {

@@ -14,12 +14,20 @@ import { SyncService } from "../../schema-types"
 const getSources = (state: RootState) => state.sources
 const getServiceOn = (state: RootState) =>
     state.service.type !== SyncService.None
+const getFetchingItems = (state: RootState) => state.app.fetchingItems
+const getFetchingTotal = (state: RootState) => state.app.fetchingTotal
+const getFetchingProgress = (state: RootState) => state.app.fetchingProgress
+const getIsOPMLImport = (state: RootState) => state.app.isOPMLImport
 
 const mapStateToProps = createSelector(
-    [getSources, getServiceOn],
-    (sources, serviceOn) => ({
+    [getSources, getServiceOn, getFetchingItems, getFetchingTotal, getFetchingProgress, getIsOPMLImport],
+    (sources, serviceOn, fetchingItems, fetchingTotal, fetchingProgress, isOPMLImport) => ({
         sources: sources,
         serviceOn: serviceOn,
+        fetchingItems: fetchingItems,
+        fetchingTotal: fetchingTotal,
+        fetchingProgress: fetchingProgress,
+        isOPMLImport: isOPMLImport,
     })
 )
 

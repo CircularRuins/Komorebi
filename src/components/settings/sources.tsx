@@ -6,11 +6,10 @@ import {
     TextField,
     Stack,
     PrimaryButton,
-    DetailsList,
-    IColumn,
     MessageBar,
     MessageBarType,
     Icon,
+    ProgressIndicator,
 } from "@fluentui/react"
 import {
     SourceState,
@@ -21,6 +20,10 @@ import { urlTest } from "../../scripts/utils"
 type SourcesTabProps = {
     sources: SourceState
     serviceOn: boolean
+    fetchingItems: boolean
+    fetchingTotal: number
+    fetchingProgress: number
+    isOPMLImport: boolean
     addSource: (url: string) => Promise<number>
     clearSourceIcon: (source: RSSSource) => void
     importOPML: (onError?: (title: string, content: string) => void) => void
@@ -38,8 +41,11 @@ type SourcesTabState = {
 }
 
 class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
+    private tabBodyRef: React.RefObject<HTMLDivElement>
+
     constructor(props) {
         super(props)
+        this.tabBodyRef = React.createRef()
         this.state = {
             newUrl: "",
             showSuccessMessage: false,
@@ -48,46 +54,6 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             importErrorContent: "",
         }
     }
-
-
-    columns = (): IColumn[] => [
-        {
-            key: "favicon",
-            name: intl.get("icon"),
-            fieldName: "name",
-            isIconOnly: true,
-            iconName: "ImagePixel",
-            minWidth: 16,
-            maxWidth: 16,
-            onRender: (s: RSSSource) =>
-                s.iconurl && (
-                    <img
-                        src={s.iconurl}
-                        className="favicon"
-                        onError={() => {
-                            // 图标加载失败时，清除iconurl
-                            this.props.clearSourceIcon(s)
-                        }}
-                    />
-                ),
-        },
-        {
-            key: "name",
-            name: intl.get("name"),
-            fieldName: "name",
-            minWidth: 200,
-            data: "string",
-            isRowHeader: true,
-        },
-        {
-            key: "url",
-            name: "URL",
-            fieldName: "url",
-            minWidth: 280,
-            data: "string",
-        },
-    ]
-
 
     handleInputChange = event => {
         const name: string = event.target.name
@@ -135,7 +101,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
 
 
     render = () => (
-        <div className="tab-body">
+        <div className="tab-body" ref={this.tabBodyRef}>
             {this.props.serviceOn && (
                 <MessageBar messageBarType={MessageBarType.info}>
                     {intl.get("sources.serviceWarning")}
@@ -145,45 +111,32 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             {this.state.showSuccessMessage && (
                 <div
                     style={{
-                        position: 'fixed',
+                        position: 'absolute',
                         top: 0,
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        zIndex: 10000,
+                        zIndex: 1000,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                    }}
-                    onClick={() => this.setState({ showSuccessMessage: false })}>
-                    {/* 背景遮罩 */}
-                    <div
-                        style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                            animation: 'fadeIn 0.3s ease-out',
-                        }}
-                    />
+                        pointerEvents: 'none',
+                    }}>
                     {/* 弹窗内容 */}
                     <div
                         style={{
                             position: 'relative',
                             backgroundColor: 'var(--white)',
-                            borderRadius: '8px',
-                            padding: '24px 28px',
+                            borderRadius: '4px',
+                            padding: '24px',
                             minWidth: '280px',
                             maxWidth: '90%',
-                            boxShadow: '0 12px 48px rgba(0, 0, 0, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1)',
+                            boxShadow: '0 6.4px 14.4px rgba(0, 0, 0, 0.132), 0 1.2px 3.6px rgba(0, 0, 0, 0.108)',
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
                             gap: '16px',
-                            border: '1px solid var(--neutralLight)',
-                            animation: 'fadeInScale 0.3s ease-out',
+                            pointerEvents: 'auto',
                         }}
                         onClick={(e) => e.stopPropagation()}>
                         {/* 成功图标 */}
@@ -196,7 +149,6 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                animation: 'scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both',
                             }}>
                             <Icon
                                 iconName="CheckMark"
@@ -250,6 +202,13 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                     />
                 </Stack.Item>
             </Stack>
+            {this.props.isOPMLImport && this.props.fetchingItems && this.props.fetchingTotal > 0 && (
+                <div style={{ marginTop: '12px' }}>
+                    <ProgressIndicator
+                        percentComplete={this.props.fetchingProgress / this.props.fetchingTotal}
+                    />
+                </div>
+            )}
 
             <form onSubmit={this.addSource}>
                 <Label htmlFor="newUrl">{intl.get("sources.add")}</Label>
@@ -282,109 +241,55 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                 </Stack>
             </form>
 
-            <DetailsList
-                compact={Object.keys(this.props.sources).length >= 10}
-                items={Object.values(this.props.sources)}
-                columns={this.columns()}
-                getKey={s => s.sid}
-            />
             {/* OPML导入错误对话框 */}
             {this.state.showImportErrorDialog && (
                 <div
                     style={{
-                        position: 'fixed',
+                        position: 'absolute',
                         top: 0,
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        zIndex: 10000,
+                        zIndex: 1000,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        pointerEvents: 'none',
                     }}
                     onClick={this.handleCloseImportErrorDialog}>
-                    {/* 背景遮罩 */}
-                    <div
-                        style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                            animation: 'fadeIn 0.3s ease-out',
-                        }}
-                    />
                     {/* 对话框内容 */}
                     <div
                         style={{
                             position: 'relative',
                             backgroundColor: 'var(--white)',
-                            borderRadius: '8px',
-                            padding: '24px 28px',
-                            maxWidth: '600px',
-                            width: '90%',
-                            boxShadow: '0 12px 48px rgba(0, 0, 0, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1)',
-                            maxHeight: '70vh',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            border: '1px solid var(--neutralLight)',
-                            animation: 'fadeInScale 0.3s ease-out',
+                            borderRadius: '4px',
+                            padding: '20px',
+                            maxWidth: '400px',
+                            width: '85%',
+                            boxShadow: '0 6.4px 14.4px rgba(0, 0, 0, 0.132), 0 1.2px 3.6px rgba(0, 0, 0, 0.108)',
+                            maxHeight: '80%',
+                            overflow: 'auto',
+                            pointerEvents: 'auto',
                         }}
                         onClick={(e) => e.stopPropagation()}>
-                        {/* 错误图标和标题 */}
-                        <div style={{ 
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            marginBottom: '20px',
-                            gap: '12px',
-                        }}>
-                            <div
-                                style={{
-                                    width: '56px',
-                                    height: '56px',
-                                    borderRadius: '50%',
-                                    backgroundColor: '#fef6f6',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                }}>
-                                <Icon
-                                    iconName="Error"
-                                    styles={{
-                                        root: {
-                                            fontSize: '32px',
-                                            color: '#d13438',
-                                            fontWeight: 600,
-                                        },
-                                    }}
-                                />
-                            </div>
+                        {/* 标题 */}
+                        <div style={{ marginBottom: '12px' }}>
                             <h2 style={{ 
                                 margin: 0, 
-                                fontSize: '21px', 
+                                fontSize: '18px', 
                                 fontWeight: 600, 
-                                color: 'var(--white)',
-                                textAlign: 'center',
+                                color: 'var(--neutralPrimary)' 
                             }}>
                                 {this.state.importErrorTitle}
                             </h2>
                         </div>
-                        {/* 错误内容区域 - 可滚动 */}
+                        {/* 错误内容区域 */}
                         <div style={{ 
-                            marginBottom: '24px', 
+                            marginBottom: '16px', 
                             color: 'var(--neutralPrimary)', 
-                            fontSize: '14px', 
+                            fontSize: '13px', 
                             whiteSpace: 'pre-wrap',
-                            overflowY: 'auto',
-                            maxHeight: '400px',
-                            padding: '16px',
-                            backgroundColor: 'var(--neutralLighter)',
-                            borderRadius: '4px',
-                            fontFamily: 'monospace',
                             lineHeight: '1.5',
-                            border: '1px solid var(--neutralQuaternaryAlt)',
                         }}>
                             {this.state.importErrorContent}
                         </div>
@@ -398,7 +303,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                                 onClick={this.handleCopyImportError} 
                                 text={intl.get("context.copy")} 
                             />
-                            <PrimaryButton 
+                            <DefaultButton 
                                 onClick={this.handleCloseImportErrorDialog} 
                                 text={intl.get("confirm")} 
                             />

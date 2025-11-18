@@ -428,7 +428,7 @@ class Nav extends React.Component<NavProps, NavState> {
                         </a>
                     </TooltipHost>
                 </div>
-                {!this.canFetch() && (
+                {!this.canFetch() && !this.props.state.isOPMLImport && (
                     <ProgressIndicator
                         className="progress"
                         percentComplete={this.getProgress()}

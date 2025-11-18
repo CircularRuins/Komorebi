@@ -9,7 +9,7 @@ import {
 } from "./source"
 import { SourceGroup } from "../../schema-types"
 import { ActionStatus, AppThunk, domParser } from "../utils"
-import { saveSettings } from "./app"
+import { saveSettings, setOPMLImport } from "./app"
 import {
     fetchItemsIntermediate,
     fetchItemsRequest,
@@ -256,6 +256,7 @@ export function importOPML(onError?: (title: string, content: string) => void): 
                     }
                     return
                 }
+                dispatch(setOPMLImport(true))
                 let sources: [ReturnType<typeof addSource>, number, string][] =
                     []
                 let errors: [string, any][] = []
@@ -293,6 +294,7 @@ export function importOPML(onError?: (title: string, content: string) => void): 
                 })
                 Promise.allSettled(promises).then(() => {
                     dispatch(fetchItemsSuccess([], {}))
+                    dispatch(setOPMLImport(false))
                     dispatch(saveSettings())
                     if (errors.length > 0) {
                         const errorTitle = intl.get("sources.errorImport", {

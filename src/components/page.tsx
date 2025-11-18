@@ -5,6 +5,7 @@ import { AnimationClassNames, Icon, FocusTrapZone, TooltipHost, TooltipDelay } f
 import ArticleContainer from "../containers/article-container"
 import AIMode from "./ai-mode"
 import { ViewType } from "../schema-types"
+import SourcesTabContainer from "../containers/settings/sources-container"
 
 type PageProps = {
     menuOn: boolean
@@ -14,8 +15,10 @@ type PageProps = {
     itemId: number
     itemFromFeed: boolean
     viewType: ViewType
+    showSourcesPage: boolean
     dismissItem: () => void
     offsetItem: (offset: number) => void
+    toggleSourcesPage: (show: boolean) => void
 }
 
 class Page extends React.Component<PageProps> {
@@ -52,6 +55,41 @@ class Page extends React.Component<PageProps> {
                         </FocusTrapZone>
                     )}
                 </>
+            )
+        }
+        
+        // 如果显示订阅源页面，则显示订阅源配置
+        if (this.props.showSourcesPage) {
+            return (
+                <div
+                    className={
+                        "sources-page" + (this.props.menuOn ? " menu-on" : "")
+                    }
+                    style={{
+                        height: "100%",
+                        overflow: "auto",
+                        padding: "20px",
+                    }}>
+                    <div style={{ marginBottom: "20px" }}>
+                        <a
+                            className="btn"
+                            onClick={() => this.props.toggleSourcesPage(false)}
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                cursor: "pointer",
+                                textDecoration: "none",
+                                color: "white",
+                                fontSize: "12px",
+                            }}
+                            title={intl.get("settings.exit") || "返回"}>
+                            <Icon iconName="Back" />
+                            <span>{intl.get("settings.exit") || "返回"}</span>
+                        </a>
+                    </div>
+                    <SourcesTabContainer />
+                </div>
             )
         }
         

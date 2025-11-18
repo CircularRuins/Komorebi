@@ -3,7 +3,7 @@ import { createSelector } from "reselect"
 import { RootState } from "../scripts/reducer"
 import Page from "../components/page"
 import { AppDispatch } from "../scripts/utils"
-import { dismissItem, showOffsetItem } from "../scripts/models/page"
+import { dismissItem, showOffsetItem, toggleSourcesPage } from "../scripts/models/page"
 import { ContextMenuType } from "../scripts/models/app"
 
 const getPage = (state: RootState) => state.page
@@ -22,12 +22,14 @@ const mapStateToProps = createSelector(
         itemId: page.itemId,
         itemFromFeed: page.itemFromFeed,
         viewType: page.viewType,
+        showSourcesPage: page.showSourcesPage,
     })
 )
 
 const mapDispatchToProps = (dispatch: AppDispatch) => ({
     dismissItem: () => dispatch(dismissItem()),
     offsetItem: (offset: number) => dispatch(showOffsetItem(offset)),
+    toggleSourcesPage: (show: boolean) => dispatch(toggleSourcesPage(show)),
 })
 
 const PageContainer = connect(mapStateToProps, mapDispatchToProps)(Page)
