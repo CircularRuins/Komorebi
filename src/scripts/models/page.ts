@@ -16,6 +16,7 @@ import { SourceActionTypes, DELETE_SOURCE, updateSourceDone, RSSSource } from ".
 import * as db from "../db"
 import { toggleMenu } from "./app"
 import { ViewType, ViewConfigs } from "../../schema-types"
+import { setAIModeShowConfigPanel } from "./ai-mode"
 
 export const SELECT_PAGE = "SELECT_PAGE"
 export const SWITCH_VIEW = "SWITCH_VIEW"
@@ -142,6 +143,23 @@ export function selectSources(
 
 export function selectAIMode(): AppThunk {
     return (dispatch, getState) => {
+        const aiModeState = getState().aiMode
+        
+        // 检查所有必需的AI配置项是否已填写
+        const chatApiEndpoint = (aiModeState.chatApiEndpoint || '').trim()
+        const chatApiKey = (aiModeState.chatApiKey || '').trim()
+        const model = (aiModeState.model || '').trim()
+        const embeddingApiEndpoint = (aiModeState.embeddingApiEndpoint || '').trim()
+        const embeddingApiKey = (aiModeState.embeddingApiKey || '').trim()
+        const embeddingModel = (aiModeState.embeddingModel || '').trim()
+        
+        // 如果任何必需项未填写，打开配置面板并阻止进入AI模式
+        if (!chatApiEndpoint || !chatApiKey || !model || !embeddingApiEndpoint || !embeddingApiKey || !embeddingModel) {
+            dispatch(setAIModeShowConfigPanel(true))
+            return
+        }
+        
+        // 配置完整，正常进入AI模式
         dispatch({
             type: SELECT_PAGE,
             pageType: PageType.AIMode,
