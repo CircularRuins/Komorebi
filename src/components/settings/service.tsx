@@ -51,7 +51,7 @@ export class ServiceTab extends React.Component<
     onServiceOptionChange = (_, option: IDropdownOption) => {
         if (option.key === -1) {
             window.utils.openExternal(
-                "https://github.com/yang991178/komorebi/issues/23"
+                "https://github.com/CircularRuins/Komorebi/issues/23"
             )
         } else {
             this.setState({ type: option.key as number })
@@ -128,7 +128,7 @@ export class ServiceTab extends React.Component<
                         <Link
                             onClick={() =>
                                 window.utils.openExternal(
-                                    "https://github.com/yang991178/komorebi/wiki/Support#services"
+                                    "https://github.com/CircularRuins/Komorebi/wiki/Support#services"
                                 )
                             }
                             style={{ marginLeft: 6 }}>

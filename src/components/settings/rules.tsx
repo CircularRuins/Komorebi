@@ -552,7 +552,7 @@ class RulesTab extends React.Component<RulesTabProps, RulesTabState> {
                         <Link
                             onClick={() =>
                                 window.utils.openExternal(
-                                    "https://github.com/yang991178/komorebi/wiki/Support#rules"
+                                    "https://github.com/CircularRuins/Komorebi/wiki/Support#rules"
                                 )
                             }
                             style={{ marginLeft: 6 }}>

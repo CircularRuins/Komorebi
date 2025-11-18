@@ -1,4 +1,5 @@
 import * as React from "react"
+import ReactDOM from "react-dom"
 import intl from "react-intl-universal"
 import QRCode from "qrcode.react"
 import {
@@ -13,7 +14,12 @@ import {
     ContextualMenuItemType,
     DirectionalHint,
 } from "office-ui-fabric-react/lib/ContextualMenu"
-import { closeContextMenu, ContextMenuType, toggleSettings } from "../scripts/models/app"
+import {
+    TextField,
+    PrimaryButton,
+    DefaultButton,
+} from "@fluentui/react"
+import { closeContextMenu, ContextMenuType, toggleSettings, saveSettings } from "../scripts/models/app"
 import {
     markAllRead,
     markRead,
@@ -21,7 +27,7 @@ import {
     RSSItem,
     toggleStarred,
 } from "../scripts/models/item"
-import { deleteSource, deleteSources, RSSSource } from "../scripts/models/source"
+import { deleteSource, deleteSources, RSSSource, updateSource } from "../scripts/models/source"
 import { ViewType, ImageCallbackTypes, ViewConfigs } from "../schema-types"
 import { FilterType } from "../scripts/models/feed"
 import { useAppDispatch, useAppSelector } from "../scripts/reducer"
@@ -56,23 +62,163 @@ function getSearchItem(text: string): IContextualMenuItem {
     }
 }
 
+// 全局状态用于重命名对话框（避免组件卸载时状态丢失）
+let globalRenameDialogState = {
+    show: false,
+    sourceId: null as number | null,
+    initialName: "",
+}
+
+// 全局回调函数用于更新对话框状态
+let globalRenameDialogUpdateCallback: ((state: typeof globalRenameDialogState) => void) | null = null
+
 export function ContextMenu() {
     const { type } = useAppSelector(state => state.app.contextMenu)
+    const [renameDialogState, setRenameDialogState] = React.useState(globalRenameDialogState)
+    const [renameInputValue, setRenameInputValue] = React.useState("")
 
-    switch (type) {
-        case ContextMenuType.Hidden:
-            return null
-        case ContextMenuType.Item:
-            return <ItemContextMenu />
-        case ContextMenuType.Text:
-            return <TextContextMenu />
-        case ContextMenuType.Image:
-            return <ImageContextMenu />
-        case ContextMenuType.Group:
-            return <GroupContextMenu />
-        case ContextMenuType.MarkRead:
-            return <MarkReadContextMenu />
+    // 注册更新回调
+    React.useEffect(() => {
+        globalRenameDialogUpdateCallback = (newState) => {
+            setRenameDialogState({ ...newState })
+            if (newState.show) {
+                setRenameInputValue(newState.initialName)
+            }
+        }
+        return () => {
+            globalRenameDialogUpdateCallback = null
+        }
+    }, [])
+
+    const dispatch = useAppDispatch()
+    const sources = useAppSelector(state => state.sources)
+
+    const handleRenameSource = async () => {
+        const trimmedName = renameInputValue.trim()
+        if (!trimmedName || !globalRenameDialogState.sourceId) {
+            return
+        }
+        
+        const source = sources[globalRenameDialogState.sourceId]
+        if (source) {
+            const updatedSource = { ...source, name: trimmedName } as RSSSource
+            await dispatch(updateSource(updatedSource))
+            // 不需要调用 saveSettings()，updateSource 已经直接更新了数据库
+            // 调用 saveSettings() 会打开设置页面并显示"正在保存"
+        }
+        globalRenameDialogState = { show: false, sourceId: null, initialName: "" }
+        setRenameDialogState({ ...globalRenameDialogState })
+        setRenameInputValue("")
     }
+
+    const handleCloseRenameDialog = () => {
+        globalRenameDialogState = { show: false, sourceId: null, initialName: "" }
+        setRenameDialogState({ ...globalRenameDialogState })
+        setRenameInputValue("")
+    }
+
+    const renameDialog = renameDialogState.show ? (
+        <div
+            style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 10000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}
+            onClick={handleCloseRenameDialog}>
+            {/* 背景遮罩 */}
+            <div
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    animation: 'fadeIn 0.3s ease-out',
+                }}
+            />
+            {/* 对话框内容 */}
+            <div
+                style={{
+                    position: 'relative',
+                    backgroundColor: 'var(--white)',
+                    borderRadius: '8px',
+                    padding: '24px 28px',
+                    minWidth: '320px',
+                    maxWidth: '90%',
+                    boxShadow: '0 12px 48px rgba(0, 0, 0, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '20px',
+                    border: '1px solid var(--neutralLight)',
+                    animation: 'fadeInScale 0.3s ease-out',
+                }}
+                onClick={(e) => e.stopPropagation()}>
+                {/* 标题 */}
+                <div
+                    style={{
+                        fontSize: '20px',
+                        fontWeight: 600,
+                        color: 'var(--neutralPrimary)',
+                    }}>
+                    {intl.get("sources.editName")}
+                </div>
+                {/* 输入框 */}
+                <TextField
+                    value={renameInputValue}
+                    onChange={(_, newValue) => setRenameInputValue(newValue || "")}
+                    placeholder={intl.get("sources.name")}
+                    onGetErrorMessage={(value) => {
+                        const trimmed = value.trim()
+                        return trimmed.length === 0 ? intl.get("emptyName") : ""
+                    }}
+                    validateOnLoad={false}
+                    autoFocus
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && renameInputValue.trim().length > 0) {
+                            handleRenameSource()
+                        } else if (e.key === 'Escape') {
+                            handleCloseRenameDialog()
+                        }
+                    }}
+                />
+                {/* 按钮区域 */}
+                <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'flex-end',
+                    gap: '8px',
+                }}>
+                    <DefaultButton 
+                        onClick={handleCloseRenameDialog} 
+                        text={intl.get("cancel")} 
+                    />
+                    <PrimaryButton 
+                        onClick={handleRenameSource}
+                        disabled={renameInputValue.trim().length === 0}
+                        text={intl.get("confirm")} 
+                    />
+                </div>
+            </div>
+        </div>
+    ) : null
+
+    return (
+        <>
+            {type === ContextMenuType.Hidden ? null :
+             type === ContextMenuType.Item ? <ItemContextMenu /> :
+             type === ContextMenuType.Text ? <TextContextMenu /> :
+             type === ContextMenuType.Image ? <ImageContextMenu /> :
+             type === ContextMenuType.Group ? <GroupContextMenu /> :
+             type === ContextMenuType.MarkRead ? <MarkReadContextMenu /> : null}
+            {renameDialog && ReactDOM.createPortal(renameDialog, document.body)}
+        </>
+    )
 }
 
 function ItemContextMenu() {
@@ -372,14 +518,43 @@ function GroupContextMenu() {
         dispatch(closeContextMenu())
     }
 
-    const menuItems: IContextualMenuItem[] = [
-        {
-            key: "delete",
-            text: intl.get("sources.delete"),
-            iconProps: { iconName: "Delete" },
-            onClick: handleDeleteSource,
-        },
-    ]
+    const handleRenameClick = () => {
+        if (sids.length === 1) {
+            const source = sources[sids[0]]
+            if (source) {
+                const newState = {
+                    show: true,
+                    sourceId: source.sid,
+                    initialName: source.name,
+                }
+                globalRenameDialogState = newState
+                if (globalRenameDialogUpdateCallback) {
+                    globalRenameDialogUpdateCallback(newState)
+                }
+            }
+        }
+        dispatch(closeContextMenu())
+    }
+
+    const menuItems: IContextualMenuItem[] = []
+    
+    // 只在单个源时显示重命名选项
+    if (sids.length === 1) {
+        menuItems.push({
+            key: "rename",
+            text: intl.get("sources.editName"),
+            iconProps: { iconName: "Edit" },
+            onClick: handleRenameClick,
+        })
+    }
+    
+    menuItems.push({
+        key: "delete",
+        text: intl.get("sources.delete"),
+        iconProps: { iconName: "Delete" },
+        onClick: handleDeleteSource,
+    })
+
     return <ContextMenuBase menuItems={menuItems} />
 }
 

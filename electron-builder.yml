@@ -1,6 +1,6 @@
-appId: me.hyliu.komorebi
+appId: 
 productName: Komorebi
-copyright: Copyright © 2020 Haoyuan Liu, Copyright © 2025 Weifeng Wang
+copyright: Copyright © 2025 Weifeng Wang, Copyright © 2020 Haoyuan Liu
 files:
     - "./dist/**/*"
     - "!./dist/fontlist"
@@ -36,7 +36,7 @@ win:
         - zip
 appx:
     applicationId: Komorebi
-    identityName: 25286HaoyuanLiu.Komorebi
+    identityName: 
     publisher: CN=FD70E7FA-E5AC-41C4-B9C4-6E8708A6616A
     backgroundColor: transparent
     languages:

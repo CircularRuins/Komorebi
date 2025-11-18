@@ -1,7 +1,7 @@
-appId: DevHYLiu.Komorebi
+appId: 
 buildVersion: 29
 productName: Komorebi
-copyright: Copyright © 2020 Haoyuan Liu, Copyright © 2025 Weifeng Wang
+copyright: Copyright © 2025 Weifeng Wang, Copyright © 2020 Haoyuan Liu
 files:
     - "./dist/**/*"
     - "!./dist/fonts.vbs"

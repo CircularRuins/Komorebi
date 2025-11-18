@@ -12,8 +12,8 @@ class AboutTab extends React.Component {
                     {intl.get("settings.version")} {window.utils.getVersion()}
                 </small>
                 <p className="settings-hint">
-                    Copyright © 2020 Haoyuan Liu<br />
                     Copyright © 2025 Weifeng Wang<br />
+                    Copyright © 2020 Haoyuan Liu<br />
                     All rights reserved.
                 </p>
                 <Stack
@@ -24,7 +24,7 @@ class AboutTab extends React.Component {
                         <Link
                             onClick={() =>
                                 window.utils.openExternal(
-                                    "https://github.com/yang991178/komorebi/wiki/Support#keyboard-shortcuts"
+                                    "https://github.com/CircularRuins/Komorebi/wiki/Support#keyboard-shortcuts"
                                 )
                             }>
                             {intl.get("settings.shortcuts")}
@@ -34,7 +34,7 @@ class AboutTab extends React.Component {
                         <Link
                             onClick={() =>
                                 window.utils.openExternal(
-                                    "https://github.com/yang991178/komorebi"
+                                    "https://github.com/CircularRuins/Komorebi"
                                 )
                             }>
                             {intl.get("settings.openSource")}
@@ -44,7 +44,7 @@ class AboutTab extends React.Component {
                         <Link
                             onClick={() =>
                                 window.utils.openExternal(
-                                    "https://github.com/yang991178/komorebi/issues"
+                                    "https://github.com/CircularRuins/Komorebi/issues"
                                 )
                             }>
                             {intl.get("settings.feedback")}

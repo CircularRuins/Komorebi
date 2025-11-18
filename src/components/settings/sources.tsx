@@ -8,10 +8,6 @@ import {
     PrimaryButton,
     DetailsList,
     IColumn,
-    SelectionMode,
-    Selection,
-    IDropdownOption,
-    Dropdown,
     MessageBar,
     MessageBarType,
     Icon,
@@ -21,77 +17,35 @@ import {
     RSSSource,
 } from "../../scripts/models/source"
 import { urlTest } from "../../scripts/utils"
-import DangerButton from "../utils/danger-button"
 
 type SourcesTabProps = {
     sources: SourceState
     serviceOn: boolean
-    sids: number[]
-    acknowledgeSIDs: () => void
     addSource: (url: string) => Promise<number>
-    updateSourceName: (source: RSSSource, name: string) => void
-    updateSourceIcon: (source: RSSSource, iconUrl: string) => Promise<void>
     clearSourceIcon: (source: RSSSource) => void
-    deleteSource: (source: RSSSource) => void
-    deleteSources: (sources: RSSSource[]) => void
-    importOPML: () => void
+    importOPML: (onError?: (title: string, content: string) => void) => void
     exportOPML: () => void
 }
 
 type SourcesTabState = {
-    [formName: string]: string | RSSSource | RSSSource[] | boolean | null
+    [formName: string]: string | boolean | null
 } & {
-    selectedSource: RSSSource
-    selectedSources: RSSSource[]
     showSuccessMessage: boolean
+    showImportErrorDialog: boolean
+    importErrorTitle: string
+    importErrorContent: string
     newUrl: string
-    newSourceName: string
-    newSourceIcon?: string
-    sourceEditOption?: string
-}
-
-const enum EditDropdownKeys {
-    Name = "n",
-    Icon = "i",
-    Url = "u",
 }
 
 class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
-    selection: Selection
-
     constructor(props) {
         super(props)
         this.state = {
             newUrl: "",
-            newSourceName: "",
-            selectedSource: null,
-            selectedSources: null,
             showSuccessMessage: false,
-        }
-        this.selection = new Selection({
-            getKey: s => (s as RSSSource).sid,
-            onSelectionChanged: () => {
-                let count = this.selection.getSelectedCount()
-                let sources = count
-                    ? (this.selection.getSelection() as RSSSource[])
-                    : null
-                this.setState({
-                    selectedSource: count === 1 ? sources[0] : null,
-                    selectedSources: count > 1 ? sources : null,
-                    newSourceName: count === 1 ? sources[0].name : "",
-                    newSourceIcon: count === 1 ? sources[0].iconurl || "" : "",
-                    sourceEditOption: EditDropdownKeys.Name,
-                })
-            },
-        })
-    }
-
-    componentDidMount = () => {
-        if (this.props.sids.length > 0) {
-            for (let sid of this.props.sids) {
-                this.selection.setKeySelected(String(sid), true, false)
-            }
-            this.props.acknowledgeSIDs()
+            showImportErrorDialog: false,
+            importErrorTitle: "",
+            importErrorContent: "",
         }
     }
 
@@ -134,40 +88,31 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         },
     ]
 
-    sourceEditOptions = (): IDropdownOption[] => [
-        { key: EditDropdownKeys.Name, text: intl.get("name") },
-        { key: EditDropdownKeys.Icon, text: intl.get("icon") },
-        { key: EditDropdownKeys.Url, text: "URL" },
-    ]
-
-    onSourceEditOptionChange = (_, option: IDropdownOption) => {
-        this.setState({ sourceEditOption: option.key as string })
-    }
-
-
-
-    updateSourceName = () => {
-        let newName = this.state.newSourceName.trim()
-        this.props.updateSourceName(this.state.selectedSource, newName)
-        this.setState({
-            selectedSource: {
-                ...this.state.selectedSource,
-                name: newName,
-            } as RSSSource,
-        })
-    }
-
-    updateSourceIcon = () => {
-        let newIcon = this.state.newSourceIcon.trim()
-        this.props.updateSourceIcon(this.state.selectedSource, newIcon)
-        this.setState({
-            selectedSource: { ...this.state.selectedSource, iconurl: newIcon },
-        })
-    }
 
     handleInputChange = event => {
         const name: string = event.target.name
         this.setState({ [name]: event.target.value })
+    }
+
+    handleImportError = (title: string, content: string) => {
+        this.setState({
+            showImportErrorDialog: true,
+            importErrorTitle: title,
+            importErrorContent: content,
+        })
+    }
+
+    handleCloseImportErrorDialog = () => {
+        this.setState({
+            showImportErrorDialog: false,
+            importErrorTitle: "",
+            importErrorContent: "",
+        })
+    }
+
+    handleCopyImportError = () => {
+        const text = `${this.state.importErrorTitle}: ${this.state.importErrorContent}`
+        window.utils.writeClipboard(text)
     }
 
     addSource = async (event: React.FormEvent) => {
@@ -294,7 +239,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             <Stack horizontal>
                 <Stack.Item>
                     <PrimaryButton
-                        onClick={this.props.importOPML}
+                        onClick={() => this.props.importOPML(this.handleImportError)}
                         text={intl.get("sources.import")}
                     />
                 </Stack.Item>
@@ -342,161 +287,125 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                 items={Object.values(this.props.sources)}
                 columns={this.columns()}
                 getKey={s => s.sid}
-                setKey="selected"
-                selection={this.selection}
-                selectionMode={SelectionMode.multiple}
             />
-
-            {this.state.selectedSource && (
-                <>
-                    {this.state.selectedSource.serviceRef && (
-                        <MessageBar messageBarType={MessageBarType.info}>
-                            {intl.get("sources.serviceManaged")}
-                        </MessageBar>
-                    )}
-                    <Label>{intl.get("sources.selected")}</Label>
-                    <Stack horizontal>
-                        <Stack.Item>
-                            <Dropdown
-                                options={this.sourceEditOptions()}
-                                selectedKey={this.state.sourceEditOption}
-                                onChange={this.onSourceEditOptionChange}
-                                style={{ width: 120 }}
+            {/* OPML导入错误对话框 */}
+            {this.state.showImportErrorDialog && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 10000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}
+                    onClick={this.handleCloseImportErrorDialog}>
+                    {/* 背景遮罩 */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            animation: 'fadeIn 0.3s ease-out',
+                        }}
+                    />
+                    {/* 对话框内容 */}
+                    <div
+                        style={{
+                            position: 'relative',
+                            backgroundColor: 'var(--white)',
+                            borderRadius: '8px',
+                            padding: '24px 28px',
+                            maxWidth: '600px',
+                            width: '90%',
+                            boxShadow: '0 12px 48px rgba(0, 0, 0, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1)',
+                            maxHeight: '70vh',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            border: '1px solid var(--neutralLight)',
+                            animation: 'fadeInScale 0.3s ease-out',
+                        }}
+                        onClick={(e) => e.stopPropagation()}>
+                        {/* 错误图标和标题 */}
+                        <div style={{ 
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            marginBottom: '20px',
+                            gap: '12px',
+                        }}>
+                            <div
+                                style={{
+                                    width: '56px',
+                                    height: '56px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#fef6f6',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                }}>
+                                <Icon
+                                    iconName="Error"
+                                    styles={{
+                                        root: {
+                                            fontSize: '32px',
+                                            color: '#d13438',
+                                            fontWeight: 600,
+                                        },
+                                    }}
+                                />
+                            </div>
+                            <h2 style={{ 
+                                margin: 0, 
+                                fontSize: '21px', 
+                                fontWeight: 600, 
+                                color: 'var(--white)',
+                                textAlign: 'center',
+                            }}>
+                                {this.state.importErrorTitle}
+                            </h2>
+                        </div>
+                        {/* 错误内容区域 - 可滚动 */}
+                        <div style={{ 
+                            marginBottom: '24px', 
+                            color: 'var(--neutralPrimary)', 
+                            fontSize: '14px', 
+                            whiteSpace: 'pre-wrap',
+                            overflowY: 'auto',
+                            maxHeight: '400px',
+                            padding: '16px',
+                            backgroundColor: 'var(--neutralLighter)',
+                            borderRadius: '4px',
+                            fontFamily: 'monospace',
+                            lineHeight: '1.5',
+                            border: '1px solid var(--neutralQuaternaryAlt)',
+                        }}>
+                            {this.state.importErrorContent}
+                        </div>
+                        {/* 按钮区域 */}
+                        <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'flex-end',
+                            gap: '8px',
+                        }}>
+                            <DefaultButton 
+                                onClick={this.handleCopyImportError} 
+                                text={intl.get("context.copy")} 
                             />
-                        </Stack.Item>
-                        {this.state.sourceEditOption ===
-                            EditDropdownKeys.Name && (
-                            <>
-                                <Stack.Item grow>
-                                    <TextField
-                                        onGetErrorMessage={v =>
-                                            v.trim().length == 0
-                                                ? intl.get("emptyName")
-                                                : ""
-                                        }
-                                        validateOnLoad={false}
-                                        placeholder={intl.get("sources.name")}
-                                        value={this.state.newSourceName}
-                                        name="newSourceName"
-                                        onChange={this.handleInputChange}
-                                    />
-                                </Stack.Item>
-                                <Stack.Item>
-                                    <DefaultButton
-                                        disabled={
-                                            this.state.newSourceName.trim()
-                                                .length == 0
-                                        }
-                                        onClick={this.updateSourceName}
-                                        text={intl.get("sources.editName")}
-                                    />
-                                </Stack.Item>
-                            </>
-                        )}
-                        {this.state.sourceEditOption ===
-                            EditDropdownKeys.Icon && (
-                            <>
-                                <Stack.Item grow>
-                                    <TextField
-                                        onGetErrorMessage={v =>
-                                            urlTest(v.trim())
-                                                ? ""
-                                                : intl.get("sources.badUrl")
-                                        }
-                                        validateOnLoad={false}
-                                        placeholder={intl.get(
-                                            "sources.inputUrl"
-                                        )}
-                                        value={this.state.newSourceIcon}
-                                        name="newSourceIcon"
-                                        onChange={this.handleInputChange}
-                                    />
-                                </Stack.Item>
-                                <Stack.Item>
-                                    <DefaultButton
-                                        disabled={
-                                            !urlTest(
-                                                this.state.newSourceIcon.trim()
-                                            )
-                                        }
-                                        onClick={this.updateSourceIcon}
-                                        text={intl.get("edit")}
-                                    />
-                                </Stack.Item>
-                            </>
-                        )}
-                        {this.state.sourceEditOption ===
-                            EditDropdownKeys.Url && (
-                            <>
-                                <Stack.Item grow>
-                                    <TextField
-                                        disabled
-                                        value={this.state.selectedSource.url}
-                                    />
-                                </Stack.Item>
-                                <Stack.Item>
-                                    <DefaultButton
-                                        onClick={() =>
-                                            window.utils.writeClipboard(
-                                                this.state.selectedSource.url
-                                            )
-                                        }
-                                        text={intl.get("context.copy")}
-                                    />
-                                </Stack.Item>
-                            </>
-                        )}
-                    </Stack>
-                    {!this.state.selectedSource.serviceRef && (
-                        <Stack horizontal>
-                            <Stack.Item>
-                                <DangerButton
-                                    onClick={() =>
-                                        this.props.deleteSource(
-                                            this.state.selectedSource
-                                        )
-                                    }
-                                    key={this.state.selectedSource.sid}
-                                    text={intl.get("sources.delete")}
-                                />
-                            </Stack.Item>
-                            <Stack.Item>
-                                <span className="settings-hint">
-                                    {intl.get("sources.deleteWarning")}
-                                </span>
-                            </Stack.Item>
-                        </Stack>
-                    )}
-                </>
+                            <PrimaryButton 
+                                onClick={this.handleCloseImportErrorDialog} 
+                                text={intl.get("confirm")} 
+                            />
+                        </div>
+                    </div>
+                </div>
             )}
-            {this.state.selectedSources &&
-                (this.state.selectedSources.filter(s => s.serviceRef).length ===
-                0 ? (
-                    <>
-                        <Label>{intl.get("sources.selectedMulti")}</Label>
-                        <Stack horizontal>
-                            <Stack.Item>
-                                <DangerButton
-                                    onClick={() =>
-                                        this.props.deleteSources(
-                                            this.state.selectedSources
-                                        )
-                                    }
-                                    text={intl.get("sources.delete")}
-                                />
-                            </Stack.Item>
-                            <Stack.Item>
-                                <span className="settings-hint">
-                                    {intl.get("sources.deleteWarning")}
-                                </span>
-                            </Stack.Item>
-                        </Stack>
-                    </>
-                ) : (
-                    <MessageBar messageBarType={MessageBarType.info}>
-                        {intl.get("sources.serviceManaged")}
-                    </MessageBar>
-                ))}
         </div>
     )
 }

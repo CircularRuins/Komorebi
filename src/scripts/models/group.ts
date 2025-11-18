@@ -229,7 +229,7 @@ function outlineToSource(
     }
 }
 
-export function importOPML(): AppThunk {
+export function importOPML(onError?: (title: string, content: string) => void): AppThunk {
     return async dispatch => {
         const filters = [
             { name: intl.get("sources.opmlFile"), extensions: ["xml", "opml"] },
@@ -247,10 +247,13 @@ export function importOPML(): AppThunk {
                 let parseError = doc[0].getElementsByTagName("parsererror")
                 if (parseError.length > 0) {
                     dispatch(saveSettings())
-                    window.utils.showErrorBox(
-                        intl.get("sources.errorParse"),
-                        intl.get("sources.errorParseHint")
-                    )
+                    const errorTitle = intl.get("sources.errorParse")
+                    const errorContent = intl.get("sources.errorParseHint")
+                    if (onError) {
+                        onError(errorTitle, errorContent)
+                    } else {
+                        window.utils.showErrorBox(errorTitle, errorContent)
+                    }
                     return
                 }
                 let sources: [ReturnType<typeof addSource>, number, string][] =
@@ -292,17 +295,23 @@ export function importOPML(): AppThunk {
                     dispatch(fetchItemsSuccess([], {}))
                     dispatch(saveSettings())
                     if (errors.length > 0) {
-                        window.utils.showErrorBox(
-                            intl.get("sources.errorImport", {
-                                count: errors.length,
-                            }),
-                            errors
-                                .map(e => {
-                                    return e[0] + "\n" + String(e[1])
-                                })
-                                .join("\n"),
-                            intl.get("context.copy")
-                        )
+                        const errorTitle = intl.get("sources.errorImport", {
+                            count: errors.length,
+                        })
+                        const errorContent = errors
+                            .map(e => {
+                                return e[0] + "\n" + String(e[1])
+                            })
+                            .join("\n")
+                        if (onError) {
+                            onError(errorTitle, errorContent)
+                        } else {
+                            window.utils.showErrorBox(
+                                errorTitle,
+                                errorContent,
+                                intl.get("context.copy")
+                            )
+                        }
                     }
                 })
             }
