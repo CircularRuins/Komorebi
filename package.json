@@ -15,7 +15,7 @@
     "package-linux": "electron-builder --linux --x64 -p never"
   },
   "keywords": [],
-  "author": "Haoyuan Liu",
+  "author": "Weifeng Wang",
   "license": "BSD-3-Clause",
   "repository": "github:yang991178/komorebi",
   "devDependencies": {

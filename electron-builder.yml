@@ -1,6 +1,6 @@
 appId: me.hyliu.komorebi
 productName: Komorebi
-copyright: Copyright © 2020 Haoyuan Liu
+copyright: Copyright © 2020 Haoyuan Liu, Copyright © 2025 Weifeng Wang
 files:
     - "./dist/**/*"
     - "!./dist/fontlist"

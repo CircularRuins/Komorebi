@@ -543,8 +543,9 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: 'in_progress', message: intl.get("settings.aiMode.progress.messages.querying"), visible: true }
         ]
         
-        // 注意：所有后续步骤（vector-retrieval, calculate-similarity, llm-refine, classify-articles）
+        // 注意：所有后续步骤（vector-retrieval, llm-refine, classify-articles）
         // 都根据实际执行情况动态添加，不在这里预先添加
+        // 注意：calculate-similarity 不再作为独立步骤，它现在是 vector-retrieval 的子步骤
         
         return {
             steps,
@@ -1219,16 +1220,16 @@ ${articlesText}
                         const defaultMessage = isCompleted ? intl.get("settings.aiMode.progress.messages.completed") : intl.get("settings.aiMode.progress.messages.querying")
                         
                         // 注意：分类步骤由 initializeQueryProgress 根据是否有话题和分类依据决定是否添加
+                        // 注意：calculate-similarity 不再作为独立步骤，它现在是 vector-retrieval 的子步骤
                         progress = {
                             steps: [
                                 { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: defaultStatus, message: defaultMessage, visible: true },
                                 { id: 'compute-topic-embedding', title: intl.get("settings.aiMode.progress.steps.computeTopicEmbedding"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted },
                                 { id: 'load-embeddings', title: intl.get("settings.aiMode.progress.steps.loadEmbeddings"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted },
                                 { id: 'compute-embeddings', title: intl.get("settings.aiMode.progress.steps.computeEmbeddings"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted },
-                                { id: 'calculate-similarity', title: intl.get("settings.aiMode.progress.steps.calculateSimilarity"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted },
                                 { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted }
                             ],
-                            currentStepIndex: isCompleted ? 5 : 0,
+                            currentStepIndex: isCompleted ? 4 : 0,
                             overallProgress: isCompleted ? 100 : 0,
                             currentMessage: defaultMessage
                         }

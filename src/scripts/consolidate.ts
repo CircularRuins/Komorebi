@@ -537,13 +537,14 @@ async function stepComputeEmbeddings(
     }
 }
 
-// 步骤2: 向量检索（合并原步骤2、3、4）
+// 步骤2: 向量检索（包含向量计算和相似度筛选）
 export async function stepVectorRetrieval(
     topic: string,
     items: RSSItem[],
+    topk: number,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
-): Promise<number[]> {
+): Promise<RSSItem[]> {
     callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.startVectorRetrieval"))
     
     const trimmedTopic = topic.trim()
@@ -562,80 +563,70 @@ export async function stepVectorRetrieval(
         // 子步骤3: 计算新文章向量
         await stepComputeEmbeddings(items, config, callbacks)
         
-        callbacks.updateStepStatus('vector-retrieval', 'completed', intl.get("settings.aiMode.progress.messages.vectorRetrievalCompleted"))
-        return topicEmbedding
+        // 子步骤4: 计算相似度并筛选
+        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.calculatingSimilarity"), 0)
+        
+        // 过滤出有embedding的文章
+        const articlesWithEmbedding = items.filter(item => 
+            item.embedding && Array.isArray(item.embedding) && item.embedding.length > 0
+        )
+        
+        if (articlesWithEmbedding.length === 0) {
+            callbacks.updateStepStatus('vector-retrieval', 'completed', intl.get("settings.aiMode.progress.messages.noArticlesForSimilarity"))
+            return []
+        }
+        
+        const totalItems = articlesWithEmbedding.length
+        const batchSize = 50 // 每批处理50篇文章
+        const articlesWithSimilarity: Array<{ article: RSSItem, similarity: number }> = []
+        
+        // 分批并行计算相似度
+        for (let i = 0; i < articlesWithEmbedding.length; i += batchSize) {
+            const batch = articlesWithEmbedding.slice(i, i + batchSize)
+            
+            // 并行计算当前批次的相似度
+            const batchResults = await Promise.all(
+                batch.map(item => {
+                    return new Promise<{ article: RSSItem, similarity: number } | null>((resolve) => {
+                        try {
+                            const similarity = cosineSimilarity(topicEmbedding, item.embedding!)
+                            resolve({ article: item, similarity })
+                        } catch (error) {
+                            // 忽略单个文章的计算错误
+                            resolve(null)
+                        }
+                    })
+                })
+            )
+            
+            // 过滤掉null结果并添加到总结果中
+            for (const result of batchResults) {
+                if (result !== null) {
+                    articlesWithSimilarity.push(result)
+                }
+            }
+            
+            // 更新进度
+            const processedCount = Math.min(i + batchSize, totalItems)
+            const progress = Math.floor((processedCount / totalItems) * 100)
+            callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.calculatingSimilarityProgress", { processed: processedCount, total: totalItems }), progress)
+        }
+
+        // 按相似度降序排序
+        articlesWithSimilarity.sort((a, b) => b.similarity - a.similarity)
+
+        // 选择相似度最高的topk篇
+        const selectedArticles = articlesWithSimilarity
+            .slice(0, topk)
+            .map(item => item.article)
+
+        callbacks.updateStepStatus('vector-retrieval', 'completed', intl.get("settings.aiMode.progress.messages.similarityCalculated", { total: articlesWithSimilarity.length, selected: selectedArticles.length }))
+        
+        return selectedArticles
     } catch (error) {
         callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.vectorRetrievalFailed"))
         throw error
     }
-}
-
-// 步骤3: 计算相似度并筛选
-export async function stepCalculateSimilarity(
-    items: RSSItem[],
-    topicEmbedding: number[],
-    topk: number,
-    callbacks: ConsolidateCallbacks
-): Promise<RSSItem[]> {
-    callbacks.updateStepStatus('calculate-similarity', 'in_progress', intl.get("settings.aiMode.progress.messages.calculatingSimilarity"), 0)
-    
-    // 过滤出有embedding的文章
-    const articlesWithEmbedding = items.filter(item => 
-        item.embedding && Array.isArray(item.embedding) && item.embedding.length > 0
-    )
-    
-    if (articlesWithEmbedding.length === 0) {
-        callbacks.updateStepStatus('calculate-similarity', 'completed', intl.get("settings.aiMode.progress.messages.noArticlesForSimilarity"))
-        return []
-    }
-    
-    const totalItems = articlesWithEmbedding.length
-    const batchSize = 50 // 每批处理50篇文章
-    const articlesWithSimilarity: Array<{ article: RSSItem, similarity: number }> = []
-    
-    // 分批并行计算相似度
-    for (let i = 0; i < articlesWithEmbedding.length; i += batchSize) {
-        const batch = articlesWithEmbedding.slice(i, i + batchSize)
-        
-        // 并行计算当前批次的相似度
-        const batchResults = await Promise.all(
-            batch.map(item => {
-                return new Promise<{ article: RSSItem, similarity: number } | null>((resolve) => {
-                    try {
-                        const similarity = cosineSimilarity(topicEmbedding, item.embedding!)
-                        resolve({ article: item, similarity })
-                    } catch (error) {
-                        // 忽略单个文章的计算错误
-                        resolve(null)
-                    }
-                })
-            })
-        )
-        
-        // 过滤掉null结果并添加到总结果中
-        for (const result of batchResults) {
-            if (result !== null) {
-                articlesWithSimilarity.push(result)
-            }
-        }
-        
-        // 更新进度
-        const processedCount = Math.min(i + batchSize, totalItems)
-        const progress = Math.floor((processedCount / totalItems) * 100)
-        callbacks.updateStepStatus('calculate-similarity', 'in_progress', intl.get("settings.aiMode.progress.messages.calculatingSimilarityProgress", { processed: processedCount, total: totalItems }), progress)
-    }
-
-    // 按相似度降序排序
-    articlesWithSimilarity.sort((a, b) => b.similarity - a.similarity)
-
-    // 选择相似度最高的topk篇
-    const selectedArticles = articlesWithSimilarity
-        .slice(0, topk)
-        .map(item => item.article)
-
-    callbacks.updateStepStatus('calculate-similarity', 'completed', intl.get("settings.aiMode.progress.messages.similarityCalculated", { total: articlesWithSimilarity.length, selected: selectedArticles.length }))
-
-    return selectedArticles
 }
 
 // 子步骤: 主题意图识别（识别用户意图并确定查询的精细程度）
@@ -1363,13 +1354,10 @@ export async function consolidate(
     }
 
     try {
-        // 步骤2: 向量检索（仍使用原始topic，因为向量检索需要语义表示）
-        const topicEmbedding = await stepVectorRetrieval(trimmedTopic, items, config, callbacks)
+        // 步骤2: 向量检索（包含向量计算和相似度筛选）
+        const selectedArticles = await stepVectorRetrieval(trimmedTopic, items, topk, config, callbacks)
         
-        // 步骤3: 计算相似度并筛选
-        const selectedArticles = await stepCalculateSimilarity(items, topicEmbedding, topk, callbacks)
-        
-        // 步骤4: LLM精选（使用改写后的查询）
+        // 步骤3: LLM精选（使用改写后的查询）
         const refinedArticles = await stepLLMRefine(selectedArticles, topicGuidance, config, callbacks)
         
         // 如果LLM精选后没有文章，立即更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤（包括 classify-articles）
@@ -1377,10 +1365,10 @@ export async function consolidate(
             if (callbacks.updateQueryProgress && callbacks.getCurrentQueryProgress) {
                 const currentProgress = callbacks.getCurrentQueryProgress()
                 if (currentProgress) {
-                    // 只保留已执行的步骤（query-db, intent-recognition-topic, intent-recognition-classification, vector-retrieval, calculate-similarity, llm-refine）
-                    // 注意：hyde-generation 不再作为独立步骤，它现在是 vector-retrieval 的子步骤
+                    // 只保留已执行的步骤（query-db, intent-recognition-topic, intent-recognition-classification, vector-retrieval, llm-refine）
+                    // 注意：hyde-generation 和 calculate-similarity 不再作为独立步骤，它们现在是 vector-retrieval 的子步骤
                     // 明确排除 classify-articles 和其他未执行的步骤
-                    const executedStepIds = ['query-db', 'intent-recognition-topic', 'vector-retrieval', 'calculate-similarity', 'llm-refine']
+                    const executedStepIds = ['query-db', 'intent-recognition-topic', 'vector-retrieval', 'llm-refine']
                     if (classificationStandard && classificationStandard.trim()) {
                         executedStepIds.splice(2, 0, 'intent-recognition-classification')
                     }

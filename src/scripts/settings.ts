@@ -89,10 +89,10 @@ export function getCurrentLocale() {
 }
 
 export async function exportAll() {
-    const filters = [{ name: intl.get("app.frData"), extensions: ["frdata"] }]
+    const filters = [{ name: intl.get("app.frData"), extensions: ["komorebi"] }]
     const write = await window.utils.showSaveDialog(
         filters,
-        "*/Komorebi_Backup.frdata"
+        "*/Komorebi_Backup.komorebi"
     )
     if (write) {
         let output = window.settings.getAll()
@@ -105,7 +105,7 @@ export async function exportAll() {
 }
 
 export async function importAll() {
-    const filters = [{ name: intl.get("app.frData"), extensions: ["frdata"] }]
+    const filters = [{ name: intl.get("app.frData"), extensions: ["komorebi"] }]
     let data = await window.utils.showOpenDialog(filters)
     if (!data) return true
     let confirmed = await window.utils.showMessageBox(

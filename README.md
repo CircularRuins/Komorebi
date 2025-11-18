@@ -14,13 +14,9 @@
 
 For Windows 10 users, the recommended way of installation is through [Microsoft Store](https://www.microsoft.com/store/apps/9P71FC94LRH8?cid=github). 
 This enables auto-update and experimental ARM64 support. 
-macOS users can also get Fluent Reader from the [Mac App Store](https://apps.apple.com/app/id1520907427).
+macOS users can also get Komorebi from the [Mac App Store](https://apps.apple.com/app/id1520907427).
 
 If you are using Linux or an older version of Windows, you can [get Komorebi from GitHub releases](https://github.com/yang991178/komorebi/releases).
-
-### Mobile App
-
-The repo of the mobile version of this app [can be found here](https://github.com/yang991178/komorebi-lite).
 
 ## Features
 

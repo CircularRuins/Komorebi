@@ -373,8 +373,7 @@
         "importGroups": "Import groups",
         "failure": "Cannot connect to service",
         "failureHint": "Please check the service configuration or network status.",
-        "fetchUnlimited": "Unlimited (not recommended)",
-        "exportToLite": "Export to Fluent Reader Lite"
+        "fetchUnlimited": "Unlimited (not recommended)"
     },
     "app": {
         "cleanup": "Clean up",
@@ -390,7 +389,7 @@
         "data": "Application Data",
         "backup": "Backup",
         "restore": "Restore",
-        "frData": "Fluent Reader Data",
+        "frData": "Komorebi Data",
         "language": "Display language",
         "theme": "Theme",
         "lightTheme": "Light mode",

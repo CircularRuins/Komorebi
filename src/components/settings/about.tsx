@@ -12,7 +12,9 @@ class AboutTab extends React.Component {
                     {intl.get("settings.version")} {window.utils.getVersion()}
                 </small>
                 <p className="settings-hint">
-                    Copyright © 2020 Haoyuan Liu. All rights reserved.
+                    Copyright © 2020 Haoyuan Liu<br />
+                    Copyright © 2025 Weifeng Wang<br />
+                    All rights reserved.
                 </p>
                 <Stack
                     horizontal
