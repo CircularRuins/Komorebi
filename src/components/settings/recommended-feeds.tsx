@@ -10,7 +10,7 @@ import {
     RecommendedFeed,
 } from "../../scripts/utils/recommended-feeds"
 import RecommendedFeedCard from "./recommended-feed-card"
-import { fetchFavicon } from "../../scripts/utils"
+import { fetchFavicon, parseRSS, validateFavicon } from "../../scripts/utils"
 
 type RecommendedFeedsProps = {
     groups: RecommendedFeedGroup[]
@@ -34,12 +34,58 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
         }
     }
 
+    getIconFromFeed = async (url: string): Promise<string | null> => {
+        try {
+            // 检测是否是 YouTube feed，统一使用本地 YouTube 图标
+            if (/youtube\.com/.test(url)) {
+                return "icons/youtube-favicon-32x32.png"
+            }
+            
+            const feed = await parseRSS(url)
+            let iconUrl: string | null = null
+            
+            // RSS 2.0: <image><url>
+            if (feed.image?.url) {
+                iconUrl = feed.image.url
+            }
+            // Atom: <logo> 或 <icon>
+            else if (feed.logo) {
+                iconUrl = feed.logo
+            }
+            else if (feed.icon) {
+                iconUrl = feed.icon
+            }
+            // iTunes播客: <itunes:image>
+            else if (feed.itunesImage?.href) {
+                iconUrl = feed.itunesImage.href
+            }
+            else if (typeof feed.itunesImage === "string") {
+                iconUrl = feed.itunesImage
+            }
+            
+            // 验证图标URL是否有效（对于从 feed XML 中直接获取的图标）
+            if (iconUrl && await validateFavicon(iconUrl)) {
+                return iconUrl
+            }
+            return null
+        } catch {
+            return null
+        }
+    }
+
     componentDidMount = async () => {
         // 为所有推荐源获取图标
         const allFeeds = this.props.groups.flatMap(group => group.feeds)
         const iconPromises = allFeeds.map(async (feed) => {
             try {
-                const iconUrl = await fetchFavicon(feed.url)
+                // 1. 先尝试从 feed XML 中获取图标
+                let iconUrl = await this.getIconFromFeed(feed.url)
+                
+                // 2. 如果 feed XML 中没有，再尝试从网站 HTML 获取
+                if (!iconUrl) {
+                    iconUrl = await fetchFavicon(feed.url)
+                }
+                
                 if (iconUrl) {
                     this.setState(prevState => ({
                         feedIcons: {

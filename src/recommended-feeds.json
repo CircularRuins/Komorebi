@@ -1,72 +1,5 @@
 [
     {
-        "groupName": "技术博客",
-        "feeds": [
-            {
-                "name": "阮一峰的网络日志",
-                "url": "https://feeds.feedburner.com/ruanyifeng"
-            },
-            {
-                "name": "酷壳 - CoolShell",
-                "url": "https://coolshell.cn/feed"
-            },
-            {
-                "name": "美团技术团队",
-                "url": "https://tech.meituan.com/feed/"
-            },
-            {
-                "name": "The Verge",
-                "url": "https://www.theverge.com/rss/index.xml"
-            },
-            {
-                "name": "TechCrunch",
-                "url": "https://techcrunch.com/feed/"
-            },
-            {
-                "name": "Ars Technica",
-                "url": "https://feeds.arstechnica.com/arstechnica/index"
-            },
-            {
-                "name": "BBC News",
-                "url": "https://feeds.bbci.co.uk/news/rss.xml"
-            },
-            {
-                "name": "Reuters Top News",
-                "url": "https://www.reutersagency.com/feed/?taxonomy=best-topics&post_type=best"
-            }
-        ]
-    },
-    {
-        "groupName": "新闻资讯",
-        "feeds": [
-            {
-                "name": "BBC News",
-                "url": "https://feeds.bbci.co.uk/news/rss.xml"
-            },
-            {
-                "name": "Reuters Top News",
-                "url": "https://www.reutersagency.com/feed/?taxonomy=best-topics&post_type=best"
-            }
-        ]
-    },
-    {
-        "groupName": "科技媒体",
-        "feeds": [
-            {
-                "name": "The Verge",
-                "url": "https://www.theverge.com/rss/index.xml"
-            },
-            {
-                "name": "TechCrunch",
-                "url": "https://techcrunch.com/feed/"
-            },
-            {
-                "name": "Ars Technica",
-                "url": "https://feeds.arstechnica.com/arstechnica/index"
-            }
-        ]
-    },
-    {
         "groupName": "Twitter",
         "feeds": [
             {
@@ -708,6 +641,636 @@
             {
                 "name": "hidecloud",
                 "url": "https://api.xgo.ing/rss/user/23d41992b29340788aa3d09d8364c5f5"
+            }
+        ]
+    },
+    {
+        "groupName": "Youtube",
+        "feeds": [
+            {
+                "name": "Anthropic",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCrDwWp7EBBv4NwvScIpBDOA"
+            },
+            {
+                "name": "AI Engineer",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCLKPca3kwwd-B59HNr-_lvA"
+            },
+            {
+                "name": "No Priors",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSI7h9hydQ40K5MJHnCrQvw"
+            },
+            {
+                "name": "OpenAI",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCXZCJLdBC09xxGZ6gcdrc6A"
+            },
+            {
+                "name": "Google DeepMind",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCP7jMXSY2xbc3KCAE0MHQ-A"
+            },
+            {
+                "name": "leerob",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCZMli3czZnd1uoc1ShTouQw"
+            },
+            {
+                "name": "Y Combinator",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCcefcZRL2oaA_uBNeo5UOWg"
+            },
+            {
+                "name": "Lenny's Podcast",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6t1O76G0jYXOAoYCm153dA"
+            },
+            {
+                "name": "Sequoia Capital",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCWrF0oN6unbXrWsTN7RctTw"
+            },
+            {
+                "name": "Stripe",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCM1guA1E-RHLO2OyfQPOkEQ"
+            },
+            {
+                "name": "Fireship",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA"
+            },
+            {
+                "name": "Spring I/O",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCLMPXsvSrhNPN3i9h-u8PYg"
+            },
+            {
+                "name": "Dwarkesh Patel",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCXl4i9dYBrFOabk0xGmbkRA"
+            },
+            {
+                "name": "Lex Fridman",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSHZKyawb77ixDdsGog4iWA"
+            },
+            {
+                "name": "Hung-yi Lee",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC2ggjtuuWvxrHHHiaDH1dlQ"
+            },
+            {
+                "name": "a16z",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC9cn0TuPq4dnbTY-CBsm8XA"
+            },
+            {
+                "name": "The Diary Of A CEO Clips",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCnjgxChqYYnyoqO4k_Q1d6Q"
+            },
+            {
+                "name": "AI Master",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC0yHbz4OxdQFwmVX2BBQqLg"
+            },
+            {
+                "name": "Matt Wolfe",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UChpleBmo18P08aKCIgti38g"
+            },
+            {
+                "name": "AICodeKing",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC0m81bQuthaQZmFbXEY9QSw"
+            },
+            {
+                "name": "Liam Ottley",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCui4jxDaMb53Gdh-AZUTPAg"
+            },
+            {
+                "name": "Wes Roth",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCqcbQf6yw5KzRoDDcZ_wBSw"
+            },
+            {
+                "name": "Andrej Karpathy",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCXUPKJO5MZQN11PqgIvyuvQ"
+            },
+            {
+                "name": "Jason West",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCQ-rZd0NpjXYTpB3y5BNxPw"
+            },
+            {
+                "name": "Greg Isenberg",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCPjNBjflYl0-HQtUvOx0Ibw"
+            },
+            {
+                "name": "My First Million",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCyaN6mg5u8Cjy2ZI4ikWaug"
+            },
+            {
+                "name": "Riley Brown",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCMcoud_ZW7cfxeIugBflSBw"
+            },
+            {
+                "name": "Tina Huang",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC2UXDak6o7rBm23k3Vv5dww"
+            },
+            {
+                "name": "Last Week in AI",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCKARTq-t5SPMzwtft8FWwnA"
+            },
+            {
+                "name": "All-In Podcast",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCESLZhusAkFfsNsApnjF_Cg"
+            },
+            {
+                "name": "AI Explained",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCNJ1Ymd5yFuUPtn21xtRbbw"
+            },
+            {
+                "name": "Two Minute Papers",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg"
+            },
+            {
+                "name": "Matthew Berman",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCawZsQWqfGSbCI5yjkdVkTA"
+            },
+            {
+                "name": "freeCodeCamp.org",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC8butISFwT-Wl7EV0hUK0BQ"
+            },
+            {
+                "name": "ByteByteGo",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCZgt6AzoyjslHTC9dz0UoTw"
+            },
+            {
+                "name": "Product School",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6hlQ0x6kPbAGjYkoz53cvA"
+            },
+            {
+                "name": "yobi321",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCB_DbqNN9w30tnyWJSrIwyA"
+            },
+            {
+                "name": "TED",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCAuUUnT6oDeKwE6v1NGQxug"
+            },
+            {
+                "name": "LangChain",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCC-lyoTfSrcJzA1ab3APAgw"
+            },
+            {
+                "name": "Siraj Raval",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCWN3xxRkmTPmbKwht9FuE5A"
+            }
+        ]
+    },
+    {
+        "groupName": "wechat",
+        "feeds": [
+            {
+                "name": "人人都是产品经理",
+                "url": "https://wechat2rss.bestblogs.dev/feed/2d790e38f8af54c5af77fa5fed687a7c66d34c22.xml"
+            },
+            {
+                "name": "腾讯技术工程",
+                "url": "https://wechat2rss.bestblogs.dev/feed/1e0ac39f8952b2e7f0807313cf2633d25078a171.xml"
+            },
+            {
+                "name": "机器之心",
+                "url": "https://wechat2rss.bestblogs.dev/feed/8d97af31b0de9e48da74558af128a4673d78c9a3.xml"
+            },
+            {
+                "name": "阿里技术",
+                "url": "https://wechat2rss.bestblogs.dev/feed/6535a444e9651fecae3383363be7589acdebe2b6.xml"
+            },
+            {
+                "name": "小米技术",
+                "url": "https://wechat2rss.bestblogs.dev/feed/8bbc1ba1d363e70cd42d1ce89fb9070cb075c3b3.xml"
+            },
+            {
+                "name": "哔哩哔哩技术",
+                "url": "https://wechat2rss.bestblogs.dev/feed/3a12ae4fde5bb74aab2fddc9f710a3c057eab82f.xml"
+            },
+            {
+                "name": "阿里云开发者",
+                "url": "https://wechat2rss.bestblogs.dev/feed/39fc51b0b1316137e608c45da5dbbca4f9eb9538.xml"
+            },
+            {
+                "name": "字节跳动技术团队",
+                "url": "https://wechat2rss.bestblogs.dev/feed/d3a9e4d6f125cc98d1691dbc30cd97fec7ae2d03.xml"
+            },
+            {
+                "name": "极客公园",
+                "url": "https://wechat2rss.bestblogs.dev/feed/11ea7163fbea99e2ab9fa2812ac3d179574886cc.xml"
+            },
+            {
+                "name": "ShowMeAI研究中心",
+                "url": "https://wechat2rss.bestblogs.dev/feed/854a592a3bac3c2574d092daf4628cf65dfd1858.xml"
+            },
+            {
+                "name": "奇舞精选",
+                "url": "https://wechat2rss.bestblogs.dev/feed/156a64fe3e95eebe4b85bf981d6ebb85441897bf.xml"
+            },
+            {
+                "name": "京东技术",
+                "url": "https://wechat2rss.bestblogs.dev/feed/fa0be550682410cc187c0d1eab1a0fc4e073b949.xml"
+            },
+            {
+                "name": "硅谷科技评论",
+                "url": "https://wechat2rss.bestblogs.dev/feed/4515ee058133ff68570ad586abdd81f54f2b6ee3.xml"
+            },
+            {
+                "name": "得物技术",
+                "url": "https://wechat2rss.bestblogs.dev/feed/1cde72c9129b1f79cbb150166e7fed9a7568ee10.xml"
+            },
+            {
+                "name": "百度Geek说",
+                "url": "https://wechat2rss.bestblogs.dev/feed/6cc437d76f9dc4f7c35011c72e471e33e7bdd384.xml"
+            },
+            {
+                "name": "大淘宝技术",
+                "url": "https://wechat2rss.bestblogs.dev/feed/26fef2307bebc8673703f7e726982d8f56c9a219.xml"
+            },
+            {
+                "name": "Web3天空之城",
+                "url": "https://wechat2rss.bestblogs.dev/feed/6aac3cc6d4c6df6fb3f77dea4ea4ba4a2053d6e7.xml"
+            },
+            {
+                "name": "AI前线",
+                "url": "https://wechat2rss.bestblogs.dev/feed/25185b01482da0f485418ecb92e208b4416712fb.xml"
+            },
+            {
+                "name": "新智元",
+                "url": "https://wechat2rss.bestblogs.dev/feed/e531a18b21c34cf787b83ab444eef659d7a980de.xml"
+            },
+            {
+                "name": "51CTO技术栈",
+                "url": "https://wechat2rss.bestblogs.dev/feed/d1fabe6c569ffc44979075dde2f57c65e07c3045.xml"
+            },
+            {
+                "name": "优设",
+                "url": "https://wechat2rss.bestblogs.dev/feed/8fee9d33e883a769a59a5a3e27d249cf8567b55a.xml"
+            },
+            {
+                "name": "前端充电宝",
+                "url": "https://wechat2rss.bestblogs.dev/feed/efed19b684285ee14f88b3f234b350fba9376d7a.xml"
+            },
+            {
+                "name": "稀土掘金技术社区",
+                "url": "https://wechat2rss.bestblogs.dev/feed/33ecd2122ae788ea02dfcf1df857a54b9ae1338d.xml"
+            },
+            {
+                "name": "腾讯云开发者",
+                "url": "https://wechat2rss.bestblogs.dev/feed/6cec2c211479a5502896375860009782cf10c2ba.xml"
+            },
+            {
+                "name": "体验进阶",
+                "url": "https://wechat2rss.bestblogs.dev/feed/083c360a74b36b2c33820a995d21cbf60c813c0a.xml"
+            },
+            {
+                "name": "前端早读课",
+                "url": "https://wechat2rss.bestblogs.dev/feed/ce2456e157156d42259c1198f05a33e27b1ed959.xml"
+            },
+            {
+                "name": "开源服务指南",
+                "url": "https://wechat2rss.bestblogs.dev/feed/c125f09ef36fd6b6cb092c409e69a5bcc867d378.xml"
+            },
+            {
+                "name": "dbaplus社群",
+                "url": "https://wechat2rss.bestblogs.dev/feed/a92cc44a756e2b9165fed5572aa7337843a73eee.xml"
+            },
+            {
+                "name": "超人的电话亭",
+                "url": "https://wechat2rss.bestblogs.dev/feed/4be15abcd5621887bb7c1e2efd2d1cd8c68a16f0.xml"
+            },
+            {
+                "name": "Qunar技术沙龙",
+                "url": "https://wechat2rss.bestblogs.dev/feed/84c072f8d34d1690f2783d7dda6013cf6d892b7f.xml"
+            },
+            {
+                "name": "42章经",
+                "url": "https://wechat2rss.bestblogs.dev/feed/f6694726ced4ba3d7c7cd65c6edf2160c5978387.xml"
+            },
+            {
+                "name": "随机小分队",
+                "url": "https://wechat2rss.bestblogs.dev/feed/115e814e7b12d373a55459cb2aea3223152f2af2.xml"
+            },
+            {
+                "name": "阿里研究院",
+                "url": "https://wechat2rss.bestblogs.dev/feed/e2f1190c120f7f3d74b630bfcfe9e58296bd535c.xml"
+            },
+            {
+                "name": "深思圈",
+                "url": "https://wechat2rss.bestblogs.dev/feed/3e6fcb56a39b2e18f1036113655d4ff8fe726b62.xml"
+            },
+            {
+                "name": "Hugging Face",
+                "url": "https://wechat2rss.bestblogs.dev/feed/8b68fdb4f24ab2287100988a8cec36363fec4214.xml"
+            },
+            {
+                "name": "创业邦",
+                "url": "https://wechat2rss.bestblogs.dev/feed/f5e0d8e342d9e2ec5b2942f08522cfaec17acc8d.xml"
+            },
+            {
+                "name": "Founder Park",
+                "url": "https://wechat2rss.bestblogs.dev/feed/f940695505f2be1399d23cc98182297cadf6f90d.xml"
+            },
+            {
+                "name": "vivo互联网技术",
+                "url": "https://wechat2rss.bestblogs.dev/feed/b3ceb5cb1e4602ca55704650a157ec9c5b2f0d31.xml"
+            },
+            {
+                "name": "歸藏的AI工具箱",
+                "url": "https://wechat2rss.bestblogs.dev/feed/1c3e3571b1627d23ee9c64521a0b0a41d3fe2987.xml"
+            },
+            {
+                "name": "Clip设计夹",
+                "url": "https://wechat2rss.bestblogs.dev/feed/ebd5f5bd705dd531066eeca5ee500a1e6a269e17.xml"
+            },
+            {
+                "name": "腾讯科技",
+                "url": "https://wechat2rss.bestblogs.dev/feed/a81bdfcbb9eefe870d285e81510ffa1af26e4520.xml"
+            },
+            {
+                "name": "InfoQ 中文",
+                "url": "https://wechat2rss.bestblogs.dev/feed/13da94d7eb314b49fa251cb7e8399cae29d772db.xml"
+            },
+            {
+                "name": "Dify",
+                "url": "https://wechat2rss.bestblogs.dev/feed/e46c03a4cb65509e22ab9a8507888a2096319d65.xml"
+            },
+            {
+                "name": "海外独角兽",
+                "url": "https://wechat2rss.bestblogs.dev/feed/7200d3a5e976d231deb1e40ad33745c0e649b029.xml"
+            },
+            {
+                "name": "CSDN",
+                "url": "https://wechat2rss.bestblogs.dev/feed/b0b7f2852aecdcc5a0eb08d33afc1c08b855d98b.xml"
+            },
+            {
+                "name": "谷歌开发者",
+                "url": "https://wechat2rss.bestblogs.dev/feed/9c65b8470acb8a5400199616536995d5ba90f52e.xml"
+            },
+            {
+                "name": "赛博禅心",
+                "url": "https://wechat2rss.bestblogs.dev/feed/752c31ca0446b837339463fc5440539e20267d2f.xml"
+            },
+            {
+                "name": "笔记侠",
+                "url": "https://wechat2rss.bestblogs.dev/feed/4c5d9bcc2fbfcd1dc81fb67559653f8957ef4760.xml"
+            },
+            {
+                "name": "小红书技术REDtech",
+                "url": "https://wechat2rss.bestblogs.dev/feed/0f8c47df6fd304112518544776e0bbf1d98ba0b9.xml"
+            },
+            {
+                "name": "智谱",
+                "url": "https://wechat2rss.bestblogs.dev/feed/433d2134dca54d80804daf32e8be546155be3300.xml"
+            },
+            {
+                "name": "月之暗面 Kimi",
+                "url": "https://wechat2rss.bestblogs.dev/feed/c5c43d4bc17bae656763859ed0903bb6314ec6fe.xml"
+            },
+            {
+                "name": "通义大模型",
+                "url": "https://wechat2rss.bestblogs.dev/feed/4ebee6222ae08705b8aabc9116f0defbcb6b17c6.xml"
+            },
+            {
+                "name": "百度AI",
+                "url": "https://wechat2rss.bestblogs.dev/feed/d0767d885e6ba213344fb0c0408c51331e23a994.xml"
+            },
+            {
+                "name": "HelloGitHub",
+                "url": "https://wechat2rss.bestblogs.dev/feed/e6cc80b97bf64eeef61cc5927c78ba6ce3356422.xml"
+            },
+            {
+                "name": "经纬创投",
+                "url": "https://wechat2rss.bestblogs.dev/feed/05efb1c4cf91e5a37443cc323150ea38a838e9fd.xml"
+            },
+            {
+                "name": "腾讯混元",
+                "url": "https://wechat2rss.bestblogs.dev/feed/306ce19a1ca590c9c2df781789e828d1acfa1356.xml"
+            },
+            {
+                "name": "刘润",
+                "url": "https://wechat2rss.bestblogs.dev/feed/c1354f67c314d25d6e236a58724043bdc46d6079.xml"
+            },
+            {
+                "name": "吴晓波频道",
+                "url": "https://wechat2rss.bestblogs.dev/feed/604fd0bfbb0214958f7fd2718509e4ea038c6afc.xml"
+            },
+            {
+                "name": "智东西",
+                "url": "https://wechat2rss.bestblogs.dev/feed/cfd52b4245ca6119b2fda4ef934832c689028927.xml"
+            },
+            {
+                "name": "腾讯研究院",
+                "url": "https://wechat2rss.bestblogs.dev/feed/6152301e0978bffb0a8284cab339262b9764dcfb.xml"
+            },
+            {
+                "name": "有机大橘子",
+                "url": "https://wechat2rss.bestblogs.dev/feed/6cef434b771dd75a91864b2e699a622cb4e3eb33.xml"
+            },
+            {
+                "name": "Thoughtworks洞见",
+                "url": "https://wechat2rss.bestblogs.dev/feed/96b507f9985efa59e549e95a6363c2b6edfa8f2e.xml"
+            },
+            {
+                "name": "浮之静",
+                "url": "https://wechat2rss.bestblogs.dev/feed/abb0de0c0cb8f684a1606a4b20121b245547adce.xml"
+            },
+            {
+                "name": "数字生命卡兹克",
+                "url": "https://wechat2rss.bestblogs.dev/feed/ff621c3e98d6ae6fceb3397e57441ffc6ea3c17f.xml"
+            },
+            {
+                "name": "AI产品黄叔",
+                "url": "https://wechat2rss.bestblogs.dev/feed/1f1030491e15e5349aae42367513d6b3f70a8f8b.xml"
+            },
+            {
+                "name": "印记中文",
+                "url": "https://wechat2rss.bestblogs.dev/feed/2b038bb5307a75a603405f7191b5030576d3e8bd.xml"
+            },
+            {
+                "name": "真格基金",
+                "url": "https://wechat2rss.bestblogs.dev/feed/47798a14d51da72e68fae4f7a259f096750cf03e.xml"
+            },
+            {
+                "name": "大模型智能",
+                "url": "https://wechat2rss.bestblogs.dev/feed/bfc6440c1a2443fab9a6bf607137d41db5cd5c93.xml"
+            },
+            {
+                "name": "甲子光年",
+                "url": "https://wechat2rss.bestblogs.dev/feed/1c4008936645d5c17239d99bba91522cf2bdfa26.xml"
+            },
+            {
+                "name": "Z Potentials",
+                "url": "https://wechat2rss.bestblogs.dev/feed/c47f4bc00ea912c37b6e23b22b146db0e85b3e19.xml"
+            },
+            {
+                "name": "深网腾讯新闻",
+                "url": "https://wechat2rss.bestblogs.dev/feed/396591aa7d3ef15fa3b5b17ec4b1aa840ebde335.xml"
+            },
+            {
+                "name": "AI炼金术",
+                "url": "https://wechat2rss.bestblogs.dev/feed/4915f3747653bbb9c7975323c11b768d2b9cd6c9.xml"
+            },
+            {
+                "name": "白鲸出海",
+                "url": "https://wechat2rss.bestblogs.dev/feed/2b8f03a73a0f2ac92a8ca69c124e5be6f442dbdc.xml"
+            },
+            {
+                "name": "硅星人Pro",
+                "url": "https://wechat2rss.bestblogs.dev/feed/c62ceda9eed269d851802bdbc5f33c4fabbf7462.xml"
+            },
+            {
+                "name": "AI科技评论",
+                "url": "https://wechat2rss.bestblogs.dev/feed/789e5fefb9cc2646ba7b680cb7a88378a34eb7a4.xml"
+            },
+            {
+                "name": "山行AI",
+                "url": "https://wechat2rss.bestblogs.dev/feed/98bc16b6f53902a2ab511b4faa3499e0a1c78eb1.xml"
+            },
+            {
+                "name": "魔搭ModelScope社区",
+                "url": "https://wechat2rss.bestblogs.dev/feed/d993a885260f96057b9a4c96212cb2c95bb5054b.xml"
+            },
+            {
+                "name": "强少来了",
+                "url": "https://wechat2rss.bestblogs.dev/feed/3c36fe804f63a7b936e372a37929d81fa0ad948a.xml"
+            },
+            {
+                "name": "土猛的员外",
+                "url": "https://wechat2rss.bestblogs.dev/feed/3ee671d065adc460bc20bbd269115987098c54a0.xml"
+            },
+            {
+                "name": "暗涌Waves",
+                "url": "https://wechat2rss.bestblogs.dev/feed/bd586c1499b56aaec02dfefa87126232d234b010.xml"
+            },
+            {
+                "name": "夕小瑶科技说",
+                "url": "https://wechat2rss.bestblogs.dev/feed/64b57d666259aee6bd097e76164e4a8371f0ad04.xml"
+            },
+            {
+                "name": "DeeplearningAI",
+                "url": "https://wechat2rss.bestblogs.dev/feed/9d094d066a5faacff0eb0a6b95efbba20d4f1fc9.xml"
+            },
+            {
+                "name": "机器之心SOTA模型",
+                "url": "https://wechat2rss.bestblogs.dev/feed/2f520471856d56c7b3a95cd09eb777149b32828a.xml"
+            },
+            {
+                "name": "阶跃星辰",
+                "url": "https://wechat2rss.bestblogs.dev/feed/3e2714d06aa36142e8ed6b3f4e5cf9090a069dd2.xml"
+            },
+            {
+                "name": "快手技术",
+                "url": "https://wechat2rss.bestblogs.dev/feed/c4cc10d2e32a5fa12927581ae581a336f399fe75.xml"
+            },
+            {
+                "name": "DeepSeek",
+                "url": "https://wechat2rss.bestblogs.dev/feed/1709da4f538d4ce4fb6d7a8ba1a5a1c297919601.xml"
+            },
+            {
+                "name": "字节跳动Seed",
+                "url": "https://wechat2rss.bestblogs.dev/feed/6efd40bb335d2037f365d284cb5e00f0843e737e.xml"
+            },
+            {
+                "name": "十字路口Crossing",
+                "url": "https://wechat2rss.bestblogs.dev/feed/20492a5f2d3637c178c01ab0bab7ed86a4a0995b.xml"
+            },
+            {
+                "name": "青哥谈AI",
+                "url": "https://wechat2rss.bestblogs.dev/feed/00a1da3493512c20aff1ea5a0d1a02537e931b36.xml"
+            },
+            {
+                "name": "AI寒武纪",
+                "url": "https://wechat2rss.bestblogs.dev/feed/5903009f48a5e4aa44d8ac941a54fe3aafc3e03c.xml"
+            },
+            {
+                "name": "MiniMax 稀宇科技",
+                "url": "https://wechat2rss.bestblogs.dev/feed/00306b171f754d463b28cf83f3ba086ad009b430.xml"
+            },
+            {
+                "name": "Jina AI",
+                "url": "https://wechat2rss.bestblogs.dev/feed/ff2c5468828ebe7236afd6c1d128e219774487c2.xml"
+            },
+            {
+                "name": "花叔",
+                "url": "https://wechat2rss.bestblogs.dev/feed/ed3e181242a4622709081439d802523ecf7b78f2.xml"
+            },
+            {
+                "name": "Datawhale",
+                "url": "https://wechat2rss.bestblogs.dev/feed/ea0dd8bddfe4fbfb32eaa81a1e1b628d45e97a80.xml"
+            },
+            {
+                "name": "AINLP",
+                "url": "https://wechat2rss.bestblogs.dev/feed/875df1d1a991bf9250ba9813e3148f58ef2240d4.xml"
+            },
+            {
+                "name": "向阳乔木推荐看",
+                "url": "https://wechat2rss.bestblogs.dev/feed/3e50f11753a7c5ed689565fbf5abf96cb4541c57.xml"
+            },
+            {
+                "name": "乌鸦智能说",
+                "url": "https://wechat2rss.bestblogs.dev/feed/f21c3e34df9b5fecfda57e2e53512864255ed4cd.xml"
+            },
+            {
+                "name": "yikai 的摸鱼笔记",
+                "url": "https://wechat2rss.bestblogs.dev/feed/13492cb50df57702cdc0dfa71467cd03f9dd69be.xml"
+            },
+            {
+                "name": "李继刚",
+                "url": "https://wechat2rss.bestblogs.dev/feed/9645a69180041ff935c458753174fa8bc2061295.xml"
+            },
+            {
+                "name": "沃垠AI",
+                "url": "https://wechat2rss.bestblogs.dev/feed/339818dbd5154cecdf5f4161f3391c7038a72bae.xml"
+            },
+            {
+                "name": "L先生说",
+                "url": "https://wechat2rss.bestblogs.dev/feed/31c7fb6f7959a5ff90ae997b536e78b8b3f23321.xml"
+            },
+            {
+                "name": "有新Newin",
+                "url": "https://wechat2rss.bestblogs.dev/feed/74554dcb3da8982083426b871bc8c314a9de9729.xml"
+            },
+            {
+                "name": "晚点LatePost",
+                "url": "https://wechat2rss.bestblogs.dev/feed/c442206ec9957f3c52f2f40300ca532079538b31.xml"
+            },
+            {
+                "name": "袋鼠帝AI客栈",
+                "url": "https://wechat2rss.bestblogs.dev/feed/24d0930cc9f4f0c708182dc1c087d41e1f4cbd33.xml"
+            },
+            {
+                "name": "AI科技大本营",
+                "url": "https://wechat2rss.bestblogs.dev/feed/dfd3b5e742e32d8032a445832373191957202bf3.xml"
+            },
+            {
+                "name": "卡尔的AI沃茨",
+                "url": "https://wechat2rss.bestblogs.dev/feed/8a1fc997e5c742e91ad7c253836c28ca3a69ccb1.xml"
+            },
+            {
+                "name": "逛逛GitHub",
+                "url": "https://wechat2rss.bestblogs.dev/feed/38be32e5376d852c13d3383e4d7a757fd9a55ff6.xml"
+            },
+            {
+                "name": "阿真Irene",
+                "url": "https://wechat2rss.bestblogs.dev/feed/d5ead392b0cf117d0ba4070e2261111fdde49711.xml"
+            },
+            {
+                "name": "网易科技",
+                "url": "https://wechat2rss.bestblogs.dev/feed/028fbc21062e744c7b606880ebca01e22cb4b7b7.xml"
+            },
+            {
+                "name": "架构师之路",
+                "url": "https://wechat2rss.bestblogs.dev/feed/f6dec1c3ad16e43532dd427c85eaeb3a7b7b084e.xml"
+            },
+            {
+                "name": "硅谷101",
+                "url": "https://wechat2rss.bestblogs.dev/feed/8f8fe34034f6123b168ed7847c51d50ff47cd7ee.xml"
+            },
+            {
+                "name": "少数派",
+                "url": "https://wechat2rss.bestblogs.dev/feed/f0e37a7d597231efed4bf6dd05b5d904de6dbcc1.xml"
+            },
+            {
+                "name": "语言即世界language is world",
+                "url": "https://wechat2rss.bestblogs.dev/feed/e1ed0d3edd93f90aef602105eb7ca51b35b7060a.xml"
+            },
+            {
+                "name": "刘小排r",
+                "url": "https://wechat2rss.bestblogs.dev/feed/484d4199ae6c0b72ea01e7e0597a1f74933dfb62.xml"
+            },
+            {
+                "name": "43 Talks",
+                "url": "https://wechat2rss.bestblogs.dev/feed/4efe7ec6970afd4a050d6f10b9e8131a9d5e6816.xml"
             }
         ]
     }

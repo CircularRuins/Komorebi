@@ -35,7 +35,7 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
             style={{
                 padding: "8px",
                 border: "1px solid var(--neutralLight)",
-                borderRadius: "4px",
+                borderRadius: "8px",
                 backgroundColor: "var(--white)",
                 transition: "box-shadow 0.2s ease",
                 cursor: "default",
@@ -72,7 +72,9 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
                             style={{
                                 width: "100%",
                                 height: "100%",
-                                objectFit: "cover",
+                                objectFit: /youtube\.com/.test(feed.url) ? "contain" : "cover",
+                                backgroundColor: /youtube\.com/.test(feed.url) ? "var(--white)" : "transparent",
+                                padding: /youtube\.com/.test(feed.url) ? "2px" : "0",
                             }}
                             onError={(e) => {
                                 // 如果图片加载失败，隐藏img显示占位图标

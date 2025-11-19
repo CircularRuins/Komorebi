@@ -100,7 +100,7 @@
     display: inline-block;
     width: 256px;
     height: 264px;
-    border-radius: 4px;
+    border-radius: 8px;
     background-color: var(--white);
     box-shadow: #0004 0 5px 20px;
     margin: 18px 12px;
@@ -185,6 +185,7 @@
     transition: box-shadow linear 0.08s;
     border-bottom: 1px solid var(--neutralQuaternaryAlt);
     box-shadow: #0000 0 5px 15px;
+    border-radius: 8px;
 }
 .list-card:hover,
 .ms-Fabric--isFocusVisible .list-card:focus {
@@ -255,6 +256,7 @@
         transform linear 0.08s;
     border-bottom: 1px solid var(--neutralQuaternaryAlt);
     box-shadow: #0000 0 5px 20px;
+    border-radius: 8px;
 }
 .magazine-card.read {
     color: var(--neutralSecondaryAlt);
@@ -320,6 +322,7 @@
     line-height: 31px;
     padding: 0 9px;
     transition: box-shadow linear 0.08s, background-color linear 0.08s;
+    border-radius: 8px;
 }
 .compact-card:hover,
 .ms-Fabric--isFocusVisible .compact-card:focus {

@@ -87,6 +87,7 @@ body.linux {
     cursor: default;
     font-size: 12px;
     user-select: none;
+    border-radius: 8px;
 }
 /* 减小设置下拉菜单的尺寸 */
 .ms-ContextualMenu {
@@ -141,6 +142,7 @@ body.linux {
 .ms-Button--primary.danger {
     background: #d13438;
     border-color: #d13438;
+    border-radius: 8px;
 }
 .ms-Button--primary.danger:hover {
     background: #ba2d32;
@@ -157,9 +159,16 @@ body.linux {
 .ms-Button--commandBar.active {
     background-color: var(--neutralLight);
     color: var(--neutralDark);
+    border-radius: 8px;
 }
 .ms-Button--commandBar.active .ms-Button-icon {
     color: #005a9e;
+}
+/* Fluent UI 按钮圆角 */
+.ms-Button--primary,
+.ms-Button--default,
+.ms-Button--commandBar {
+    border-radius: 8px;
 }
 i.ms-Nav-chevron {
     line-height: 32px;
@@ -278,7 +287,7 @@ body.darwin .btn-group .seperator {
     font-size: 14px;
     vertical-align: top;
     margin: 0 6px;
-    border-radius: 4px;
+    border-radius: 8px;
 }
 #root > nav .btn-group .btn,
 .menu .btn-group .btn {
