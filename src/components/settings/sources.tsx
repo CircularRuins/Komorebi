@@ -332,7 +332,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
 
             {/* 推荐订阅源模块 - 放在添加订阅源表单下方 */}
             {this.state.recommendedFeeds.length > 0 && (
-                <div style={{ marginTop: '32px', marginBottom: '0' }}>
+                <div style={{ marginTop: '32px', marginBottom: '32px' }}>
                     <RecommendedFeeds
                         groups={this.state.recommendedFeeds}
                         subscribedUrls={this.getSubscribedUrls()}

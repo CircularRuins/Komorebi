@@ -72,7 +72,7 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
         }
 
         return (
-            <div style={{ marginTop: "24px" }}>
+            <div style={{ marginTop: "24px", paddingBottom: "16px" }}>
                 <Label styles={{ root: { fontSize: '14px', fontWeight: 600 } }}>
                     {intl.get("sources.recommendedFeeds")}
                 </Label>
@@ -87,14 +87,18 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
                             headerText={group.groupName}
                             itemKey={group.groupName}
                         >
-                            <div style={{ padding: "16px" }}>
+                            <div style={{ padding: "4px 16px", boxSizing: "border-box" }}>
                                 <div
                                     style={{
                                         display: "flex",
                                         flexWrap: "wrap",
                                         gap: "12px",
                                         width: "100%",
-                                        justifyContent: "space-between",
+                                        maxWidth: "100%",
+                                        maxHeight: "400px",
+                                        overflowY: "auto",
+                                        overflowX: "hidden",
+                                        boxSizing: "border-box",
                                     }}
                                 >
                                     {group.feeds.map((feed, index) => {

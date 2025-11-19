@@ -4,7 +4,6 @@ import {
     Stack,
     PrimaryButton,
     DefaultButton,
-    Text,
     Icon,
 } from "@fluentui/react"
 import { RecommendedFeed } from "../../scripts/utils/recommended-feeds"
@@ -34,13 +33,13 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
     return (
         <div
             style={{
-                padding: "10px",
+                padding: "8px",
                 border: "1px solid var(--neutralLight)",
                 borderRadius: "4px",
                 backgroundColor: "var(--white)",
                 transition: "box-shadow 0.2s ease",
                 cursor: "default",
-                width: "256px",
+                width: "200px",
                 boxSizing: "border-box",
                 position: "relative",
             }}
@@ -51,12 +50,12 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
                 e.currentTarget.style.boxShadow = "none"
             }}
         >
-            <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center" styles={{ root: { width: "100%", paddingRight: "28px" } }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", width: "100%", paddingRight: "32px" }}>
                 {/* 图标 */}
                 <div
                     style={{
-                        width: "36px",
-                        height: "36px",
+                        width: "28px",
+                        height: "28px",
                         borderRadius: "4px",
                         backgroundColor: "var(--neutralLighter)",
                         display: "flex",
@@ -82,7 +81,7 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
                                 if (parent) {
                                     const icon = document.createElement("i")
                                     icon.className = "ms-Icon ms-Icon--Link"
-                                    icon.style.fontSize = "20px"
+                                    icon.style.fontSize = "16px"
                                     icon.style.color = "var(--neutralSecondary)"
                                     parent.appendChild(icon)
                                 }
@@ -93,7 +92,7 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
                             iconName="Link"
                             styles={{
                                 root: {
-                                    fontSize: "20px",
+                                    fontSize: "16px",
                                     color: "var(--neutralSecondary)",
                                 },
                             }}
@@ -102,42 +101,38 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
                 </div>
 
                 {/* 内容区域 */}
-                <Stack.Item grow styles={{ root: { minWidth: 0, overflow: "hidden", maxWidth: "100%" } }}>
-                    <Stack tokens={{ childrenGap: 3 }} styles={{ root: { minWidth: 0, width: "100%" } }}>
-                        <div
-                            style={{
-                                fontSize: "13px",
-                                fontWeight: 600,
-                                color: "var(--neutralPrimary)",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                width: "100%",
-                            }}
-                        >
-                            {feed.name}
-                        </div>
-                        <div
-                            style={{
-                                fontSize: "12px",
-                                color: "var(--neutralSecondary)",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                width: "100%",
-                            }}
-                        >
-                            {feed.url}
-                        </div>
-                    </Stack>
-                </Stack.Item>
+                <div
+                    style={{
+                        flex: 1,
+                        minWidth: 0,
+                        overflow: "hidden",
+                        display: "flex",
+                        alignItems: "center",
+                        height: "28px",
+                    }}
+                >
+                    <div
+                        style={{
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            color: "var(--neutralPrimary)",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            width: "100%",
+                            lineHeight: "1.2",
+                        }}
+                    >
+                        {feed.name}
+                    </div>
+                </div>
 
-            </Stack>
+            </div>
             {/* 订阅按钮 - 绝对定位，相对于卡片垂直居中 */}
             <div
                 style={{
                     position: "absolute",
-                    right: "10px",
+                    right: "8px",
                     top: "50%",
                     transform: "translateY(-50%)",
                 }}
@@ -149,16 +144,16 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
                         title={intl.get("sources.subscribed")}
                         styles={{
                             root: {
-                                height: "20px",
-                                width: "20px",
-                                minWidth: "20px",
+                                height: "18px",
+                                width: "18px",
+                                minWidth: "18px",
                                 padding: "0",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                             },
                             icon: {
-                                fontSize: "10px",
+                                fontSize: "9px",
                             },
                         }}
                     />
@@ -170,16 +165,16 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
                         onClick={handleSubscribe}
                         styles={{
                             root: {
-                                height: "20px",
-                                width: "20px",
-                                minWidth: "20px",
+                                height: "18px",
+                                width: "18px",
+                                minWidth: "18px",
                                 padding: "0",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                             },
                             icon: {
-                                fontSize: "10px",
+                                fontSize: "9px",
                             },
                         }}
                     />
