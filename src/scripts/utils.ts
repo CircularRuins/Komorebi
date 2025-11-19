@@ -106,6 +106,8 @@ export async function fetchFavicon(url: string) {
         let result = await fetch(url, { credentials: "omit" })
         if (result.ok) {
             let html = await result.text()
+            // Remove stylesheet links to prevent CSP violations when parsing HTML
+            html = html.replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, '')
             let dom = domParser.parseFromString(html, "text/html")
             let links = dom.getElementsByTagName("link")
             for (let link of links) {

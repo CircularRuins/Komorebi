@@ -16,6 +16,8 @@ import {
     RSSSource,
 } from "../../scripts/models/source"
 import { urlTest } from "../../scripts/utils"
+import { loadRecommendedFeeds, RecommendedFeedGroup, RecommendedFeed } from "../../scripts/utils/recommended-feeds"
+import RecommendedFeeds from "./recommended-feeds"
 
 type SourcesTabProps = {
     sources: SourceState
@@ -31,13 +33,13 @@ type SourcesTabProps = {
 }
 
 type SourcesTabState = {
-    [formName: string]: string | boolean | null
-} & {
     showSuccessMessage: boolean
     showImportErrorDialog: boolean
     importErrorTitle: string
     importErrorContent: string
     newUrl: string
+    recommendedFeeds: RecommendedFeedGroup[]
+    isSubscribing: { [url: string]: boolean }
 }
 
 class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
@@ -52,12 +54,34 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             showImportErrorDialog: false,
             importErrorTitle: "",
             importErrorContent: "",
+            recommendedFeeds: [],
+            isSubscribing: {},
         }
     }
 
-    handleInputChange = event => {
-        const name: string = event.target.name
-        this.setState({ [name]: event.target.value })
+    componentDidMount = async () => {
+        // 加载推荐订阅源
+        try {
+            const feeds = await loadRecommendedFeeds()
+            this.setState({ recommendedFeeds: feeds })
+        } catch (error) {
+            console.error("Failed to load recommended feeds:", error)
+        }
+    }
+
+    handleInputChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+        // Fluent UI TextField 的 onChange 事件签名是 (event, newValue?: string)
+        // 直接使用 newValue 参数更新状态，避免访问可能为 null 的 currentTarget
+        if (newValue !== undefined) {
+            this.setState({ newUrl: newValue })
+        }
+    }
+
+    handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        // 防止Command+V或Ctrl+V触发表单提交
+        if ((event.metaKey || event.ctrlKey) && event.key === 'v') {
+            event.stopPropagation()
+        }
     }
 
     handleImportError = (title: string, content: string) => {
@@ -96,6 +120,50 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                 // 错误已经在 addSource 中处理了，这里不需要额外处理
             }
         }
+    }
+
+    handleSubscribeRecommended = async (feed: RecommendedFeed) => {
+        const url = feed.url
+        if (this.state.isSubscribing[url]) {
+            return
+        }
+
+        // 检查是否已订阅
+        const isAlreadySubscribed = Object.values(this.props.sources).some(
+            source => source.url === url
+        )
+        if (isAlreadySubscribed) {
+            return
+        }
+
+        // 设置订阅中状态
+        this.setState(prevState => ({
+            isSubscribing: {
+                ...prevState.isSubscribing,
+                [url]: true,
+            },
+        }))
+
+        try {
+            await this.props.addSource(url)
+            // 订阅成功，显示提示
+            this.setState({
+                showSuccessMessage: true,
+            })
+        } catch (e) {
+            // 错误已经在 addSource 中处理了
+        } finally {
+            // 清除订阅中状态
+            this.setState(prevState => {
+                const newState = { ...prevState.isSubscribing }
+                delete newState[url]
+                return { isSubscribing: newState }
+            })
+        }
+    }
+
+    getSubscribedUrls = (): Set<string> => {
+        return new Set(Object.values(this.props.sources).map(source => source.url))
     }
 
 
@@ -187,31 +255,50 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                     </div>
                 </div>
             )}
-            <Label>{intl.get("sources.opmlFile")}</Label>
-            <Stack horizontal>
-                <Stack.Item>
-                    <PrimaryButton
-                        onClick={() => this.props.importOPML(this.handleImportError)}
-                        text={intl.get("sources.import")}
-                    />
-                </Stack.Item>
-                <Stack.Item>
-                    <DefaultButton
-                        onClick={this.props.exportOPML}
-                        text={intl.get("sources.export")}
-                    />
-                </Stack.Item>
-            </Stack>
-            {this.props.isOPMLImport && this.props.fetchingItems && this.props.fetchingTotal > 0 && (
-                <div style={{ marginTop: '12px' }}>
-                    <ProgressIndicator
-                        percentComplete={this.props.fetchingProgress / this.props.fetchingTotal}
-                    />
-                </div>
-            )}
+            {/* OPML导入导出部分 */}
+            <div style={{ marginTop: '0', marginBottom: '32px' }}>
+                <Label styles={{ root: { fontSize: '14px', fontWeight: 600 } }}>{intl.get("sources.opmlFile")}</Label>
+                <Stack horizontal>
+                    <Stack.Item>
+                        <PrimaryButton
+                            onClick={() => this.props.importOPML(this.handleImportError)}
+                            text={intl.get("sources.import")}
+                            styles={{
+                                root: {
+                                    height: '28px',
+                                    minWidth: '80px',
+                                    fontSize: '13px',
+                                },
+                            }}
+                        />
+                    </Stack.Item>
+                    <Stack.Item>
+                        <DefaultButton
+                            onClick={this.props.exportOPML}
+                            text={intl.get("sources.export")}
+                            styles={{
+                                root: {
+                                    height: '28px',
+                                    minWidth: '80px',
+                                    fontSize: '13px',
+                                },
+                            }}
+                        />
+                    </Stack.Item>
+                </Stack>
+                {this.props.isOPMLImport && this.props.fetchingItems && this.props.fetchingTotal > 0 && (
+                    <div style={{ marginTop: '12px' }}>
+                        <ProgressIndicator
+                            percentComplete={this.props.fetchingProgress / this.props.fetchingTotal}
+                        />
+                    </div>
+                )}
+            </div>
 
-            <form onSubmit={this.addSource}>
-                <Label htmlFor="newUrl">{intl.get("sources.add")}</Label>
+            {/* 添加订阅源部分 */}
+            <div style={{ marginTop: '32px', marginBottom: '32px' }}>
+                <form onSubmit={this.addSource}>
+                <Label htmlFor="newUrl" styles={{ root: { fontSize: '14px', fontWeight: 600 } }}>{intl.get("sources.add")}</Label>
                 <Stack horizontal>
                     <Stack.Item grow>
                         <TextField
@@ -229,6 +316,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                             id="newUrl"
                             name="newUrl"
                             onChange={this.handleInputChange}
+                            onKeyDown={this.handleInputKeyDown}
                         />
                     </Stack.Item>
                     <Stack.Item>
@@ -239,7 +327,20 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                         />
                     </Stack.Item>
                 </Stack>
-            </form>
+                </form>
+            </div>
+
+            {/* 推荐订阅源模块 - 放在添加订阅源表单下方 */}
+            {this.state.recommendedFeeds.length > 0 && (
+                <div style={{ marginTop: '32px', marginBottom: '0' }}>
+                    <RecommendedFeeds
+                        groups={this.state.recommendedFeeds}
+                        subscribedUrls={this.getSubscribedUrls()}
+                        onSubscribe={this.handleSubscribeRecommended}
+                        isSubscribing={this.state.isSubscribing}
+                    />
+                </div>
+            )}
 
             {/* OPML导入错误对话框 */}
             {this.state.showImportErrorDialog && (

@@ -1,0 +1,70 @@
+[
+    {
+        "groupName": "技术博客",
+        "feeds": [
+            {
+                "name": "阮一峰的网络日志",
+                "url": "https://feeds.feedburner.com/ruanyifeng"
+            },
+            {
+                "name": "酷壳 - CoolShell",
+                "url": "https://coolshell.cn/feed"
+            },
+            {
+                "name": "美团技术团队",
+                "url": "https://tech.meituan.com/feed/"
+            },
+            {
+                "name": "The Verge",
+                "url": "https://www.theverge.com/rss/index.xml"
+            },
+            {
+                "name": "TechCrunch",
+                "url": "https://techcrunch.com/feed/"
+            },
+            {
+                "name": "Ars Technica",
+                "url": "https://feeds.arstechnica.com/arstechnica/index"
+            },
+            {
+                "name": "BBC News",
+                "url": "https://feeds.bbci.co.uk/news/rss.xml"
+            },
+            {
+                "name": "Reuters Top News",
+                "url": "https://www.reutersagency.com/feed/?taxonomy=best-topics&post_type=best"
+            }
+        ]
+    },
+    {
+        "groupName": "新闻资讯",
+        "feeds": [
+            {
+                "name": "BBC News",
+                "url": "https://feeds.bbci.co.uk/news/rss.xml"
+            },
+            {
+                "name": "Reuters Top News",
+                "url": "https://www.reutersagency.com/feed/?taxonomy=best-topics&post_type=best"
+            }
+        ]
+    },
+    {
+        "groupName": "科技媒体",
+        "feeds": [
+            {
+                "name": "The Verge",
+                "url": "https://www.theverge.com/rss/index.xml"
+            },
+            {
+                "name": "TechCrunch",
+                "url": "https://techcrunch.com/feed/"
+            },
+            {
+                "name": "Ars Technica",
+                "url": "https://feeds.arstechnica.com/arstechnica/index"
+            }
+        ]
+    }
+]
+
