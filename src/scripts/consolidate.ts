@@ -29,6 +29,8 @@ export interface ConsolidateConfig {
     embeddingModel: string
     model: string
     topk: number
+    chatApiBaseURL?: string
+    embeddingApiBaseURL?: string
 }
 
 export interface ConsolidateCallbacks {
@@ -106,6 +108,26 @@ function cleanupTopicEmbeddingCache(embeddingModel: string, keepCount: number): 
 
 // ==================== 辅助函数 ====================
 
+// 规范化 API Endpoint URL，提取 baseURL
+export function normalizeApiEndpoint(endpoint: string): string {
+    const normalizedEndpoint = endpoint.trim()
+    
+    if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
+        throw new Error('API Endpoint必须以http://或https://开头')
+    }
+    
+    try {
+        const url = new URL(normalizedEndpoint)
+        if (url.pathname.includes('/v1/chat/completions')) {
+            return `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
+        } else {
+            return `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
+        }
+    } catch (error) {
+        throw new Error(`无效的API Endpoint URL: ${normalizedEndpoint}`)
+    }
+}
+
 // 计算余弦相似度
 export function cosineSimilarity(vecA: number[], vecB: number[]): number {
     if (vecA.length !== vecB.length) {
@@ -132,65 +154,27 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
 
 // 计算话题的embedding
 // textToVectorize: 实际用于计算embedding的文本（可能是HyDE生成的文章或原始主题）
-// cacheKeyTopic: 用于缓存key的主题（如果使用HyDE，应该是原始topic；否则为undefined，使用textToVectorize）
 export async function computeTopicEmbedding(
     textToVectorize: string,
-    config: ConsolidateConfig,
-    cacheKeyTopic?: string
+    config: ConsolidateConfig
 ): Promise<number[]> {
-    const { embeddingApiEndpoint, embeddingApiKey, embeddingModel } = config
+    const { embeddingApiKey, embeddingModel, embeddingApiBaseURL } = config
 
-    // 验证API配置
-    if (!embeddingApiEndpoint || !embeddingApiEndpoint.trim()) {
-        throw new Error('请先配置Embedding API Endpoint（在设置中配置）')
-    }
-    if (!embeddingApiKey || !embeddingApiKey.trim()) {
-        throw new Error('请先配置Embedding API Key（在设置中配置）')
-    }
-    if (!embeddingModel || !embeddingModel.trim()) {
-        throw new Error('请先配置Embedding模型名称（在设置中配置）')
+    if (!embeddingApiBaseURL) {
+        throw new Error('embeddingApiBaseURL未设置')
     }
 
     const modelToUse = embeddingModel.trim()
     const trimmedText = textToVectorize.trim()
-    // 如果提供了cacheKeyTopic（使用HyDE的情况），使用它作为缓存key；否则使用实际文本
-    const cacheKey = cacheKeyTopic ? cacheKeyTopic.trim() : trimmedText
-
-    // 先尝试从缓存加载（使用缓存key）
-    const cachedEmbedding = loadTopicEmbeddingFromCache(cacheKey, modelToUse)
-    if (cachedEmbedding) {
-        return cachedEmbedding
-    }
-
-    // 缓存中没有，需要计算
-
-    // 规范化endpoint URL
-    let normalizedEndpoint = embeddingApiEndpoint.trim()
-    if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-        throw new Error('Embedding API Endpoint必须以http://或https://开头')
-    }
-
-    // 提取base URL（用于embedding API）
-    let baseURL = normalizedEndpoint
-    try {
-        const url = new URL(normalizedEndpoint)
-        if (url.pathname.includes('/v1/chat/completions')) {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
-        } else {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
-        }
-    } catch (error) {
-        throw new Error(`无效的Embedding API Endpoint URL: ${normalizedEndpoint}`)
-    }
 
     try {
         const openai = new OpenAI({
             apiKey: embeddingApiKey,
-            baseURL: baseURL,
+            baseURL: embeddingApiBaseURL,
             dangerouslyAllowBrowser: true
         })
 
-        // 调用embedding API（使用实际文本计算embedding）
+        // 调用embedding API（使用实际文本计算embedding，不缓存）
         const response = await openai.embeddings.create({
             model: modelToUse,
             input: trimmedText,
@@ -198,10 +182,6 @@ export async function computeTopicEmbedding(
 
         if (response.data && response.data.length > 0 && response.data[0].embedding) {
             const embedding = response.data[0].embedding
-            
-            // 保存到缓存（使用缓存key）
-            saveTopicEmbeddingToCache(cacheKey, modelToUse, embedding)
-            
             return embedding
         } else {
             throw new Error('API返回的embedding格式不正确')
@@ -223,36 +203,13 @@ export async function computeAndStoreEmbeddings(
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<void> {
-    const { embeddingApiEndpoint, embeddingApiKey, embeddingModel } = config
+    const { embeddingApiKey, embeddingModel, embeddingApiBaseURL } = config
 
     if (articles.length === 0) {
         return
     }
 
-    // 验证API配置
-    if (!embeddingApiEndpoint || !embeddingApiEndpoint.trim()) {
-        return
-    }
-    if (!embeddingApiKey || !embeddingApiKey.trim()) {
-        return
-    }
-
-    // 规范化endpoint URL
-    let normalizedEndpoint = embeddingApiEndpoint.trim()
-    if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-        return
-    }
-
-    // 提取base URL（用于embedding API）
-    let baseURL = normalizedEndpoint
-    try {
-        const url = new URL(normalizedEndpoint)
-        if (url.pathname.includes('/v1/chat/completions')) {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
-        } else {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
-        }
-    } catch (error) {
+    if (!embeddingApiBaseURL) {
         return
     }
 
@@ -269,14 +226,9 @@ export async function computeAndStoreEmbeddings(
     try {
         const openai = new OpenAI({
             apiKey: embeddingApiKey,
-            baseURL: baseURL,
+            baseURL: embeddingApiBaseURL,
             dangerouslyAllowBrowser: true
         })
-
-        // 验证embedding模型配置
-        if (!embeddingModel || !embeddingModel.trim()) {
-            return
-        }
 
         const modelToUse = embeddingModel.trim()
         const batchSize = 10  // API限制：每批最多10篇
@@ -328,8 +280,18 @@ export async function computeAndStoreEmbeddings(
                     input: texts,
                 })
 
+                // 验证响应格式
+                if (!response.data || !Array.isArray(response.data) || response.data.length !== batch.length) {
+                    throw new Error(`API返回的embedding数量不正确：期望 ${batch.length} 个，实际 ${response.data?.length || 0} 个`)
+                }
+
                 // 存储embedding到数据库
-                const embeddings = response.data.map(item => item.embedding)
+                const embeddings = response.data.map(item => {
+                    if (!item.embedding || !Array.isArray(item.embedding) || item.embedding.length === 0) {
+                        throw new Error('API返回的embedding格式不正确：缺少embedding字段或embedding为空')
+                    }
+                    return item.embedding
+                })
                 
                 // 并行更新数据库
                 await Promise.all(batch.map(async (article, i) => {
@@ -349,17 +311,28 @@ export async function computeAndStoreEmbeddings(
                 // 更新进度
                 updateProgress()
             } catch (error) {
-                // 即使某个批次失败，也更新进度计数
+                // 批次处理失败，抛出错误（严格模式）
                 updateProgress()
-                // 不抛出错误，避免影响其他批次
+                if (error instanceof OpenAI.APIError) {
+                    throw new Error(`计算文章embedding失败：批次 ${batchNumber} API调用失败: ${error.message}`)
+                } else if (error instanceof Error) {
+                    throw new Error(`计算文章embedding失败：批次 ${batchNumber} ${error.message}`)
+                } else {
+                    throw new Error(`计算文章embedding失败：批次 ${batchNumber} ${String(error)}`)
+                }
             }
         }
         
-        // 并行处理所有批次
-        await Promise.allSettled(batches.map(batchInfo => processBatch(batchInfo)))
+        // 并行处理所有批次（严格模式：任何批次失败都会立即失败）
+        await Promise.all(batches.map(batchInfo => processBatch(batchInfo)))
 
     } catch (error: any) {
-        // 不抛出错误，避免影响主流程
+        // 抛出错误（严格模式）
+        if (error instanceof Error) {
+            throw error
+        } else {
+            throw new Error(`计算文章embedding失败: ${String(error)}`)
+        }
     }
 }
 
@@ -424,8 +397,8 @@ async function stepComputeTopicEmbedding(
     callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.computingTopicEmbedding", { topic: displayTopic }))
     
     try {
-        // 如果使用HyDE，缓存key应该基于原始topic，但实际计算使用假设文章
-        const topicEmbedding = await computeTopicEmbedding(trimmedText, config, isHyDE ? originalTopic : undefined)
+        // 直接调用API计算embedding（不缓存）
+        const topicEmbedding = await computeTopicEmbedding(trimmedText, config)
         callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.topicEmbeddingCompleted"))
         return topicEmbedding
     } catch (error) {
@@ -438,13 +411,13 @@ async function stepComputeTopicEmbedding(
 async function stepLoadEmbeddings(
     items: RSSItem[],
     callbacks: ConsolidateCallbacks
-): Promise<void> {
+): Promise<number> {
     callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.loadingEmbeddings"))
     
     const itemIds = items.map(item => item._id)
     if (itemIds.length === 0) {
         callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.noArticlesToLoad"))
-        return
+        return 0
     }
 
     try {
@@ -474,8 +447,10 @@ async function stepLoadEmbeddings(
         }
         
         callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.embeddingsLoaded", { count: loadedCount }))
+        return loadedCount
     } catch (error) {
         callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.loadEmbeddingsFailed"))
+        return 0
     }
 }
 
@@ -484,7 +459,7 @@ async function stepComputeEmbeddings(
     items: RSSItem[],
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
-): Promise<void> {
+): Promise<number> {
     // 过滤出还没有embedding的文章
     const articlesNeedingEmbedding = items.filter(item => {
         const embedding = item.embedding
@@ -494,7 +469,7 @@ async function stepComputeEmbeddings(
 
     if (articlesNeedingEmbedding.length === 0) {
         callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.allArticlesHaveEmbeddings"), 100)
-        return
+        return 0
     }
 
     callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.needComputeEmbeddings", { count: articlesNeedingEmbedding.length }), 0)
@@ -504,6 +479,7 @@ async function stepComputeEmbeddings(
         
         // 计算完成后，批量重新加载这些文章的embedding
         const computedIds = articlesNeedingEmbedding.map(a => a._id)
+        let computedCount = 0
         if (computedIds.length > 0) {
             try {
                 const dbItems = await db.itemsDB
@@ -523,17 +499,30 @@ async function stepComputeEmbeddings(
                     const embedding = embeddingMap.get(article._id)
                     if (embedding) {
                         article.embedding = embedding
+                        computedCount++
                     }
                 }
             } catch (error) {
-                // 忽略重新加载错误，继续执行
+                // 重新加载失败，抛出错误（严格模式）
+                callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.computeEmbeddingsFailed"))
+                if (error instanceof Error) {
+                    throw new Error(`重新加载文章embedding失败: ${error.message}`)
+                } else {
+                    throw new Error(`重新加载文章embedding失败: ${String(error)}`)
+                }
             }
         }
         
         callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.embeddingsComputed", { count: articlesNeedingEmbedding.length }), 100)
+        return computedCount
     } catch (error) {
-        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.computeEmbeddingsFailed"))
-        // 继续执行，只使用已有embedding的文章
+        // 计算embedding失败，更新状态并抛出错误（严格模式）
+        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.computeEmbeddingsFailed"))
+        if (error instanceof Error) {
+            throw error
+        } else {
+            throw new Error(`计算文章embedding失败: ${String(error)}`)
+        }
     }
 }
 
@@ -558,10 +547,17 @@ export async function stepVectorRetrieval(
         const topicEmbedding = await stepComputeTopicEmbedding(hypotheticalArticle, trimmedTopic, config, callbacks, true)
         
         // 子步骤2: 加载已有文章向量
-        await stepLoadEmbeddings(items, callbacks)
+        const loadedCount = await stepLoadEmbeddings(items, callbacks)
         
         // 子步骤3: 计算新文章向量
-        await stepComputeEmbeddings(items, config, callbacks)
+        const computedCount = await stepComputeEmbeddings(items, config, callbacks)
+        
+        // 输出embedding统计日志
+        console.log('=== Embedding 统计 ===')
+        console.log(`总文章数: ${items.length}`)
+        console.log(`从已有embedding加载: ${loadedCount} 篇`)
+        console.log(`重新计算embedding: ${computedCount} 篇`)
+        console.log('====================')
         
         // 子步骤4: 计算相似度并筛选
         callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.calculatingSimilarity"), 0)
@@ -635,51 +631,20 @@ async function stepRecognizeTopicIntent(
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<string> {
-    const { chatApiEndpoint, chatApiKey, model } = config
+    const { chatApiKey, model, chatApiBaseURL } = config
+
+    if (!chatApiBaseURL) {
+        throw new Error('chatApiBaseURL未设置')
+    }
 
     const trimmedTopic = topic.trim()
 
-    // 验证API配置
-    if (!chatApiEndpoint || !chatApiEndpoint.trim()) {
-        callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.configChatApiEndpoint"))
-        return trimmedTopic // 容错：返回原始topic
-    }
-    if (!chatApiKey || !chatApiKey.trim()) {
-        callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.configChatApiKey"))
-        return trimmedTopic // 容错：返回原始topic
-    }
-    if (!model || !model.trim()) {
-        callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.configModelName"))
-        return trimmedTopic // 容错：返回原始topic
-    }
-
     callbacks.updateStepStatus('intent-recognition-topic', 'in_progress', intl.get("settings.aiMode.progress.messages.recognizingTopicIntent", { topic: trimmedTopic }))
-
-    // 规范化endpoint URL
-    let normalizedEndpoint = chatApiEndpoint.trim()
-    if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-        callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointInvalid"))
-        return trimmedTopic // 容错：返回原始topic
-    }
-
-    // 提取base URL
-    let baseURL = normalizedEndpoint
-    try {
-        const url = new URL(normalizedEndpoint)
-        if (url.pathname.includes('/v1/chat/completions')) {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
-        } else {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
-        }
-    } catch (error) {
-        callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointUrlInvalid", { url: normalizedEndpoint }))
-        return trimmedTopic // 容错：返回原始topic
-    }
 
     try {
         const openai = new OpenAI({
             apiKey: chatApiKey,
-            baseURL: baseURL,
+            baseURL: chatApiBaseURL,
             dangerouslyAllowBrowser: true
         })
 
@@ -721,34 +686,41 @@ async function stepRecognizeTopicIntent(
                 const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
                 responseData = JSON.parse(jsonText)
             } catch (parseError) {
-                // 解析失败，回退到原始topic
-                callbacks.updateStepStatus('intent-recognition-topic', 'completed', intl.get("settings.aiMode.progress.messages.topicIntentRecognitionFailed"))
-                return trimmedTopic
+                // 解析失败，抛出错误（严格模式）
+                callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.topicIntentRecognitionFailed"))
+                throw new Error('主题意图识别失败：无法解析LLM返回的JSON响应')
             }
 
             // 提取改写后的查询
             if (responseData.rewrittenQuery && typeof responseData.rewrittenQuery === 'string') {
                 const rewrittenQuery = responseData.rewrittenQuery.trim()
                 if (rewrittenQuery.length > 0) {
-                    // 输出主题意图识别的LLM返回结果
-                    console.log('=== 主题意图识别 LLM 返回结果 ===')
-                    console.log('原始输入:', trimmedTopic)
-                    console.log('改写后的查询:', rewrittenQuery)
-                    console.log('=====================================')
-                    
                     callbacks.updateStepStatus('intent-recognition-topic', 'completed', intl.get("settings.aiMode.progress.messages.topicIntentRecognitionCompleted"))
                     return rewrittenQuery
                 }
             }
         }
 
-        // 如果无法获取改写后的查询，回退到原始topic
-        callbacks.updateStepStatus('intent-recognition-topic', 'completed', intl.get("settings.aiMode.progress.messages.topicIntentRecognitionFailed"))
-        return trimmedTopic
+        // 如果无法获取改写后的查询，抛出错误（严格模式）
+        callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.topicIntentRecognitionFailed"))
+        throw new Error('主题意图识别失败：LLM返回的响应中缺少rewrittenQuery字段')
     } catch (error) {
-        // API调用失败，回退到原始topic
-        callbacks.updateStepStatus('intent-recognition-topic', 'completed', intl.get("settings.aiMode.progress.messages.topicIntentRecognitionFailed"))
-        return trimmedTopic
+        // API调用失败，抛出错误（严格模式）
+        if (error instanceof Error && error.message.includes('主题意图识别失败')) {
+            // 已经是我们抛出的错误，直接重新抛出
+            callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.topicIntentRecognitionFailed"))
+            throw error
+        } else {
+            // API调用失败
+            callbacks.updateStepStatus('intent-recognition-topic', 'error', intl.get("settings.aiMode.progress.messages.topicIntentRecognitionFailed"))
+            if (error instanceof OpenAI.APIError) {
+                throw new Error(`主题意图识别失败: ${error.message}`)
+            } else if (error instanceof Error) {
+                throw new Error(`主题意图识别失败: ${error.message}`)
+            } else {
+                throw new Error(`主题意图识别失败: ${String(error)}`)
+            }
+        }
     }
 }
 
@@ -759,52 +731,21 @@ async function stepRecognizeClassificationIntent(
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<string> {
-    const { chatApiEndpoint, chatApiKey, model } = config
+    const { chatApiKey, model, chatApiBaseURL } = config
+
+    if (!chatApiBaseURL) {
+        throw new Error('chatApiBaseURL未设置')
+    }
 
     const trimmedTopic = topic.trim()
     const trimmedStandard = classificationStandard.trim()
 
-    // 验证API配置
-    if (!chatApiEndpoint || !chatApiEndpoint.trim()) {
-        callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.configChatApiEndpoint"))
-        return trimmedStandard // 容错：返回原始分类标准
-    }
-    if (!chatApiKey || !chatApiKey.trim()) {
-        callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.configChatApiKey"))
-        return trimmedStandard // 容错：返回原始分类标准
-    }
-    if (!model || !model.trim()) {
-        callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.configModelName"))
-        return trimmedStandard // 容错：返回原始分类标准
-    }
-
     callbacks.updateStepStatus('intent-recognition-classification', 'in_progress', intl.get("settings.aiMode.progress.messages.recognizingClassificationIntent", { standard: trimmedStandard }))
-
-    // 规范化endpoint URL
-    let normalizedEndpoint = chatApiEndpoint.trim()
-    if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-        callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointInvalid"))
-        return trimmedStandard // 容错：返回原始分类标准
-    }
-
-    // 提取base URL
-    let baseURL = normalizedEndpoint
-    try {
-        const url = new URL(normalizedEndpoint)
-        if (url.pathname.includes('/v1/chat/completions')) {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
-        } else {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
-        }
-    } catch (error) {
-        callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointUrlInvalid", { url: normalizedEndpoint }))
-        return trimmedStandard // 容错：返回原始分类标准
-    }
 
     try {
         const openai = new OpenAI({
             apiKey: chatApiKey,
-            baseURL: baseURL,
+            baseURL: chatApiBaseURL,
             dangerouslyAllowBrowser: true
         })
 
@@ -846,34 +787,41 @@ async function stepRecognizeClassificationIntent(
                 const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
                 responseData = JSON.parse(jsonText)
             } catch (parseError) {
-                // 解析失败，回退到原始分类标准
-                callbacks.updateStepStatus('intent-recognition-classification', 'completed', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
-                return trimmedStandard
+                // 解析失败，抛出错误（严格模式）
+                callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
+                throw new Error('分类标准意图识别失败：无法解析LLM返回的JSON响应')
             }
 
             // 提取分类指导信息
             if (responseData.classificationGuidance && typeof responseData.classificationGuidance === 'string') {
                 const classificationGuidance = responseData.classificationGuidance.trim()
                 if (classificationGuidance.length > 0) {
-                    // 输出分类标准意图识别的LLM返回结果
-                    console.log('=== 分类标准意图识别 LLM 返回结果 ===')
-                    console.log('分类标准:', trimmedStandard)
-                    console.log('分类指导:', classificationGuidance)
-                    console.log('==========================================')
-                    
                     callbacks.updateStepStatus('intent-recognition-classification', 'completed', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionCompleted"))
                     return classificationGuidance
                 }
             }
         }
 
-        // 如果无法获取分类指导信息，回退到原始分类标准
-        callbacks.updateStepStatus('intent-recognition-classification', 'completed', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
-        return trimmedStandard
+        // 如果无法获取分类指导信息，抛出错误（严格模式）
+        callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
+        throw new Error('分类标准意图识别失败：LLM返回的响应中缺少classificationGuidance字段')
     } catch (error) {
-        // API调用失败，回退到原始分类标准
-        callbacks.updateStepStatus('intent-recognition-classification', 'completed', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
-        return trimmedStandard
+        // API调用失败，抛出错误（严格模式）
+        if (error instanceof Error && error.message.includes('分类标准意图识别失败')) {
+            // 已经是我们抛出的错误，直接重新抛出
+            callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
+            throw error
+        } else {
+            // API调用失败
+            callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
+            if (error instanceof OpenAI.APIError) {
+                throw new Error(`分类标准意图识别失败: ${error.message}`)
+            } else if (error instanceof Error) {
+                throw new Error(`分类标准意图识别失败: ${error.message}`)
+            } else {
+                throw new Error(`分类标准意图识别失败: ${String(error)}`)
+            }
+        }
     }
 }
 
@@ -884,51 +832,20 @@ async function stepGenerateHyDE(
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<string> {
-    const { chatApiEndpoint, chatApiKey, model } = config
+    const { chatApiKey, model, chatApiBaseURL } = config
+
+    if (!chatApiBaseURL) {
+        throw new Error('chatApiBaseURL未设置')
+    }
 
     const trimmedTopic = topic.trim()
 
-    // 验证API配置
-    if (!chatApiEndpoint || !chatApiEndpoint.trim()) {
-        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.configChatApiEndpoint"))
-        throw new Error('请先配置Chat API Endpoint（在设置中配置）')
-    }
-    if (!chatApiKey || !chatApiKey.trim()) {
-        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.configChatApiKey"))
-        throw new Error('请先配置Chat API Key（在设置中配置）')
-    }
-    if (!model || !model.trim()) {
-        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.configModelName"))
-        throw new Error('请先配置模型名称（在设置中配置）')
-    }
-
     callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.generatingHyDE", { topic: trimmedTopic }))
-
-    // 规范化endpoint URL
-    let normalizedEndpoint = chatApiEndpoint.trim()
-    if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointInvalid"))
-        throw new Error('Chat API Endpoint必须以http://或https://开头')
-    }
-
-    // 提取base URL
-    let baseURL = normalizedEndpoint
-    try {
-        const url = new URL(normalizedEndpoint)
-        if (url.pathname.includes('/v1/chat/completions')) {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
-        } else {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
-        }
-    } catch (error) {
-        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointUrlInvalid", { url: normalizedEndpoint }))
-        throw new Error(`无效的Chat API Endpoint URL: ${normalizedEndpoint}`)
-    }
 
     try {
         const openai = new OpenAI({
             apiKey: chatApiKey,
-            baseURL: baseURL,
+            baseURL: chatApiBaseURL,
             dangerouslyAllowBrowser: true
         })
 
@@ -980,11 +897,6 @@ async function stepGenerateHyDE(
                 // 使用与RSS文章向量化相同的格式：title\nsnippet
                 const hypotheticalArticle = `${responseData.title.trim()}\n${responseData.snippet.trim()}`.trim()
                 if (hypotheticalArticle.length > 0) {
-                    // 输出HyDE生成的假设文章
-                    console.log('=== HyDE 生成的假设文章 ===')
-                    console.log('假设文章（用于向量化）:', hypotheticalArticle)
-                    console.log('=====================================')
-                    
                     // HyDE 生成完成，更新向量检索步骤的消息，然后继续执行向量检索的其他子步骤
                     callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.hydeGenerationCompleted"))
                     return hypotheticalArticle
@@ -1019,7 +931,11 @@ export async function stepLLMRefine(
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<RSSItem[]> {
-    const { chatApiEndpoint, chatApiKey, model } = config
+    const { chatApiKey, model, chatApiBaseURL } = config
+
+    if (!chatApiBaseURL) {
+        throw new Error('chatApiBaseURL未设置')
+    }
 
     if (articles.length === 0) {
         // 即使没有文章，也要更新步骤状态，确保步骤可见
@@ -1027,42 +943,7 @@ export async function stepLLMRefine(
         return []
     }
 
-    // 验证API配置
-    if (!chatApiEndpoint || !chatApiEndpoint.trim()) {
-        callbacks.updateStepStatus('llm-refine', 'error', intl.get("settings.aiMode.progress.messages.configChatApiEndpoint"))
-        return articles // 容错：返回所有文章
-    }
-    if (!chatApiKey || !chatApiKey.trim()) {
-        callbacks.updateStepStatus('llm-refine', 'error', intl.get("settings.aiMode.progress.messages.configChatApiKey"))
-        return articles // 容错：返回所有文章
-    }
-    if (!model || !model.trim()) {
-        callbacks.updateStepStatus('llm-refine', 'error', intl.get("settings.aiMode.progress.messages.configModelName"))
-        return articles // 容错：返回所有文章
-    }
-
     callbacks.updateStepStatus('llm-refine', 'in_progress', intl.get("settings.aiMode.progress.messages.llmFiltering", { count: articles.length }), 0)
-
-    // 规范化endpoint URL
-    let normalizedEndpoint = chatApiEndpoint.trim()
-    if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-        callbacks.updateStepStatus('llm-refine', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointInvalid"))
-        return articles // 容错：返回所有文章
-    }
-
-    // 提取base URL
-    let baseURL = normalizedEndpoint
-    try {
-        const url = new URL(normalizedEndpoint)
-        if (url.pathname.includes('/v1/chat/completions')) {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
-        } else {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
-        }
-    } catch (error) {
-        callbacks.updateStepStatus('llm-refine', 'error', intl.get("settings.aiMode.progress.messages.chatApiEndpointUrlInvalid", { url: normalizedEndpoint }))
-        return articles // 容错：返回所有文章
-    }
 
     const batchSize = 5 // 每批最多5篇文章
     const totalArticles = articles.length
@@ -1114,7 +995,7 @@ Summary: ${snippet}`
 
             const openai = new OpenAI({
                 apiKey: chatApiKey,
-                baseURL: baseURL,
+                baseURL: chatApiBaseURL,
                 dangerouslyAllowBrowser: true
             })
 
@@ -1155,15 +1036,9 @@ Summary: ${snippet}`
                     const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
                     responseData = JSON.parse(jsonText)
                 } catch (parseError) {
-                    // 解析失败，保留当前批次的所有文章（容错处理）
-                    for (let i = 0; i < batch.length; i++) {
-                        const globalIndex = batchStart + i
-                        if (globalIndex >= 0 && globalIndex < articles.length) {
-                            allRelatedIndices.add(globalIndex)
-                        }
-                    }
+                    // 解析失败，抛出错误（严格模式）
                     updateProgress()
-                    return
+                    throw new Error(`LLM精选失败：批次 ${batchNumber} 无法解析LLM返回的JSON响应`)
                 }
 
                 // 提取相关文章索引
@@ -1178,41 +1053,49 @@ Summary: ${snippet}`
                         }
                     })
                 } else {
-                    // 如果响应格式不正确，保留当前批次的所有文章（容错处理）
-                    for (let i = 0; i < batch.length; i++) {
-                        const globalIndex = batchStart + i
-                        if (globalIndex >= 0 && globalIndex < articles.length) {
-                            allRelatedIndices.add(globalIndex)
-                        }
-                    }
+                    // 如果响应格式不正确，抛出错误（严格模式）
+                    updateProgress()
+                    throw new Error(`LLM精选失败：批次 ${batchNumber} LLM返回的响应中缺少relatedArticleIndices字段`)
                 }
             } else {
-                // 如果API调用失败或没有响应，保留当前批次的所有文章（容错处理）
-                for (let i = 0; i < batch.length; i++) {
-                    const globalIndex = batchStart + i
-                    if (globalIndex >= 0 && globalIndex < articles.length) {
-                        allRelatedIndices.add(globalIndex)
-                    }
-                }
+                // 如果API调用失败或没有响应，抛出错误（严格模式）
+                updateProgress()
+                throw new Error(`LLM精选失败：批次 ${batchNumber} LLM API没有返回有效响应`)
             }
             
             // 更新进度
             updateProgress()
         } catch (error) {
-            // 即使某个批次失败，也更新进度计数，并保留该批次的所有文章（容错处理）
-            for (let i = 0; i < batch.length; i++) {
-                const globalIndex = batchStart + i
-                if (globalIndex >= 0 && globalIndex < articles.length) {
-                    allRelatedIndices.add(globalIndex)
+            // 批次处理失败，抛出错误（严格模式）
+            updateProgress()
+            if (error instanceof Error && error.message.includes('LLM精选失败')) {
+                // 已经是我们抛出的错误，直接重新抛出
+                throw error
+            } else {
+                // API调用失败或其他错误
+                if (error instanceof OpenAI.APIError) {
+                    throw new Error(`LLM精选失败：批次 ${batchInfo.batchNumber} API调用失败: ${error.message}`)
+                } else if (error instanceof Error) {
+                    throw new Error(`LLM精选失败：批次 ${batchInfo.batchNumber} ${error.message}`)
+                } else {
+                    throw new Error(`LLM精选失败：批次 ${batchInfo.batchNumber} ${String(error)}`)
                 }
             }
-            updateProgress()
-            // 不抛出错误，避免影响其他批次
         }
     }
     
-    // 并行处理所有批次
-    await Promise.allSettled(batches.map(batchInfo => processBatch(batchInfo)))
+    try {
+        // 并行处理所有批次（严格模式：任何批次失败都会立即失败）
+        await Promise.all(batches.map(batchInfo => processBatch(batchInfo)))
+    } catch (error) {
+        // 并行处理失败，更新状态并抛出错误（严格模式）
+        callbacks.updateStepStatus('llm-refine', 'error', intl.get("settings.aiMode.progress.messages.llmFilteringFailed"))
+        if (error instanceof Error) {
+            throw error
+        } else {
+            throw new Error(`LLM精选失败: ${String(error)}`)
+        }
+    }
 
     // 根据筛选结果返回相关文章
     const refinedArticles = articles.filter((_, index) => allRelatedIndices.has(index))
@@ -1237,6 +1120,57 @@ export async function consolidate(
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, classificationGuidance: string | null }> {
+    // 在开始之前统一验证所有配置并规范化 URL
+    // 验证 Chat API 配置
+    if (!config.chatApiEndpoint || !config.chatApiEndpoint.trim()) {
+        throw new Error('请先配置Chat API Endpoint（在设置中配置）')
+    }
+    if (!config.chatApiKey || !config.chatApiKey.trim()) {
+        throw new Error('请先配置Chat API Key（在设置中配置）')
+    }
+    if (!config.model || !config.model.trim()) {
+        throw new Error('请先配置模型名称（在设置中配置）')
+    }
+    
+    // 验证 Embedding API 配置
+    if (!config.embeddingApiEndpoint || !config.embeddingApiEndpoint.trim()) {
+        throw new Error('请先配置Embedding API Endpoint（在设置中配置）')
+    }
+    if (!config.embeddingApiKey || !config.embeddingApiKey.trim()) {
+        throw new Error('请先配置Embedding API Key（在设置中配置）')
+    }
+    if (!config.embeddingModel || !config.embeddingModel.trim()) {
+        throw new Error('请先配置Embedding模型名称（在设置中配置）')
+    }
+    
+    // 规范化 URL
+    let chatApiBaseURL: string
+    let embeddingApiBaseURL: string
+    try {
+        chatApiBaseURL = normalizeApiEndpoint(config.chatApiEndpoint)
+    } catch (error) {
+        if (error instanceof Error) {
+            throw new Error(`Chat API Endpoint配置错误: ${error.message}`)
+        }
+        throw error
+    }
+    
+    try {
+        embeddingApiBaseURL = normalizeApiEndpoint(config.embeddingApiEndpoint)
+    } catch (error) {
+        if (error instanceof Error) {
+            throw new Error(`Embedding API Endpoint配置错误: ${error.message}`)
+        }
+        throw error
+    }
+    
+    // 创建包含规范化 baseURL 的配置对象
+    const normalizedConfig: ConsolidateConfig = {
+        ...config,
+        chatApiBaseURL,
+        embeddingApiBaseURL
+    }
+    
     // 步骤1: 根据时间范围筛选
     const items = await stepQueryDatabase(timeRangeDays, callbacks)
     
@@ -1288,14 +1222,14 @@ export async function consolidate(
     if (classificationStandard && classificationStandard.trim()) {
         // 并行执行两个意图识别步骤
         const [topicGuidanceResult, classificationGuidanceResult] = await Promise.all([
-            stepRecognizeTopicIntent(trimmedTopic, config, callbacks),
-            stepRecognizeClassificationIntent(trimmedTopic, classificationStandard, config, callbacks)
+            stepRecognizeTopicIntent(trimmedTopic, normalizedConfig, callbacks),
+            stepRecognizeClassificationIntent(trimmedTopic, classificationStandard, normalizedConfig, callbacks)
         ])
         topicGuidance = topicGuidanceResult
         classificationGuidance = classificationGuidanceResult
     } else {
         // 只有主题意图识别
-        topicGuidance = await stepRecognizeTopicIntent(trimmedTopic, config, callbacks)
+        topicGuidance = await stepRecognizeTopicIntent(trimmedTopic, normalizedConfig, callbacks)
     }
 
     // 如果文章数量小于等于topk，不需要计算embedding和相似度，直接进行LLM精选
@@ -1323,7 +1257,7 @@ export async function consolidate(
         }
         
         // 步骤2: LLM精选（使用改写后的查询）
-        const refinedArticles = await stepLLMRefine(items, topicGuidance, config, callbacks)
+        const refinedArticles = await stepLLMRefine(items, topicGuidance, normalizedConfig, callbacks)
         
         // 如果LLM精选后没有文章，更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤
         if (refinedArticles.length === 0) {
@@ -1355,10 +1289,10 @@ export async function consolidate(
 
     try {
         // 步骤2: 向量检索（包含向量计算和相似度筛选）
-        const selectedArticles = await stepVectorRetrieval(trimmedTopic, items, topk, config, callbacks)
+        const selectedArticles = await stepVectorRetrieval(trimmedTopic, items, topk, normalizedConfig, callbacks)
         
         // 步骤3: LLM精选（使用改写后的查询）
-        const refinedArticles = await stepLLMRefine(selectedArticles, topicGuidance, config, callbacks)
+        const refinedArticles = await stepLLMRefine(selectedArticles, topicGuidance, normalizedConfig, callbacks)
         
         // 如果LLM精选后没有文章，立即更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤（包括 classify-articles）
         if (refinedArticles.length === 0) {
@@ -1396,18 +1330,6 @@ export async function consolidate(
         
         return { articles: refinedArticles, timeRangeHasArticles: true, topicGuidance, classificationGuidance }
     } catch (error) {
-        // 如果计算embedding失败，回退到全文匹配
-        if (error instanceof Error && error.message.includes('计算话题向量失败')) {
-            const topicRegex = new RegExp(trimmedTopic.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
-            const filteredItems = items.filter(item => {
-                return (
-                    topicRegex.test(item.title) ||
-                    topicRegex.test(item.snippet || '') ||
-                    topicRegex.test(item.content || '')
-                )
-            })
-            return { articles: filteredItems, timeRangeHasArticles: true, topicGuidance: null, classificationGuidance: null }
-        }
         throw error
     }
 }
@@ -1422,44 +1344,18 @@ export async function classifyArticles(
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<ArticleCluster[]> {
-    const { chatApiEndpoint, chatApiKey, model } = config
+    const { chatApiKey, model, chatApiBaseURL } = config
 
     if (articles.length === 0) {
         return []
     }
 
-    // 验证API配置
-    if (!chatApiEndpoint || !chatApiEndpoint.trim()) {
-        throw new Error('请先配置Chat API Endpoint（在设置中配置）')
-    }
-    if (!chatApiKey || !chatApiKey.trim()) {
-        throw new Error('请先配置Chat API Key（在设置中配置）')
-    }
-    if (!model || !model.trim()) {
-        throw new Error('请先配置模型名称（在设置中配置）')
+    if (!chatApiBaseURL) {
+        throw new Error('chatApiBaseURL未设置')
     }
 
     // 更新进度：开始分类
     callbacks.updateStepStatus('classify-articles', 'in_progress', intl.get("settings.aiMode.progress.messages.analyzingAndClassifying", { count: articles.length }))
-
-    // 规范化endpoint URL
-    let normalizedEndpoint = chatApiEndpoint.trim()
-    if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-        throw new Error('Chat API Endpoint必须以http://或https://开头')
-    }
-
-    // 提取base URL
-    let baseURL = normalizedEndpoint
-    try {
-        const url = new URL(normalizedEndpoint)
-        if (url.pathname.includes('/v1/chat/completions')) {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
-        } else {
-            baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
-        }
-    } catch (error) {
-        throw new Error(`无效的Chat API Endpoint URL: ${normalizedEndpoint}`)
-    }
 
     // 准备文章内容
     const articlesToAnalyze = articles  // 分析所有文章
@@ -1515,7 +1411,7 @@ Summary: ${snippet}`
 
             const openai = new OpenAI({
                 apiKey: chatApiKey,
-                baseURL: baseURL,
+                baseURL: chatApiBaseURL,
                 dangerouslyAllowBrowser: true
             })
 
@@ -1556,9 +1452,9 @@ Summary: ${snippet}`
                     const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
                     responseData = JSON.parse(jsonText)
                 } catch (parseError) {
-                    // 解析失败，跳过当前批次
+                    // 解析失败，抛出错误（严格模式）
                     updateProgress()
-                    return
+                    throw new Error(`文章分类失败：批次 ${batchNumber} 无法解析LLM返回的JSON响应`)
                 }
 
                 // 提取分类结果
@@ -1577,20 +1473,50 @@ Summary: ${snippet}`
                             }
                         }
                     })
+                } else {
+                    // 如果响应格式不正确，抛出错误（严格模式）
+                    updateProgress()
+                    throw new Error(`文章分类失败：批次 ${batchNumber} LLM返回的响应中缺少classifications字段`)
                 }
+            } else {
+                // 如果API调用失败或没有响应，抛出错误（严格模式）
+                updateProgress()
+                throw new Error(`文章分类失败：批次 ${batchNumber} LLM API没有返回有效响应`)
             }
 
             // 更新进度
             updateProgress()
         } catch (error) {
-            // 即使某个批次失败，也更新进度计数
+            // 批次处理失败，抛出错误（严格模式）
             updateProgress()
-            // 不抛出错误，避免影响其他批次
+            if (error instanceof Error && error.message.includes('文章分类失败')) {
+                // 已经是我们抛出的错误，直接重新抛出
+                throw error
+            } else {
+                // API调用失败或其他错误
+                if (error instanceof OpenAI.APIError) {
+                    throw new Error(`文章分类失败：批次 ${batchInfo.batchNumber} API调用失败: ${error.message}`)
+                } else if (error instanceof Error) {
+                    throw new Error(`文章分类失败：批次 ${batchInfo.batchNumber} ${error.message}`)
+                } else {
+                    throw new Error(`文章分类失败：批次 ${batchInfo.batchNumber} ${String(error)}`)
+                }
+            }
         }
     }
-
-    // 并行处理所有批次
-    await Promise.allSettled(batches.map(batchInfo => processBatch(batchInfo)))
+    
+    try {
+        // 并行处理所有批次（严格模式：任何批次失败都会立即失败）
+        await Promise.all(batches.map(batchInfo => processBatch(batchInfo)))
+    } catch (error) {
+        // 并行处理失败，更新状态并抛出错误（严格模式）
+        callbacks.updateStepStatus('classify-articles', 'error', intl.get("settings.aiMode.progress.messages.classificationFailed"))
+        if (error instanceof Error) {
+            throw error
+        } else {
+            throw new Error(`文章分类失败: ${String(error)}`)
+        }
+    }
 
     // 如果没有任何分类结果，返回空数组
     if (allClassifications.length === 0) {
@@ -1611,7 +1537,7 @@ Summary: ${snippet}`
 
                 const openai = new OpenAI({
                     apiKey: chatApiKey,
-                    baseURL: baseURL,
+                    baseURL: chatApiBaseURL,
                     dangerouslyAllowBrowser: true
                 })
 
@@ -1659,13 +1585,34 @@ Summary: ${snippet}`
                                     })
                                 }
                             })
+                        } else {
+                            // 如果响应格式不正确，抛出错误（严格模式）
+                            throw new Error('分类去重失败：LLM返回的响应中缺少synonymGroups字段')
                         }
                     } catch (parseError) {
-                        // 解析失败，使用原始分类名称
+                        // 解析失败，抛出错误（严格模式）
+                        if (parseError instanceof Error && parseError.message.includes('分类去重失败')) {
+                            throw parseError
+                        } else {
+                            throw new Error('分类去重失败：无法解析LLM返回的JSON响应')
+                        }
                     }
+                } else {
+                    // 如果API调用失败或没有响应，抛出错误（严格模式）
+                    throw new Error('分类去重失败：LLM API没有返回有效响应')
                 }
             } catch (error) {
-                // 去重失败，使用原始分类名称
+                // 去重失败，抛出错误（严格模式）
+                callbacks.updateStepStatus('classify-articles', 'error', intl.get("settings.aiMode.progress.messages.classificationFailed"))
+                if (error instanceof Error && error.message.includes('分类去重失败')) {
+                    throw error
+                } else if (error instanceof OpenAI.APIError) {
+                    throw new Error(`分类去重失败: ${error.message}`)
+                } else if (error instanceof Error) {
+                    throw new Error(`分类去重失败: ${error.message}`)
+                } else {
+                    throw new Error(`分类去重失败: ${String(error)}`)
+                }
             }
         }
     }

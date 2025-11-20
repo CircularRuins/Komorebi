@@ -67,6 +67,7 @@ import {
     classifyArticles as consolidateClassifyArticles,
     ConsolidateConfig,
     ConsolidateCallbacks,
+    normalizeApiEndpoint,
 } from "../scripts/consolidate"
 
 // 重新导出类型以便其他文件使用
@@ -638,6 +639,28 @@ export class AIModeComponent extends React.Component<AIModeProps> {
     classifyArticles = async (articles: RSSItem[], topicGuidance: string | null = null, classificationGuidance: string | null = null): Promise<ArticleCluster[]> => {
         const { aiMode } = this.props
         
+        // 验证配置
+        if (!aiMode.chatApiEndpoint || !aiMode.chatApiEndpoint.trim()) {
+            throw new Error('请先配置Chat API Endpoint（在设置中配置）')
+        }
+        if (!aiMode.chatApiKey || !aiMode.chatApiKey.trim()) {
+            throw new Error('请先配置Chat API Key（在设置中配置）')
+        }
+        if (!aiMode.model || !aiMode.model.trim()) {
+            throw new Error('请先配置模型名称（在设置中配置）')
+        }
+        
+        // 规范化 URL
+        let chatApiBaseURL: string
+        try {
+            chatApiBaseURL = normalizeApiEndpoint(aiMode.chatApiEndpoint)
+        } catch (error) {
+            if (error instanceof Error) {
+                throw new Error(`Chat API Endpoint配置错误: ${error.message}`)
+            }
+            throw error
+        }
+        
         const config: ConsolidateConfig = {
             chatApiEndpoint: aiMode.chatApiEndpoint,
             chatApiKey: aiMode.chatApiKey,
@@ -646,6 +669,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             embeddingModel: aiMode.embeddingModel,
             model: aiMode.model,
             topk: aiMode.topk || 100,
+            chatApiBaseURL,
         }
         
         const callbacks: ConsolidateCallbacks = {
