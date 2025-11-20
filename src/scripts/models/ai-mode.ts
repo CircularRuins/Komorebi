@@ -53,6 +53,7 @@ export class AIModeState {
     embeddingApiKey: string = ''
     model: string = ''
     embeddingModel: string = ''
+    embeddingQPS: number = 30
     topk: number = 100
     showConfigPanel: boolean = false
     tempApiEndpoint: string = ''  // 保留用于向后兼容
@@ -63,6 +64,7 @@ export class AIModeState {
     tempEmbeddingApiKey: string = ''
     tempModel: string = ''
     tempEmbeddingModel: string = ''
+    tempEmbeddingQPS: string = '30'
     tempTopk: string = '100'
     showErrorDialog: boolean = false
     errorDialogMessage: string = ''
@@ -92,12 +94,14 @@ export const UPDATE_AI_MODE_API_ENDPOINT = "UPDATE_AI_MODE_API_ENDPOINT"
 export const UPDATE_AI_MODE_API_KEY = "UPDATE_AI_MODE_API_KEY"
 export const UPDATE_AI_MODE_MODEL = "UPDATE_AI_MODE_MODEL"
 export const UPDATE_AI_MODE_EMBEDDING_MODEL = "UPDATE_AI_MODE_EMBEDDING_MODEL"
+export const UPDATE_AI_MODE_EMBEDDING_QPS = "UPDATE_AI_MODE_EMBEDDING_QPS"
 export const UPDATE_AI_MODE_TOPK = "UPDATE_AI_MODE_TOPK"
 export const SET_AI_MODE_SHOW_CONFIG_PANEL = "SET_AI_MODE_SHOW_CONFIG_PANEL"
 export const UPDATE_AI_MODE_TEMP_API_ENDPOINT = "UPDATE_AI_MODE_TEMP_API_ENDPOINT"
 export const UPDATE_AI_MODE_TEMP_API_KEY = "UPDATE_AI_MODE_TEMP_API_KEY"
 export const UPDATE_AI_MODE_TEMP_MODEL = "UPDATE_AI_MODE_TEMP_MODEL"
 export const UPDATE_AI_MODE_TEMP_EMBEDDING_MODEL = "UPDATE_AI_MODE_TEMP_EMBEDDING_MODEL"
+export const UPDATE_AI_MODE_TEMP_EMBEDDING_QPS = "UPDATE_AI_MODE_TEMP_EMBEDDING_QPS"
 export const UPDATE_AI_MODE_TEMP_TOPK = "UPDATE_AI_MODE_TEMP_TOPK"
 export const UPDATE_AI_MODE_CHAT_API_ENDPOINT = "UPDATE_AI_MODE_CHAT_API_ENDPOINT"
 export const UPDATE_AI_MODE_CHAT_API_KEY = "UPDATE_AI_MODE_CHAT_API_KEY"
@@ -200,6 +204,11 @@ export interface UpdateAIModeEmbeddingModelAction {
     embeddingModel: string
 }
 
+export interface UpdateAIModeEmbeddingQPSAction {
+    type: typeof UPDATE_AI_MODE_EMBEDDING_QPS
+    embeddingQPS: number
+}
+
 export interface UpdateAIModeTopkAction {
     type: typeof UPDATE_AI_MODE_TOPK
     topk: number
@@ -228,6 +237,11 @@ export interface UpdateAIModeTempModelAction {
 export interface UpdateAIModeTempEmbeddingModelAction {
     type: typeof UPDATE_AI_MODE_TEMP_EMBEDDING_MODEL
     tempEmbeddingModel: string
+}
+
+export interface UpdateAIModeTempEmbeddingQPSAction {
+    type: typeof UPDATE_AI_MODE_TEMP_EMBEDDING_QPS
+    tempEmbeddingQPS: string
 }
 
 export interface UpdateAIModeTempTopkAction {
@@ -344,12 +358,14 @@ export type AIModeActionTypes =
     | UpdateAIModeApiKeyAction
     | UpdateAIModeModelAction
     | UpdateAIModeEmbeddingModelAction
+    | UpdateAIModeEmbeddingQPSAction
     | UpdateAIModeTopkAction
     | SetAIModeShowConfigPanelAction
     | UpdateAIModeTempApiEndpointAction
     | UpdateAIModeTempApiKeyAction
     | UpdateAIModeTempModelAction
     | UpdateAIModeTempEmbeddingModelAction
+    | UpdateAIModeTempEmbeddingQPSAction
     | UpdateAIModeTempTopkAction
     | UpdateAIModeChatApiEndpointAction
     | UpdateAIModeChatApiKeyAction
@@ -484,6 +500,13 @@ export function updateAIModeEmbeddingModel(embeddingModel: string): AIModeAction
     }
 }
 
+export function updateAIModeEmbeddingQPS(embeddingQPS: number): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_EMBEDDING_QPS,
+        embeddingQPS
+    }
+}
+
 export function updateAIModeTopk(topk: number): AIModeActionTypes {
     return {
         type: UPDATE_AI_MODE_TOPK,
@@ -523,6 +546,13 @@ export function updateAIModeTempEmbeddingModel(tempEmbeddingModel: string): AIMo
     return {
         type: UPDATE_AI_MODE_TEMP_EMBEDDING_MODEL,
         tempEmbeddingModel
+    }
+}
+
+export function updateAIModeTempEmbeddingQPS(tempEmbeddingQPS: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_TEMP_EMBEDDING_QPS,
+        tempEmbeddingQPS
     }
 }
 
@@ -695,6 +725,7 @@ function getInitialState(): AIModeState {
     
     const savedModel = localStorage.getItem('ai-model') || ''
     const savedEmbeddingModel = localStorage.getItem('ai-embedding-model') || 'text-embedding-ada-002'
+    const savedEmbeddingQPS = parseInt(localStorage.getItem('ai-embedding-qps') || '30', 10)
     const savedTopk = parseInt(localStorage.getItem('ai-topk') || '100', 10)
     const savedRecentTopics = localStorage.getItem('ai-recent-topics')
     const recentTopics = savedRecentTopics ? JSON.parse(savedRecentTopics) : []
@@ -712,6 +743,7 @@ function getInitialState(): AIModeState {
     state.embeddingApiKey = embeddingApiKey
     state.model = savedModel
     state.embeddingModel = savedEmbeddingModel
+    state.embeddingQPS = savedEmbeddingQPS
     state.topk = savedTopk
     state.recentTopics = recentTopics
     state.recentClassificationStandards = recentClassificationStandards
@@ -724,6 +756,7 @@ function getInitialState(): AIModeState {
     state.tempEmbeddingApiKey = embeddingApiKey
     state.tempModel = savedModel
     state.tempEmbeddingModel = savedEmbeddingModel
+    state.tempEmbeddingQPS = savedEmbeddingQPS.toString()
     state.tempTopk = savedTopk.toString()
     return state
 }
@@ -793,6 +826,11 @@ export function aiModeReducer(
             localStorage.setItem('ai-embedding-model', action.embeddingModel)
             return { ...state, embeddingModel: action.embeddingModel }
 
+        case UPDATE_AI_MODE_EMBEDDING_QPS:
+            // 同步到 localStorage
+            localStorage.setItem('ai-embedding-qps', action.embeddingQPS.toString())
+            return { ...state, embeddingQPS: action.embeddingQPS }
+
         case UPDATE_AI_MODE_TOPK:
             // 同步到 localStorage
             localStorage.setItem('ai-topk', action.topk.toString())
@@ -812,6 +850,9 @@ export function aiModeReducer(
 
         case UPDATE_AI_MODE_TEMP_EMBEDDING_MODEL:
             return { ...state, tempEmbeddingModel: action.tempEmbeddingModel }
+
+        case UPDATE_AI_MODE_TEMP_EMBEDDING_QPS:
+            return { ...state, tempEmbeddingQPS: action.tempEmbeddingQPS }
 
         case UPDATE_AI_MODE_TEMP_TOPK:
             return { ...state, tempTopk: action.tempTopk }

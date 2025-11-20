@@ -27,6 +27,7 @@ export interface ConsolidateConfig {
     embeddingApiEndpoint: string
     embeddingApiKey: string
     embeddingModel: string
+    embeddingQPS?: number
     model: string
     topk: number
     chatApiBaseURL?: string
@@ -39,74 +40,35 @@ export interface ConsolidateCallbacks {
     getCurrentQueryProgress?: () => QueryProgress | null
 }
 
-// ==================== 缓存相关函数 ====================
-
-function getTopicEmbeddingCacheKey(topic: string, embeddingModel: string): string {
-    const normalizedTopic = topic.trim().toLowerCase()
-    const normalizedModel = embeddingModel.trim()
-    return `topic-embedding-${normalizedModel}-${normalizedTopic}`
-}
-
-function loadTopicEmbeddingFromCache(topic: string, embeddingModel: string): number[] | null {
-    try {
-        const cacheKey = getTopicEmbeddingCacheKey(topic, embeddingModel)
-        const cached = localStorage.getItem(cacheKey)
-        if (cached) {
-            const embedding = JSON.parse(cached)
-            if (Array.isArray(embedding) && embedding.length > 0) {
-                return embedding
-            }
-        }
-    } catch (error) {
-    }
-    return null
-}
-
-function saveTopicEmbeddingToCache(topic: string, embeddingModel: string, embedding: number[]): void {
-    const cacheKey = getTopicEmbeddingCacheKey(topic, embeddingModel)
-    try {
-        localStorage.setItem(cacheKey, JSON.stringify(embedding))
-        
-        // 限制缓存数量，避免localStorage过大（最多保留100个话题的embedding）
-        cleanupTopicEmbeddingCache(embeddingModel, 100)
-    } catch (error) {
-        // 如果localStorage满了，尝试清理一些旧的缓存
-        if (error instanceof DOMException && error.code === 22) {
-            cleanupTopicEmbeddingCache(embeddingModel, 50)
-            try {
-                localStorage.setItem(cacheKey, JSON.stringify(embedding))
-            } catch (retryError) {
-            }
-        }
-    }
-}
-
-function cleanupTopicEmbeddingCache(embeddingModel: string, keepCount: number): void {
-    try {
-        const prefix = `topic-embedding-${embeddingModel.trim()}-`
-        const keys: string[] = []
-        
-        // 收集所有相关缓存key
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i)
-            if (key && key.startsWith(prefix)) {
-                keys.push(key)
-            }
-        }
-        
-        // 如果超过限制，删除最旧的（按key排序，删除前面的）
-        if (keys.length > keepCount) {
-            keys.sort() // 按字母顺序排序，删除旧的
-            const toDelete = keys.slice(0, keys.length - keepCount)
-            for (const key of toDelete) {
-                localStorage.removeItem(key)
-            }
-        }
-    } catch (error) {
-    }
-}
-
 // ==================== 辅助函数 ====================
+
+// 清除所有文章的embedding
+export async function clearArticleEmbeddings(): Promise<void> {
+    // 等待数据库初始化
+    let retries = 0
+    while ((!db.itemsDB || !db.items) && retries < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        retries++
+    }
+    
+    if (!db.itemsDB || !db.items) {
+        throw new Error('数据库未初始化，请稍后再试')
+    }
+
+    try {
+        // 将所有文章的embedding字段设置为null
+        await db.itemsDB
+            .update(db.items)
+            .set(db.items.embedding, null)
+            .exec()
+    } catch (error) {
+        if (error instanceof Error) {
+            throw new Error(`清除文章embedding失败: ${error.message}`)
+        } else {
+            throw new Error(`清除文章embedding失败: ${String(error)}`)
+        }
+    }
+}
 
 // 规范化 API Endpoint URL，提取 baseURL
 export function normalizeApiEndpoint(endpoint: string): string {
@@ -261,11 +223,47 @@ export async function computeAndStoreEmbeddings(
                 progress)
         }
         
+        // QPS限制器：使用滑动窗口跟踪最近1秒内的请求时间戳
+        const maxQPS = config.embeddingQPS || 30
+        const requestTimestamps: number[] = []
+        
+        // 速率限制函数：等待直到有可用的QPS配额
+        const waitForRateLimit = async () => {
+            const now = Date.now()
+            const oneSecondAgo = now - 1000
+            
+            // 清理1秒前的旧时间戳
+            while (requestTimestamps.length > 0 && requestTimestamps[0] <= oneSecondAgo) {
+                requestTimestamps.shift()
+            }
+            
+            // 如果当前QPS已达到限制，等待直到有可用配额
+            if (requestTimestamps.length >= maxQPS) {
+                const oldestTimestamp = requestTimestamps[0]
+                const waitTime = oldestTimestamp + 1000 - now
+                if (waitTime > 0) {
+                    await new Promise(resolve => setTimeout(resolve, waitTime))
+                    // 等待后再次清理旧时间戳
+                    const newNow = Date.now()
+                    const newOneSecondAgo = newNow - 1000
+                    while (requestTimestamps.length > 0 && requestTimestamps[0] <= newOneSecondAgo) {
+                        requestTimestamps.shift()
+                    }
+                }
+            }
+            
+            // 记录当前请求时间戳
+            requestTimestamps.push(Date.now())
+        }
+        
         // 处理单个批次的函数
         const processBatch = async (batchInfo: { batch: RSSItem[], batchNumber: number, batchStart: number }) => {
             const { batch, batchNumber } = batchInfo
             
             try {
+                // 等待QPS限制
+                await waitForRateLimit()
+                
                 // 准备当前批次的文本
                 const texts = batch.map(article => {
                     // 拼接标题和摘要
@@ -323,8 +321,10 @@ export async function computeAndStoreEmbeddings(
             }
         }
         
-        // 并行处理所有批次（严格模式：任何批次失败都会立即失败）
-        await Promise.all(batches.map(batchInfo => processBatch(batchInfo)))
+        // 顺序处理所有批次，确保QPS限制（严格模式：任何批次失败都会立即失败）
+        for (const batchInfo of batches) {
+            await processBatch(batchInfo)
+        }
 
     } catch (error: any) {
         // 抛出错误（严格模式）

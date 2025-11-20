@@ -15,6 +15,7 @@ type AIConfigProps = {
     tempEmbeddingApiKey: string
     tempModel: string
     tempEmbeddingModel: string
+    tempEmbeddingQPS: string
     tempTopk: string
     chatApiEndpoint: string
     chatApiKey: string
@@ -22,6 +23,7 @@ type AIConfigProps = {
     embeddingApiKey: string
     model: string
     embeddingModel: string
+    embeddingQPS: number
     topk: number
     onChatApiEndpointChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onChatApiKeyChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
@@ -29,9 +31,11 @@ type AIConfigProps = {
     onEmbeddingApiKeyChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onModelChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onEmbeddingModelChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
+    onEmbeddingQPSChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onTopkChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
-    onConfirm: (tempChatApiEndpoint: string, tempChatApiKey: string, tempEmbeddingApiEndpoint: string, tempEmbeddingApiKey: string, tempModel: string, tempEmbeddingModel: string, tempTopk: string) => void
-    onCancel: (chatApiEndpoint: string, chatApiKey: string, embeddingApiEndpoint: string, embeddingApiKey: string, model: string, embeddingModel: string, topk: number) => void
+    onClearEmbeddings: () => Promise<void>
+    onConfirm: (tempChatApiEndpoint: string, tempChatApiKey: string, tempEmbeddingApiEndpoint: string, tempEmbeddingApiKey: string, tempModel: string, tempEmbeddingModel: string, tempEmbeddingQPS: string, tempTopk: string) => void
+    onCancel: (chatApiEndpoint: string, chatApiKey: string, embeddingApiEndpoint: string, embeddingApiKey: string, model: string, embeddingModel: string, embeddingQPS: number, topk: number) => void
 }
 
 class AIConfig extends React.Component<AIConfigProps> {
@@ -41,7 +45,7 @@ class AIConfig extends React.Component<AIConfigProps> {
 
     onKeyDown = (event: KeyboardEvent) => {
         if (event.key === "Escape" && this.props.display) {
-            this.props.onCancel(this.props.chatApiEndpoint, this.props.chatApiKey, this.props.embeddingApiEndpoint, this.props.embeddingApiKey, this.props.model, this.props.embeddingModel, this.props.topk)
+            this.props.onCancel(this.props.chatApiEndpoint, this.props.chatApiKey, this.props.embeddingApiEndpoint, this.props.embeddingApiKey, this.props.model, this.props.embeddingModel, this.props.embeddingQPS, this.props.topk)
         }
     }
 
@@ -72,7 +76,7 @@ class AIConfig extends React.Component<AIConfigProps> {
                     <a
                         className="btn"
                         title={intl.get("settings.exit")}
-                        onClick={() => this.props.onCancel(this.props.chatApiEndpoint, this.props.chatApiKey, this.props.embeddingApiEndpoint, this.props.embeddingApiKey, this.props.model, this.props.embeddingModel, this.props.topk)}>
+                        onClick={() => this.props.onCancel(this.props.chatApiEndpoint, this.props.chatApiKey, this.props.embeddingApiEndpoint, this.props.embeddingApiKey, this.props.model, this.props.embeddingModel, this.props.embeddingQPS, this.props.topk)}>
                         <Icon iconName="Back" />
                     </a>
                 </div>
@@ -170,6 +174,73 @@ class AIConfig extends React.Component<AIConfigProps> {
                             <span className="settings-hint up">
                                 {intl.get("settings.aiMode.config.embeddingModelHint")}
                             </span>
+                            <span className="settings-hint up" style={{ color: '#ffffff', fontWeight: 500 }}>
+                                {intl.get("settings.aiMode.config.embeddingModelChangeHint")}
+                            </span>
+
+                            <Label>{intl.get("settings.aiMode.config.embeddingQPS")}</Label>
+                            <Stack horizontal>
+                                <Stack.Item grow>
+                                    <TextField
+                                        value={this.props.tempEmbeddingQPS}
+                                        onChange={this.props.onEmbeddingQPSChange}
+                                        placeholder="30"
+                                    />
+                                </Stack.Item>
+                            </Stack>
+                            <span className="settings-hint up">
+                                {intl.get("settings.aiMode.config.embeddingQPSHint")}
+                            </span>
+
+                            <Label>{intl.get("settings.aiMode.config.clearEmbeddings")}</Label>
+                            <Stack horizontal>
+                                <Stack.Item>
+                                    <DefaultButton
+                                        text={intl.get("settings.aiMode.config.clearEmbeddings")}
+                                        onClick={async () => {
+                                            if (window.utils && window.utils.showMessageBox) {
+                                                const confirmed = await window.utils.showMessageBox(
+                                                    intl.get("settings.aiMode.config.clearEmbeddings"),
+                                                    intl.get("settings.aiMode.config.clearEmbeddingsHint"),
+                                                    intl.get("confirm"),
+                                                    intl.get("cancel"),
+                                                    true,
+                                                    "warning"
+                                                )
+                                                if (confirmed) {
+                                                    try {
+                                                        await this.props.onClearEmbeddings()
+                                                        if (window.utils && window.utils.showMessageBox) {
+                                                            await window.utils.showMessageBox(
+                                                                intl.get("settings.aiMode.config.clearEmbeddings"),
+                                                                intl.get("settings.aiMode.common.clearEmbeddingsSuccess", { defaultValue: "文章Embedding已清除" }),
+                                                                intl.get("settings.aiMode.common.ok"),
+                                                                "",
+                                                                false,
+                                                                "none"
+                                                            )
+                                                        }
+                                                    } catch (error) {
+                                                        if (window.utils && window.utils.showMessageBox) {
+                                                            await window.utils.showMessageBox(
+                                                                intl.get("settings.aiMode.common.error"),
+                                                                error instanceof Error ? error.message : String(error),
+                                                                intl.get("settings.aiMode.common.ok"),
+                                                                "",
+                                                                false,
+                                                                "error"
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }}
+                                    />
+                                </Stack.Item>
+                            </Stack>
+                            <span className="settings-hint up">
+                                {intl.get("settings.aiMode.config.clearEmbeddingsHint")}
+                            </span>
 
                             <Label>{intl.get("settings.aiMode.config.topk")}</Label>
                             <Stack horizontal>
@@ -192,13 +263,13 @@ class AIConfig extends React.Component<AIConfigProps> {
                                 <Stack.Item>
                                     <DefaultButton
                                         text={intl.get("settings.aiMode.config.cancel")}
-                                        onClick={() => this.props.onCancel(this.props.chatApiEndpoint, this.props.chatApiKey, this.props.embeddingApiEndpoint, this.props.embeddingApiKey, this.props.model, this.props.embeddingModel, this.props.topk)}
+                                        onClick={() => this.props.onCancel(this.props.chatApiEndpoint, this.props.chatApiKey, this.props.embeddingApiEndpoint, this.props.embeddingApiKey, this.props.model, this.props.embeddingModel, this.props.embeddingQPS, this.props.topk)}
                                     />
                                 </Stack.Item>
                                 <Stack.Item>
                                     <PrimaryButton
                                         text={intl.get("settings.aiMode.config.confirm")}
-                                        onClick={() => this.props.onConfirm(this.props.tempChatApiEndpoint, this.props.tempChatApiKey, this.props.tempEmbeddingApiEndpoint, this.props.tempEmbeddingApiKey, this.props.tempModel, this.props.tempEmbeddingModel, this.props.tempTopk)}
+                                        onClick={() => this.props.onConfirm(this.props.tempChatApiEndpoint, this.props.tempChatApiKey, this.props.tempEmbeddingApiEndpoint, this.props.tempEmbeddingApiKey, this.props.tempModel, this.props.tempEmbeddingModel, this.props.tempEmbeddingQPS, this.props.tempTopk)}
                                     />
                                 </Stack.Item>
                             </Stack>

@@ -44,6 +44,7 @@ import {
     updateAIModeEmbeddingApiKey,
     updateAIModeModel,
     updateAIModeEmbeddingModel,
+    updateAIModeEmbeddingQPS,
     updateAIModeTopk,
     setAIModeShowConfigPanel,
     updateAIModeTempChatApiEndpoint,
@@ -52,6 +53,7 @@ import {
     updateAIModeTempEmbeddingApiKey,
     updateAIModeTempModel,
     updateAIModeTempEmbeddingModel,
+    updateAIModeTempEmbeddingQPS,
     updateAIModeTempTopk,
     setAIModeShowErrorDialog,
     setAIModeErrorDialogMessage,
@@ -152,6 +154,7 @@ type AIModeProps = {
     updateEmbeddingApiKey: (embeddingApiKey: string) => void
     updateModel: (model: string) => void
     updateEmbeddingModel: (embeddingModel: string) => void
+    updateEmbeddingQPS: (embeddingQPS: number) => void
     updateTopk: (topk: number) => void
     setShowConfigPanel: (showConfigPanel: boolean) => void
     updateTempChatApiEndpoint: (tempChatApiEndpoint: string) => void
@@ -160,6 +163,7 @@ type AIModeProps = {
     updateTempEmbeddingApiKey: (tempEmbeddingApiKey: string) => void
     updateTempModel: (tempModel: string) => void
     updateTempEmbeddingModel: (tempEmbeddingModel: string) => void
+    updateTempEmbeddingQPS: (tempEmbeddingQPS: string) => void
     updateTempTopk: (tempTopk: string) => void
     setShowErrorDialog: (showErrorDialog: boolean) => void
     setErrorDialogMessage: (errorDialogMessage: string) => void
@@ -468,20 +472,33 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         this.props.updateTempEmbeddingModel(value)
     }
 
+    handleEmbeddingQPSChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+        const value = newValue || ''
+        this.props.updateTempEmbeddingQPS(value)
+    }
+
     handleTopkChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
         this.props.updateTempTopk(value)
     }
 
     handleConfigConfirm = () => {
-        const { aiMode, updateChatApiEndpoint, updateChatApiKey, updateEmbeddingApiEndpoint, updateEmbeddingApiKey, updateModel, updateEmbeddingModel, updateTopk, setShowConfigPanel, setShowErrorDialog, setErrorDialogMessage } = this.props
-        const { tempChatApiEndpoint, tempChatApiKey, tempEmbeddingApiEndpoint, tempEmbeddingApiKey, tempModel, tempEmbeddingModel, tempTopk } = aiMode
+        const { aiMode, updateChatApiEndpoint, updateChatApiKey, updateEmbeddingApiEndpoint, updateEmbeddingApiKey, updateModel, updateEmbeddingModel, updateEmbeddingQPS, updateTopk, setShowConfigPanel, setShowErrorDialog, setErrorDialogMessage } = this.props
+        const { tempChatApiEndpoint, tempChatApiKey, tempEmbeddingApiEndpoint, tempEmbeddingApiKey, tempModel, tempEmbeddingModel, tempEmbeddingQPS, tempTopk } = aiMode
         
         // 验证topk
         const topk = parseInt(tempTopk, 10)
         if (isNaN(topk) || topk < 1 || !Number.isInteger(topk)) {
             setShowErrorDialog(true)
             setErrorDialogMessage(intl.get("settings.aiMode.errors.topkInvalid"))
+            return
+        }
+        
+        // 验证embeddingQPS
+        const embeddingQPS = parseInt(tempEmbeddingQPS, 10)
+        if (isNaN(embeddingQPS) || embeddingQPS < 1 || !Number.isInteger(embeddingQPS)) {
+            setShowErrorDialog(true)
+            setErrorDialogMessage(intl.get("settings.aiMode.errors.embeddingQPSInvalid"))
             return
         }
         
@@ -492,28 +509,30 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         updateEmbeddingApiKey(tempEmbeddingApiKey)
         updateModel(tempModel)
         updateEmbeddingModel(tempEmbeddingModel)
+        updateEmbeddingQPS(embeddingQPS)
         updateTopk(topk)
         setShowConfigPanel(false)
     }
 
     handleConfigCancel = () => {
         // 恢复临时状态为已保存的值
-        const { aiMode, updateTempChatApiEndpoint, updateTempChatApiKey, updateTempEmbeddingApiEndpoint, updateTempEmbeddingApiKey, updateTempModel, updateTempEmbeddingModel, updateTempTopk, setShowConfigPanel } = this.props
-        const { chatApiEndpoint, chatApiKey, embeddingApiEndpoint, embeddingApiKey, model, embeddingModel, topk } = aiMode
+        const { aiMode, updateTempChatApiEndpoint, updateTempChatApiKey, updateTempEmbeddingApiEndpoint, updateTempEmbeddingApiKey, updateTempModel, updateTempEmbeddingModel, updateTempEmbeddingQPS, updateTempTopk, setShowConfigPanel } = this.props
+        const { chatApiEndpoint, chatApiKey, embeddingApiEndpoint, embeddingApiKey, model, embeddingModel, embeddingQPS, topk } = aiMode
         updateTempChatApiEndpoint(chatApiEndpoint)
         updateTempChatApiKey(chatApiKey)
         updateTempEmbeddingApiEndpoint(embeddingApiEndpoint)
         updateTempEmbeddingApiKey(embeddingApiKey)
         updateTempModel(model)
         updateTempEmbeddingModel(embeddingModel)
+        updateTempEmbeddingQPS(embeddingQPS.toString())
         updateTempTopk(topk.toString())
         setShowConfigPanel(false)
     }
 
     handleConfigPanelOpen = () => {
         // 打开面板时，初始化临时状态为当前保存的值
-        const { aiMode, setShowConfigPanel, updateTempChatApiEndpoint, updateTempChatApiKey, updateTempEmbeddingApiEndpoint, updateTempEmbeddingApiKey, updateTempModel, updateTempEmbeddingModel, updateTempTopk } = this.props
-        const { chatApiEndpoint, chatApiKey, embeddingApiEndpoint, embeddingApiKey, model, embeddingModel, topk } = aiMode
+        const { aiMode, setShowConfigPanel, updateTempChatApiEndpoint, updateTempChatApiKey, updateTempEmbeddingApiEndpoint, updateTempEmbeddingApiKey, updateTempModel, updateTempEmbeddingModel, updateTempEmbeddingQPS, updateTempTopk } = this.props
+        const { chatApiEndpoint, chatApiKey, embeddingApiEndpoint, embeddingApiKey, model, embeddingModel, embeddingQPS, topk } = aiMode
         setShowConfigPanel(true)
         updateTempChatApiEndpoint(chatApiEndpoint)
         updateTempChatApiKey(chatApiKey)
@@ -521,6 +540,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         updateTempEmbeddingApiKey(embeddingApiKey)
         updateTempModel(model)
         updateTempEmbeddingModel(embeddingModel)
+        updateTempEmbeddingQPS(embeddingQPS.toString())
         updateTempTopk(topk.toString())
     }
 
@@ -622,6 +642,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             embeddingApiEndpoint: aiMode.embeddingApiEndpoint,
             embeddingApiKey: aiMode.embeddingApiKey,
             embeddingModel: aiMode.embeddingModel,
+            embeddingQPS: aiMode.embeddingQPS,
             model: aiMode.model,
             topk: aiMode.topk || 100,
         }
@@ -668,6 +689,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             embeddingApiEndpoint: aiMode.embeddingApiEndpoint,
             embeddingApiKey: aiMode.embeddingApiKey,
             embeddingModel: aiMode.embeddingModel,
+            embeddingQPS: aiMode.embeddingQPS,
             model: aiMode.model,
             topk: aiMode.topk || 100,
             chatApiBaseURL,
@@ -1836,6 +1858,7 @@ const mapDispatchToProps = dispatch => ({
     updateEmbeddingApiKey: (embeddingApiKey: string) => dispatch(updateAIModeEmbeddingApiKey(embeddingApiKey)),
     updateModel: (model: string) => dispatch(updateAIModeModel(model)),
     updateEmbeddingModel: (embeddingModel: string) => dispatch(updateAIModeEmbeddingModel(embeddingModel)),
+    updateEmbeddingQPS: (embeddingQPS: number) => dispatch(updateAIModeEmbeddingQPS(embeddingQPS)),
     updateTopk: (topk: number) => dispatch(updateAIModeTopk(topk)),
     setShowConfigPanel: (showConfigPanel: boolean) => dispatch(setAIModeShowConfigPanel(showConfigPanel)),
     updateTempChatApiEndpoint: (tempChatApiEndpoint: string) => dispatch(updateAIModeTempChatApiEndpoint(tempChatApiEndpoint)),
@@ -1844,6 +1867,7 @@ const mapDispatchToProps = dispatch => ({
     updateTempEmbeddingApiKey: (tempEmbeddingApiKey: string) => dispatch(updateAIModeTempEmbeddingApiKey(tempEmbeddingApiKey)),
     updateTempModel: (tempModel: string) => dispatch(updateAIModeTempModel(tempModel)),
     updateTempEmbeddingModel: (tempEmbeddingModel: string) => dispatch(updateAIModeTempEmbeddingModel(tempEmbeddingModel)),
+    updateTempEmbeddingQPS: (tempEmbeddingQPS: string) => dispatch(updateAIModeTempEmbeddingQPS(tempEmbeddingQPS)),
     updateTempTopk: (tempTopk: string) => dispatch(updateAIModeTempTopk(tempTopk)),
     setShowErrorDialog: (showErrorDialog: boolean) => dispatch(setAIModeShowErrorDialog(showErrorDialog)),
     setErrorDialogMessage: (errorDialogMessage: string) => dispatch(setAIModeErrorDialogMessage(errorDialogMessage)),

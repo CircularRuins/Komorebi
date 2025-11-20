@@ -149,11 +149,17 @@
                 "embeddingApiKeyHint": "API key for the Embedding model",
                 "embeddingModelName": "Embedding Model Name",
                 "embeddingModelHint": "Model name for calculating article embeddings, e.g., text-embedding-ada-002, text-embedding-3-small, etc.",
+                "embeddingModelChangeHint": "Tip: When changing the embedding model, it is recommended to clear old embedding data first so that the new model can recalculate.",
+                "embeddingQPS": "Embedding API QPS Limit",
+                "embeddingQPSHint": "Limit the request rate for embedding API (requests per second). Must be a positive integer, default: 30. Note: Embedding models generally have stricter rate limits. If you encounter rate limiting issues, you can lower this value appropriately.",
+                "clearEmbeddings": "Clear Article Embeddings",
+                "clearEmbeddingsHint": "Clear all stored article embedding data. When changing the embedding model, it is recommended to clear old embedding data first so that the new model can recalculate.",
                 "topk": "TopK Result Count",
                 "topkHint": "Select the top K articles with highest similarity. Must be a positive integer, recommended value: 50-200",
                 "cancel": "Cancel",
                 "confirm": "Confirm",
-                "topkInvalid": "TopK must be a positive integer greater than 0"
+                "topkInvalid": "TopK must be a positive integer greater than 0",
+                "embeddingQPSInvalid": "Embedding QPS must be a positive integer greater than 0"
             },
             "menu": {
                 "loading": "Loading AI mode menu...",
@@ -282,7 +288,8 @@
             },
             "common": {
                 "error": "Error",
-                "ok": "OK"
+                "ok": "OK",
+                "clearEmbeddingsSuccess": "Article embeddings cleared successfully"
             }
         }
     },

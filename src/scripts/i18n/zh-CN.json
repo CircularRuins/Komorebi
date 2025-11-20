@@ -147,11 +147,17 @@
                 "embeddingApiKeyHint": "用于Embedding模型的API密钥",
                 "embeddingModelName": "Embedding模型名称",
                 "embeddingModelHint": "用于计算文章embedding的模型名称，例如：text-embedding-ada-002, text-embedding-3-small 等",
+                "embeddingModelChangeHint": "提示：更换embedding模型时，建议先清除旧的embedding数据，以便使用新模型重新计算。",
+                "embeddingQPS": "Embedding API QPS限制",
+                "embeddingQPSHint": "限制embedding API的请求速率（每秒请求数）。必须是正整数，默认值：30。注意：embedding模型一般限流较为严格，当遇到限流问题时，可以适当调低此值。",
+                "clearEmbeddings": "清除文章Embedding",
+                "clearEmbeddingsHint": "清除所有已存储的文章embedding数据。更换embedding模型时，建议先清除旧的embedding数据，以便使用新模型重新计算。",
                 "topk": "TopK 结果数量",
                 "topkHint": "选择相似度最高的前K篇文章。必须是正整数，建议值：50-200",
                 "cancel": "取消",
                 "confirm": "确认",
-                "topkInvalid": "TopK必须是大于0的正整数"
+                "topkInvalid": "TopK必须是大于0的正整数",
+                "embeddingQPSInvalid": "Embedding QPS必须是大于0的正整数"
             },
             "menu": {
                 "loading": "AI模式菜单加载中...",
@@ -280,7 +286,8 @@
             },
             "common": {
                 "error": "错误",
-                "ok": "确定"
+                "ok": "确定",
+                "clearEmbeddingsSuccess": "文章Embedding已清除"
             }
         }
     },
