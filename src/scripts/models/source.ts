@@ -8,6 +8,8 @@ import {
     AppThunk,
     parseRSS,
     MyParserItem,
+    getCachedFeedIcon,
+    setCachedFeedIcon,
 } from "../utils"
 import {
     RSSItem,
@@ -65,31 +67,36 @@ export class RSSSource {
         }
         // 从RSS feed XML中提取图标
         if (!source.iconurl) {
-            let iconUrl: string | null = null
-            // RSS 2.0: <image><url>
-            if (feed.image?.url) {
-                iconUrl = feed.image.url
-            }
-            // Atom: <logo> 或 <icon>
-            else if (feed.logo) {
-                iconUrl = feed.logo
-            }
-            else if (feed.icon) {
-                iconUrl = feed.icon
-            }
-            // iTunes播客: <itunes:image>
-            else if (feed.itunesImage?.href) {
-                iconUrl = feed.itunesImage.href
-            }
-            else if (typeof feed.itunesImage === "string") {
-                iconUrl = feed.itunesImage
-            }
-            // 验证图标URL是否有效
-            if (iconUrl) {
-                if (await validateFavicon(iconUrl)) {
-                    source.iconurl = iconUrl
-                } else {
-                    source.iconurl = ""
+            // 检测是否是 YouTube feed，统一使用本地 YouTube 图标
+            if (/youtube\.com/.test(source.url)) {
+                source.iconurl = "icons/youtube-favicon-32x32.png"
+            } else {
+                let iconUrl: string | null = null
+                // RSS 2.0: <image><url>
+                if (feed.image?.url) {
+                    iconUrl = feed.image.url
+                }
+                // Atom: <logo> 或 <icon>
+                else if (feed.logo) {
+                    iconUrl = feed.logo
+                }
+                else if (feed.icon) {
+                    iconUrl = feed.icon
+                }
+                // iTunes播客: <itunes:image>
+                else if (feed.itunesImage?.href) {
+                    iconUrl = feed.itunesImage.href
+                }
+                else if (typeof feed.itunesImage === "string") {
+                    iconUrl = feed.itunesImage
+                }
+                // 验证图标URL是否有效
+                if (iconUrl) {
+                    if (await validateFavicon(iconUrl)) {
+                        source.iconurl = iconUrl
+                    } else {
+                        source.iconurl = ""
+                    }
                 }
             }
         }
@@ -480,13 +487,30 @@ export function updateFavicon(
         }
         const promises = sids.map(async sid => {
             const url = initSources[sid].url
-            let favicon = await fetchFavicon(url)
             const source = getState().sources[sid]
             if (
                 source &&
                 source.url === url &&
                 (force || source.iconurl === undefined)
             ) {
+                let favicon: string | null = null
+                // 检测是否是 YouTube feed，统一使用本地 YouTube 图标
+                if (/youtube\.com/.test(url)) {
+                    favicon = "icons/youtube-favicon-32x32.png"
+                } else {
+                    // 如果不是强制更新，先检查缓存
+                    if (!force) {
+                        favicon = getCachedFeedIcon(url)
+                    }
+                    // 如果缓存中没有，则从网络获取
+                    if (!favicon) {
+                        favicon = await fetchFavicon(url)
+                        // 如果获取成功，存入缓存
+                        if (favicon) {
+                            setCachedFeedIcon(url, favicon)
+                        }
+                    }
+                }
                 // 如果获取失败，设置为空字符串而不是undefined
                 source.iconurl = favicon || ""
                 await dispatch(updateSource(source))

@@ -2,8 +2,6 @@ import * as React from "react"
 import intl from "react-intl-universal"
 import {
     Stack,
-    PrimaryButton,
-    DefaultButton,
     Icon,
 } from "@fluentui/react"
 import { RecommendedFeed } from "../../scripts/utils/recommended-feeds"
@@ -25,7 +23,7 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
     iconUrl,
 }) => {
     const handleSubscribe = async () => {
-        if (!isSubscribed && !isSubscribing) {
+        if (!isSubscribing) {
             await onSubscribe(feed)
         }
     }
@@ -50,7 +48,7 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
                 e.currentTarget.style.boxShadow = "none"
             }}
         >
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", width: "100%", paddingRight: "32px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", paddingRight: "34px" }}>
                 {/* 图标 */}
                 <div
                     style={{
@@ -110,7 +108,7 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
                         overflow: "hidden",
                         display: "flex",
                         alignItems: "center",
-                        height: "28px",
+                        minHeight: "28px",
                     }}
                 >
                     <div
@@ -118,11 +116,9 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
                             fontSize: "11px",
                             fontWeight: 600,
                             color: "var(--neutralPrimary)",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
                             width: "100%",
-                            lineHeight: "1.2",
+                            lineHeight: "1.4",
+                            wordBreak: "break-word",
                         }}
                     >
                         {feed.name}
@@ -139,48 +135,50 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
                     transform: "translateY(-50%)",
                 }}
             >
-                {isSubscribed ? (
-                    <DefaultButton
-                        disabled
-                        iconProps={{ iconName: "CheckMark" }}
-                        title={intl.get("sources.subscribed")}
+                <div
+                    onClick={isSubscribing ? undefined : handleSubscribe}
+                    title={isSubscribed ? intl.get("sources.unsubscribe") : intl.get("sources.subscribe")}
+                    style={{
+                        width: "18px",
+                        height: "18px",
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: isSubscribing ? "not-allowed" : "pointer",
+                        backgroundColor: isSubscribed 
+                            ? "var(--neutralLighter)" 
+                            : "#00b0ff",
+                        opacity: isSubscribing ? 0.5 : 1,
+                        transition: "background-color 0.2s ease, opacity 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                        if (!isSubscribing) {
+                            e.currentTarget.style.backgroundColor = isSubscribed
+                                ? "var(--neutralLight)"
+                                : "#0078d4"
+                        }
+                    }}
+                    onMouseLeave={(e) => {
+                        if (!isSubscribing) {
+                            e.currentTarget.style.backgroundColor = isSubscribed
+                                ? "var(--neutralLighter)"
+                                : "#00b0ff"
+                        }
+                    }}
+                >
+                    <Icon
+                        iconName={isSubscribed ? "CheckMark" : "Add"}
                         styles={{
                             root: {
-                                height: "18px",
-                                width: "18px",
-                                minWidth: "18px",
-                                padding: "0",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                            },
-                            icon: {
                                 fontSize: "9px",
+                                color: isSubscribed 
+                                    ? "var(--neutralPrimary)" 
+                                    : "var(--white)",
                             },
                         }}
                     />
-                ) : (
-                    <PrimaryButton
-                        disabled={isSubscribing}
-                        iconProps={{ iconName: "Add" }}
-                        title={intl.get("sources.subscribe")}
-                        onClick={handleSubscribe}
-                        styles={{
-                            root: {
-                                height: "18px",
-                                width: "18px",
-                                minWidth: "18px",
-                                padding: "0",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                            },
-                            icon: {
-                                fontSize: "9px",
-                            },
-                        }}
-                    />
-                )}
+                </div>
             </div>
         </div>
     )

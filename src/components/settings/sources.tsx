@@ -27,6 +27,7 @@ type SourcesTabProps = {
     fetchingProgress: number
     isOPMLImport: boolean
     addSource: (url: string) => Promise<number>
+    deleteSource: (source: RSSSource) => Promise<void>
     clearSourceIcon: (source: RSSSource) => void
     importOPML: (onError?: (title: string, content: string) => void) => void
     exportOPML: () => void
@@ -40,6 +41,7 @@ type SourcesTabState = {
     newUrl: string
     recommendedFeeds: RecommendedFeedGroup[]
     isSubscribing: { [url: string]: boolean }
+    lastOperationType: "subscribe" | "unsubscribe" | null
 }
 
 class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
@@ -56,6 +58,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             importErrorContent: "",
             recommendedFeeds: [],
             isSubscribing: {},
+            lastOperationType: null,
         }
     }
 
@@ -116,6 +119,10 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                     newUrl: "",
                     showSuccessMessage: true,
                 })
+                // 1秒后自动隐藏
+                setTimeout(() => {
+                    this.setState({ showSuccessMessage: false })
+                }, 1000)
             } catch (e) {
                 // 错误已经在 addSource 中处理了，这里不需要额外处理
             }
@@ -129,14 +136,12 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         }
 
         // 检查是否已订阅
-        const isAlreadySubscribed = Object.values(this.props.sources).some(
+        const existingSource = Object.values(this.props.sources).find(
             source => source.url === url
         )
-        if (isAlreadySubscribed) {
-            return
-        }
+        const isAlreadySubscribed = !!existingSource
 
-        // 设置订阅中状态
+        // 设置操作中状态
         this.setState(prevState => ({
             isSubscribing: {
                 ...prevState.isSubscribing,
@@ -145,15 +150,31 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         }))
 
         try {
-            await this.props.addSource(url)
-            // 订阅成功，显示提示
-            this.setState({
-                showSuccessMessage: true,
-            })
+            if (isAlreadySubscribed) {
+                // 取消订阅
+                await this.props.deleteSource(existingSource)
+                // 操作成功，显示提示
+                this.setState({
+                    showSuccessMessage: true,
+                    lastOperationType: "unsubscribe",
+                })
+            } else {
+                // 订阅
+                await this.props.addSource(url)
+                // 操作成功，显示提示
+                this.setState({
+                    showSuccessMessage: true,
+                    lastOperationType: "subscribe",
+                })
+            }
+            // 1秒后自动隐藏
+            setTimeout(() => {
+                this.setState({ showSuccessMessage: false, lastOperationType: null })
+            }, 1000)
         } catch (e) {
-            // 错误已经在 addSource 中处理了
+            // 错误已经在 addSource/deleteSource 中处理了
         } finally {
-            // 清除订阅中状态
+            // 清除操作中状态
             this.setState(prevState => {
                 const newState = { ...prevState.isSubscribing }
                 delete newState[url]
@@ -169,91 +190,39 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
 
 
     render = () => (
-        <div className="tab-body" ref={this.tabBodyRef}>
+        <div className="tab-body" ref={this.tabBodyRef} style={{ position: 'relative' }}>
             {this.props.serviceOn && (
                 <MessageBar messageBarType={MessageBarType.info}>
                     {intl.get("sources.serviceWarning")}
                 </MessageBar>
             )}
-            {/* 成功提示弹窗 */}
+            {/* 成功提示 Toast */}
             {this.state.showSuccessMessage && (
-                <div
+                <Stack
                     style={{
                         position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        zIndex: 1000,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        pointerEvents: 'none',
-                    }}>
-                    {/* 弹窗内容 */}
-                    <div
-                        style={{
-                            position: 'relative',
-                            backgroundColor: 'var(--white)',
-                            borderRadius: '4px',
-                            padding: '24px',
-                            minWidth: '280px',
-                            maxWidth: '90%',
-                            boxShadow: '0 6.4px 14.4px rgba(0, 0, 0, 0.132), 0 1.2px 3.6px rgba(0, 0, 0, 0.108)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '16px',
-                            pointerEvents: 'auto',
-                        }}
-                        onClick={(e) => e.stopPropagation()}>
-                        {/* 成功图标 */}
-                        <div
-                            style={{
-                                width: '56px',
-                                height: '56px',
-                                borderRadius: '50%',
-                                backgroundColor: '#e8f5e9',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }}>
-                            <Icon
-                                iconName="CheckMark"
-                                styles={{
-                                    root: {
-                                        fontSize: '32px',
-                                        color: '#2e7d32',
-                                        fontWeight: 600,
-                                    },
-                                }}
-                            />
-                        </div>
-                        {/* 提示文字 */}
-                        <div
-                            style={{
-                                fontSize: '16px',
-                                fontWeight: 600,
-                                color: 'var(--neutralPrimary)',
-                                textAlign: 'center',
-                                lineHeight: '1.4',
-                            }}>
-                            {intl.get("sources.successAdd")}
-                        </div>
-                        {/* 确认按钮 */}
-                        <PrimaryButton
-                            text={intl.get("confirm")}
-                            onClick={() => this.setState({ showSuccessMessage: false })}
-                            styles={{
-                                root: {
-                                    minWidth: '100px',
-                                    height: '32px',
-                                    borderRadius: '4px',
-                                },
-                            }}
-                        />
-                    </div>
-                </div>
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 10000,
+                        backgroundColor: 'var(--neutralDark)',
+                        color: 'var(--white)',
+                        padding: '8px 16px',
+                        borderRadius: '4px',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                        transition: 'opacity 0.2s ease-out',
+                    }}
+                    horizontal
+                    tokens={{ childrenGap: 8 }}
+                    verticalAlign="center"
+                    horizontalAlign="center">
+                    <Icon iconName="CheckMark" style={{ fontSize: 16 }} />
+                    <span style={{ fontSize: 13 }}>
+                        {this.state.lastOperationType === "unsubscribe"
+                            ? intl.get("sources.successUnsubscribe")
+                            : intl.get("sources.successAdd")}
+                    </span>
+                </Stack>
             )}
             {/* OPML导入导出部分 */}
             <div style={{ marginTop: '0', marginBottom: '32px' }}>

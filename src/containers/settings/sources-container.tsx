@@ -6,6 +6,7 @@ import {
     addSource,
     RSSSource,
     updateSource,
+    deleteSource,
 } from "../../scripts/models/source"
 import { importOPML, exportOPML } from "../../scripts/models/group"
 import { AppDispatch } from "../../scripts/utils"
@@ -34,6 +35,7 @@ const mapStateToProps = createSelector(
 const mapDispatchToProps = (dispatch: AppDispatch) => {
     return {
         addSource: (url: string) => dispatch(addSource(url)),
+        deleteSource: (source: RSSSource) => dispatch(deleteSource(source)),
         clearSourceIcon: (source: RSSSource) => {
             dispatch(updateSource({ ...source, iconurl: "" }))
         },

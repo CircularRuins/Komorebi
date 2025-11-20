@@ -68,9 +68,47 @@ export class RSSItem {
             item.content = parsed.fullContent
             item.snippet = htmlDecode(parsed.fullContent)
         } else {
-            item.content = parsed.content || ""
-            item.snippet = htmlDecode(parsed.contentSnippet || "")
+            // Priority for content: media:content > parsed.content
+            // Check if mediaContent has text content (not just image URLs)
+            if (parsed.mediaContent && Array.isArray(parsed.mediaContent)) {
+                // Find media:content that is not an image
+                const nonImageContent = parsed.mediaContent.find(
+                    c => !c.$ || c.$.medium !== "image"
+                )
+                if (nonImageContent && nonImageContent._) {
+                    item.content = nonImageContent._
+                } else if (nonImageContent && nonImageContent.$ && nonImageContent.$.url) {
+                    // If it's a YouTube video URL, create embed code
+                    const url = nonImageContent.$.url
+                    const videoIdMatch = url.match(/[?&]v=([^&]+)/) || 
+                                        url.match(/youtu\.be\/([^?&]+)/) ||
+                                        url.match(/embed\/([^?&]+)/)
+                    if (videoIdMatch) {
+                        const videoId = videoIdMatch[1]
+                        item.content = `<iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
+                    } else {
+                        item.content = parsed.content || ""
+                    }
+                } else {
+                    item.content = parsed.content || ""
+                }
+            } else {
+                item.content = parsed.content || ""
+            }
+            
+            // Priority: contentSnippet > media:description > extracted text from content
+            if (parsed.contentSnippet) {
+                item.snippet = htmlDecode(parsed.contentSnippet)
+            } else if (parsed.mediaDescription) {
+                item.snippet = parsed.mediaDescription
+            } else {
+                item.snippet = htmlDecode(item.content || "")
+            }
         }
+        
+        // Check if this is a YouTube item
+        const isYouTube = item.link && (/youtube\.com/.test(item.link) || /youtu\.be/.test(item.link))
+        
         if (parsed.thumb) {
             item.thumb = parsed.thumb
         } else if (parsed.image?.$?.url) {
@@ -82,6 +120,71 @@ export class RSSItem {
                 c => c.$ && c.$.medium === "image" && c.$.url
             )
             if (images.length > 0) item.thumb = images[0].$.url
+        } else if (parsed.mediaThumbnail) {
+            // Handle media:thumbnail directly (rss-parser may parse it even if nested in media:group)
+            if (Array.isArray(parsed.mediaThumbnail) && parsed.mediaThumbnail.length > 0) {
+                const thumbnail = parsed.mediaThumbnail[0]
+                if (thumbnail && thumbnail.$ && thumbnail.$.url) {
+                    item.thumb = thumbnail.$.url
+                } else if (typeof thumbnail === "string") {
+                    item.thumb = thumbnail
+                }
+            } else if (parsed.mediaThumbnail.$ && parsed.mediaThumbnail.$.url) {
+                item.thumb = parsed.mediaThumbnail.$.url
+            } else if (typeof parsed.mediaThumbnail === "string") {
+                item.thumb = parsed.mediaThumbnail
+            }
+        } else if (parsed.mediaGroup) {
+            // Handle media:group (e.g., from YouTube RSS feeds)
+            // media:thumbnail is nested inside media:group
+            const mediaGroup = parsed.mediaGroup
+            // Try different possible structures
+            if (mediaGroup.mediaThumbnail) {
+                const thumbnails = Array.isArray(mediaGroup.mediaThumbnail) 
+                    ? mediaGroup.mediaThumbnail 
+                    : [mediaGroup.mediaThumbnail]
+                if (thumbnails.length > 0) {
+                    const thumbnail = thumbnails[0]
+                    if (thumbnail && thumbnail.$ && thumbnail.$.url) {
+                        item.thumb = thumbnail.$.url
+                    } else if (typeof thumbnail === "string") {
+                        item.thumb = thumbnail
+                    }
+                }
+            }
+            // Also try direct access if mediaGroup is an object with $ property
+            if (!item.thumb && mediaGroup.$ && mediaGroup.$.url) {
+                item.thumb = mediaGroup.$.url
+            }
+            // Try accessing as array
+            if (!item.thumb && Array.isArray(mediaGroup) && mediaGroup.length > 0) {
+                const firstGroup = mediaGroup[0]
+                if (firstGroup && firstGroup.mediaThumbnail) {
+                    const thumbnails = Array.isArray(firstGroup.mediaThumbnail) 
+                        ? firstGroup.mediaThumbnail 
+                        : [firstGroup.mediaThumbnail]
+                    if (thumbnails.length > 0) {
+                        const thumbnail = thumbnails[0]
+                        if (thumbnail && thumbnail.$ && thumbnail.$.url) {
+                            item.thumb = thumbnail.$.url
+                        }
+                    }
+                }
+            }
+            // Fallback: try to parse from content if mediaGroup exists but no thumbnail found
+            // This handles cases where rss-parser doesn't parse nested elements correctly
+            if (!item.thumb && item.content) {
+                try {
+                    const dom = domParser.parseFromString(item.content, "text/html")
+                    // Look for media:thumbnail in the content
+                    const mediaThumbnail = dom.querySelector("media\\:thumbnail, thumbnail")
+                    if (mediaThumbnail && mediaThumbnail.getAttribute("url")) {
+                        item.thumb = mediaThumbnail.getAttribute("url")
+                    }
+                } catch (e) {
+                    // Ignore parsing errors
+                }
+            }
         }
         if (!item.thumb) {
             let dom = domParser.parseFromString(item.content, "text/html")
@@ -94,6 +197,38 @@ export class RSSItem {
             let img = dom.querySelector("img")
             if (img && img.src) item.thumb = img.src
         }
+        // Fallback for YouTube: extract video ID from link and construct thumbnail URL
+        if (!item.thumb && isYouTube) {
+            try {
+                // Extract video ID from YouTube URL
+                // Formats: https://www.youtube.com/watch?v=VIDEO_ID
+                //          https://youtu.be/VIDEO_ID
+                //          https://www.youtube.com/embed/VIDEO_ID
+                let videoId: string | null = null
+                const watchMatch = item.link.match(/[?&]v=([^&]+)/)
+                if (watchMatch) {
+                    videoId = watchMatch[1]
+                } else {
+                    const shortMatch = item.link.match(/youtu\.be\/([^?&]+)/)
+                    if (shortMatch) {
+                        videoId = shortMatch[1]
+                    } else {
+                        const embedMatch = item.link.match(/youtube\.com\/embed\/([^?&]+)/)
+                        if (embedMatch) {
+                            videoId = embedMatch[1]
+                        }
+                    }
+                }
+                
+                if (videoId) {
+                    // Construct YouTube thumbnail URL
+                    item.thumb = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+                }
+            } catch (e) {
+                console.warn("Failed to extract YouTube video ID:", e)
+            }
+        }
+        
         if (
             item.thumb &&
             !item.thumb.startsWith("https://") &&

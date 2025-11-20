@@ -10,7 +10,7 @@ import {
     RecommendedFeed,
 } from "../../scripts/utils/recommended-feeds"
 import RecommendedFeedCard from "./recommended-feed-card"
-import { fetchFavicon, parseRSS, validateFavicon } from "../../scripts/utils"
+import { fetchFavicon, parseRSS, validateFavicon, getCachedFeedIcon, setCachedFeedIcon } from "../../scripts/utils"
 
 type RecommendedFeedsProps = {
     groups: RecommendedFeedGroup[]
@@ -76,17 +76,62 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
     componentDidMount = async () => {
         // 为所有推荐源获取图标
         const allFeeds = this.props.groups.flatMap(group => group.feeds)
-        const iconPromises = allFeeds.map(async (feed) => {
+        
+        // 先从缓存加载图标
+        const cachedIcons: { [url: string]: string } = {}
+        allFeeds.forEach(feed => {
+            // YouTube feed 使用本地图标，不需要缓存
+            if (/youtube\.com/.test(feed.url)) {
+                cachedIcons[feed.url] = "icons/youtube-favicon-32x32.png"
+            } else {
+                const cachedIcon = getCachedFeedIcon(feed.url)
+                if (cachedIcon) {
+                    cachedIcons[feed.url] = cachedIcon
+                }
+            }
+        })
+        
+        // 如果有缓存的图标，先更新 state
+        if (Object.keys(cachedIcons).length > 0) {
+            this.setState(prevState => ({
+                feedIcons: {
+                    ...prevState.feedIcons,
+                    ...cachedIcons,
+                },
+            }))
+        }
+        
+        // 为没有缓存的 feed 获取图标
+        const feedsNeedingFetch = allFeeds.filter(feed => !cachedIcons[feed.url])
+        const iconPromises = feedsNeedingFetch.map(async (feed) => {
             try {
+                // 检测是否是 YouTube feed，统一使用本地 YouTube 图标
+                if (/youtube\.com/.test(feed.url)) {
+                    const iconUrl = "icons/youtube-favicon-32x32.png"
+                    this.setState(prevState => ({
+                        feedIcons: {
+                            ...prevState.feedIcons,
+                            [feed.url]: iconUrl,
+                        },
+                    }))
+                    return
+                }
+                
                 // 1. 先尝试从 feed XML 中获取图标
                 let iconUrl = await this.getIconFromFeed(feed.url)
                 
                 // 2. 如果 feed XML 中没有，再尝试从网站 HTML 获取
                 if (!iconUrl) {
                     iconUrl = await fetchFavicon(feed.url)
+                    // 验证从网站 HTML 获取的图标是否有效
+                    if (iconUrl && !(await validateFavicon(iconUrl))) {
+                        iconUrl = null
+                    }
                 }
                 
                 if (iconUrl) {
+                    // 存入缓存
+                    setCachedFeedIcon(feed.url, iconUrl)
                     this.setState(prevState => ({
                         feedIcons: {
                             ...prevState.feedIcons,

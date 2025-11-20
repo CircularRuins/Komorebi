@@ -34,6 +34,9 @@ const rssParser = new Parser({
             "image",
             ["content:encoded", "fullContent"],
             ["media:content", "mediaContent", { keepArray: true }],
+            ["media:thumbnail", "mediaThumbnail", { keepArray: true }],
+            ["media:description", "mediaDescription"],
+            ["media:group", "mediaGroup"],
         ],
     },
 })
@@ -87,9 +90,235 @@ export async function parseRSS(url: string) {
     }
     if (result && result.ok) {
         try {
-            return await rssParser.parseString(
-                await decodeFetchResponse(result)
-            )
+            const xmlContent = await decodeFetchResponse(result)
+            const parsed = await rssParser.parseString(xmlContent)
+            
+            // Manually extract media:thumbnail from media:group for YouTube feeds
+            // rss-parser may not parse nested elements correctly
+            try {
+                const xmlDoc = domParser.parseFromString(xmlContent, "text/xml")
+                // YouTube uses Atom feed format with <entry> elements, not <item>
+                const items = xmlDoc.querySelectorAll("item, entry")
+                
+                // Media RSS namespace
+                const mediaNS = "http://search.yahoo.com/mrss/"
+                
+                parsed.items.forEach((item, index) => {
+                    if (index < items.length) {
+                        const xmlItem = items[index]
+                        // Look for media:group using namespace-aware method
+                        let mediaGroup: Element | null = null
+                        
+                        // Try querySelector first (works if namespace prefix is preserved)
+                        try {
+                            mediaGroup = xmlItem.querySelector("media\\:group") || xmlItem.querySelector("group")
+                        } catch (e) {
+                            // querySelector failed, try getElementsByTagNameNS
+                        }
+                        
+                        // If querySelector didn't work, use namespace-aware method
+                        if (!mediaGroup) {
+                            const groups = xmlItem.getElementsByTagNameNS(mediaNS, "group")
+                            if (groups.length > 0) {
+                                mediaGroup = groups[0]
+                            }
+                        }
+                        
+                        if (mediaGroup) {
+                            // Look for media:thumbnail in media:group
+                            let mediaThumbnail: Element | null = null
+                            
+                            try {
+                                mediaThumbnail = mediaGroup.querySelector("media\\:thumbnail") || 
+                                                mediaGroup.querySelector("thumbnail")
+                            } catch (e) {
+                                // querySelector failed
+                            }
+                            
+                            if (!mediaThumbnail) {
+                                const thumbnails = mediaGroup.getElementsByTagNameNS(mediaNS, "thumbnail")
+                                if (thumbnails.length > 0) {
+                                    mediaThumbnail = thumbnails[0]
+                                }
+                            }
+                            
+                            if (mediaThumbnail && mediaThumbnail.getAttribute("url")) {
+                                const thumbnailUrl = mediaThumbnail.getAttribute("url")
+                                // Add to parsed item if not already present
+                                if (!item.mediaThumbnail) {
+                                    item.mediaThumbnail = [{
+                                        $: { url: thumbnailUrl }
+                                    }]
+                                }
+                            }
+                            
+                            // Look for media:description in media:group
+                            let mediaDescription: Element | null = null
+                            
+                            try {
+                                mediaDescription = mediaGroup.querySelector("media\\:description") || 
+                                                  mediaGroup.querySelector("description")
+                            } catch (e) {
+                                // querySelector failed
+                            }
+                            
+                            if (!mediaDescription) {
+                                const descriptions = mediaGroup.getElementsByTagNameNS(mediaNS, "description")
+                                if (descriptions.length > 0) {
+                                    mediaDescription = descriptions[0]
+                                }
+                            }
+                            
+                            if (mediaDescription && mediaDescription.textContent) {
+                                const descriptionText = mediaDescription.textContent.trim()
+                                // Add to parsed item if not already present
+                                if (!item.mediaDescription) {
+                                    item.mediaDescription = descriptionText
+                                }
+                            }
+                            
+                            // Look for media:content in media:group
+                            let mediaContent: Element | null = null
+                            
+                            try {
+                                mediaContent = mediaGroup.querySelector("media\\:content") || 
+                                              mediaGroup.querySelector("content")
+                            } catch (e) {
+                                // querySelector failed
+                            }
+                            
+                            if (!mediaContent) {
+                                const contents = mediaGroup.getElementsByTagNameNS(mediaNS, "content")
+                                if (contents.length > 0) {
+                                    mediaContent = contents[0]
+                                }
+                            }
+                            
+                            if (mediaContent) {
+                                // Extract content from media:content
+                                // It might have textContent or be a self-closing tag with URL
+                                const contentText = mediaContent.textContent?.trim() || ""
+                                const contentUrl = mediaContent.getAttribute("url") || ""
+                                
+                                // For YouTube, media:content might contain video embed code or URL
+                                // If there's text content, use it; otherwise construct embed from URL
+                                if (contentText) {
+                                    if (!item.content || item.content.trim() === "") {
+                                        item.content = contentText
+                                    }
+                                } else if (contentUrl) {
+                                    // If it's a YouTube video URL, create embed code
+                                    const videoIdMatch = contentUrl.match(/[?&]v=([^&]+)/) || 
+                                                        contentUrl.match(/youtu\.be\/([^?&]+)/) ||
+                                                        contentUrl.match(/embed\/([^?&]+)/)
+                                    if (videoIdMatch) {
+                                        const videoId = videoIdMatch[1]
+                                        const embedHtml = `<iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
+                                        if (!item.content || item.content.trim() === "") {
+                                            item.content = embedHtml
+                                        }
+                                    } else if (!item.content || item.content.trim() === "") {
+                                        // For other media content, use the URL as a link
+                                        item.content = `<a href="${contentUrl}">${contentUrl}</a>`
+                                    }
+                                }
+                            }
+                        } else {
+                            // Also check for media:thumbnail directly in item
+                            let mediaThumbnail: Element | null = null
+                            
+                            try {
+                                mediaThumbnail = xmlItem.querySelector("media\\:thumbnail") || 
+                                                xmlItem.querySelector("thumbnail")
+                            } catch (e) {
+                                // querySelector failed
+                            }
+                            
+                            if (!mediaThumbnail) {
+                                const thumbnails = xmlItem.getElementsByTagNameNS(mediaNS, "thumbnail")
+                                if (thumbnails.length > 0) {
+                                    mediaThumbnail = thumbnails[0]
+                                }
+                            }
+                            
+                            if (mediaThumbnail && mediaThumbnail.getAttribute("url")) {
+                                const thumbnailUrl = mediaThumbnail.getAttribute("url")
+                                if (!item.mediaThumbnail) {
+                                    item.mediaThumbnail = [{
+                                        $: { url: thumbnailUrl }
+                                    }]
+                                }
+                            }
+                            
+                            // Also check for media:description directly in item
+                            let mediaDescription: Element | null = null
+                            
+                            try {
+                                mediaDescription = xmlItem.querySelector("media\\:description") || 
+                                                  xmlItem.querySelector("description")
+                            } catch (e) {
+                                // querySelector failed
+                            }
+                            
+                            if (!mediaDescription) {
+                                const descriptions = xmlItem.getElementsByTagNameNS(mediaNS, "description")
+                                if (descriptions.length > 0) {
+                                    mediaDescription = descriptions[0]
+                                }
+                            }
+                            
+                            if (mediaDescription && mediaDescription.textContent) {
+                                const descriptionText = mediaDescription.textContent.trim()
+                                if (!item.mediaDescription) {
+                                    item.mediaDescription = descriptionText
+                                }
+                            }
+                            
+                            // Also check for media:content directly in item
+                            let mediaContent: Element | null = null
+                            
+                            try {
+                                mediaContent = xmlItem.querySelector("media\\:content") || 
+                                              xmlItem.querySelector("content")
+                            } catch (e) {
+                                // querySelector failed
+                            }
+                            
+                            if (!mediaContent) {
+                                const contents = xmlItem.getElementsByTagNameNS(mediaNS, "content")
+                                if (contents.length > 0) {
+                                    mediaContent = contents[0]
+                                }
+                            }
+                            
+                            if (mediaContent) {
+                                const contentText = mediaContent.textContent?.trim() || ""
+                                const contentUrl = mediaContent.getAttribute("url") || ""
+                                
+                                if (contentText && (!item.content || item.content.trim() === "")) {
+                                    item.content = contentText
+                                } else if (contentUrl && (!item.content || item.content.trim() === "")) {
+                                    const videoIdMatch = contentUrl.match(/[?&]v=([^&]+)/) || 
+                                                        contentUrl.match(/youtu\.be\/([^?&]+)/) ||
+                                                        contentUrl.match(/embed\/([^?&]+)/)
+                                    if (videoIdMatch) {
+                                        const videoId = videoIdMatch[1]
+                                        const embedHtml = `<iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
+                                        item.content = embedHtml
+                                    } else {
+                                        item.content = `<a href="${contentUrl}">${contentUrl}</a>`
+                                    }
+                                }
+                            }
+                        }
+                    }
+                })
+            } catch (e) {
+                // Ignore XML parsing errors, fall back to rss-parser results
+                console.warn("Failed to manually extract media:thumbnail:", e)
+            }
+            
+            return parsed
         } catch {
             throw new Error(intl.get("log.parseError"))
         }
@@ -148,6 +377,61 @@ export async function validateFavicon(url: string) {
         }
     } finally {
         return flag
+    }
+}
+
+// Feed 图标缓存工具函数
+const FEED_ICON_CACHE_PREFIX = "feed-icon-"
+const CACHE_EXPIRY_DAYS = 7 // 1周过期
+
+interface CachedIcon {
+    iconUrl: string
+    timestamp: number
+}
+
+/**
+ * 从缓存获取 feed 图标 URL
+ * @param url feed URL
+ * @returns 图标 URL，如果缓存不存在或已过期则返回 null
+ */
+export function getCachedFeedIcon(url: string): string | null {
+    try {
+        const cacheKey = FEED_ICON_CACHE_PREFIX + url
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+            const data: CachedIcon = JSON.parse(cached)
+            const now = Date.now()
+            const expiryTime = data.timestamp + CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+            
+            // 检查是否过期（超过1周）
+            if (now < expiryTime) {
+                return data.iconUrl
+            } else {
+                // 缓存已过期，删除
+                localStorage.removeItem(cacheKey)
+            }
+        }
+    } catch (error) {
+        // 如果解析失败，忽略错误
+    }
+    return null
+}
+
+/**
+ * 保存 feed 图标 URL 到缓存
+ * @param url feed URL
+ * @param iconUrl 图标 URL
+ */
+export function setCachedFeedIcon(url: string, iconUrl: string): void {
+    try {
+        const cacheKey = FEED_ICON_CACHE_PREFIX + url
+        const data: CachedIcon = {
+            iconUrl: iconUrl,
+            timestamp: Date.now(),
+        }
+        localStorage.setItem(cacheKey, JSON.stringify(data))
+    } catch (error) {
+        // 如果存储失败（如 localStorage 已满），忽略错误
     }
 }
 

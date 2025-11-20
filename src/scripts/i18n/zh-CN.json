@@ -289,7 +289,8 @@
         "serviceManaged": "该订阅源由服务端管理",
         "untitled": "订阅源",
         "errorAdd": "添加订阅源时出错",
-        "successAdd": "订阅源添加成功",
+        "successAdd": "已订阅",
+        "successUnsubscribe": "已取消订阅",
         "errorParse": "解析OPML文件时出错",
         "errorParseHint": "请确保OPML文件完整且使用UTF-8编码。",
         "errorImport": "导入{count}项订阅源时出错",
@@ -315,7 +316,8 @@
         "hidden": "从\"全部文章\"中隐藏",
         "recommendedFeeds": "推荐订阅源",
         "subscribed": "已订阅",
-        "subscribe": "订阅"
+        "subscribe": "订阅",
+        "unsubscribe": "取消订阅"
     },
     "groups": {
         "exist": "该分组已存在",
