@@ -221,13 +221,29 @@ export function showItem(feedId: string, item: RSSItem): AppThunk<Promise<void>>
                     
                     if (sources && sources.length > 0) {
                         const source = sources[0]
-                        source.unreadCount = 0  // 初始化未读数
+                        // 保留数据库中的unreadCount，不重置为0
                         // 添加到store
                         dispatch(updateSourceDone(source))
-                        hasSource = true
+                        // 重新获取state以确保source已更新
+                        const updatedState = getState()
+                        hasSource = updatedState.sources.hasOwnProperty(item.source)
+                        if (hasSource) {
+                            console.log('Successfully loaded source from database:', item.source)
+                        } else {
+                            console.warn('Source loaded but not found in updated state:', item.source)
+                        }
+                    } else {
+                        console.warn('Source not found in database:', item.source)
                     }
+                } else {
+                    console.warn('Database not initialized when trying to load source:', item.source)
                 }
             } catch (error) {
+                console.error('Error loading source from database:', error, {
+                    itemId: item._id,
+                    sourceId: item.source,
+                    feedId: feedId
+                })
             }
         }
         

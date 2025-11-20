@@ -10,8 +10,9 @@ import OpenAI from "openai"
 import type { RSSItem } from "../scripts/models/item"
 import { connect } from "react-redux"
 import { RootState } from "../scripts/reducer"
-import { RSSSource } from "../scripts/models/source"
-import { markRead } from "../scripts/models/item"
+import { RSSSource, updateSourceDone } from "../scripts/models/source"
+import { markRead, fetchItemsSuccess } from "../scripts/models/item"
+import * as db from "../scripts/db"
 import { openItemMenu } from "../scripts/models/app"
 import { showItem } from "../scripts/models/page"
 import { itemShortcuts } from "../scripts/models/item"
@@ -843,16 +844,81 @@ ${articlesText}
             setTimeRangeHasArticles(timeRangeHasArticles)
             
             // 将文章添加到 Redux store，确保可以点击查看
-            const { sources } = this.props
+            const { sources, dispatch } = this.props
             
-            // 确保所有文章的 source 都存在
-            const articlesWithValidSources = articles.filter(item => {
-                const source = sources[item.source]
-                if (!source) {
-                    return false
+            // 收集所有文章的唯一source IDs
+            const sourceIds = new Set<number>()
+            articles.forEach(item => {
+                sourceIds.add(item.source)
+            })
+            
+            // 检查哪些source不在store中，从数据库批量加载
+            const missingSourceIds: number[] = []
+            sourceIds.forEach(sid => {
+                if (!sources[sid]) {
+                    missingSourceIds.push(sid)
                 }
+            })
+            
+            // 批量加载缺失的sources到store
+            if (missingSourceIds.length > 0) {
+                try {
+                    // 等待数据库初始化
+                    let retries = 0
+                    while ((!db.sourcesDB || !db.sources) && retries < 50) {
+                        await new Promise(resolve => setTimeout(resolve, 100))
+                        retries++
+                    }
+                    
+                    if (db.sourcesDB && db.sources) {
+                        const missingSources = await db.sourcesDB
+                            .select()
+                            .from(db.sources)
+                            .where(db.sources.sid.in(missingSourceIds))
+                            .exec() as RSSSource[]
+                        
+                        // 将缺失的sources添加到store，保留数据库中的unreadCount
+                        for (const source of missingSources) {
+                            // 如果source已经在store中，跳过（避免覆盖unreadCount）
+                            if (!sources[source.sid]) {
+                                // 保留数据库中的unreadCount，不重置为0
+                                dispatch(updateSourceDone(source))
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Failed to load missing sources:', error)
+                }
+            }
+            
+            // 确保所有文章的 source 都存在（现在应该都在store中了）
+            // 由于Redux dispatch是同步的，store已经更新了，但props可能还没更新
+            // 我们需要等待一下让props更新，或者直接使用dispatch后的结果
+            // 为了确保准确性，我们重新从props获取sources（虽然可能还没更新，但大部分情况下应该已经更新了）
+            // 如果source仍然不在store中，会在showItem中作为fallback加载
+            const articlesWithValidSources = articles.filter(item => {
+                // 检查当前的sources props
+                let source = sources[item.source]
+                // 如果source不在props中，可能刚加载但props还没更新
+                // 我们仍然允许这些文章通过，因为：
+                // 1. showItem函数会处理source的加载（作为fallback）
+                // 2. ArticleContainer也会尝试加载source
+                if (!source) {
+                    console.warn('Source not found in store after loading attempt, will be loaded on click:', item.source)
+                }
+                // 允许所有文章通过，让showItem和ArticleContainer处理source加载
                 return true
             })
+            
+            // 将所有文章的item添加到Redux store
+            if (articlesWithValidSources.length > 0) {
+                const currentItems = this.props.items
+                const itemState = { ...currentItems }
+                articlesWithValidSources.forEach(item => {
+                    itemState[item._id] = item
+                })
+                dispatch(fetchItemsSuccess(articlesWithValidSources, itemState))
+            }
             
             // 保存筛选后的文章列表
             setArticleCount(articlesWithValidSources.length)
