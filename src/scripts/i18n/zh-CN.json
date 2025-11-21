@@ -265,7 +265,15 @@
                 "noArticlesInTimeRange": "所选时间范围内没有文章",
                 "noArticlesInTimeRangeDescription": "请尝试选择不同的时间范围。",
                 "noArticlesMatchTopic": "没有符合主题的文章",
-                "noArticlesMatchTopicDescription": "请尝试调整主题，或选择不同的时间范围。"
+                "noArticlesMatchTopicDescription": "请尝试调整主题，或选择不同的时间范围。",
+                "tokenStatistics": "Token 使用统计",
+                "chatModel": "对话模型",
+                "embeddingModel": "嵌入模型",
+                "promptTokens": "提示词 Token",
+                "completionTokens": "完成 Token",
+                "totalTokens": "总 Token",
+                "total": "总计",
+                "tokens": "个 Token"
             },
             "errors": {
                 "selectTimeRange": "请先选择文章发布时间",

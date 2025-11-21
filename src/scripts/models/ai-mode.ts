@@ -30,6 +30,19 @@ export type QueryProgress = {
     currentMessage: string  // 当前步骤的详细信息
 }
 
+// Token使用量类型
+export type TokenUsage = {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+}
+
+// Token统计类型
+export type TokenStatistics = {
+    chatModel: TokenUsage
+    embeddingModel: TokenUsage
+}
+
 // ==================== 类型定义 ====================
 
 export class AIModeState {
@@ -74,6 +87,7 @@ export class AIModeState {
     queryProgress: QueryProgress | null = null
     showResults: boolean = false
     timeRangeHasArticles: boolean = false
+    tokenStatistics: TokenStatistics | null = null
 }
 
 // ==================== Action Types ====================
@@ -120,6 +134,7 @@ export const SET_AI_MODE_TIME_RANGE_HAS_ARTICLES = "SET_AI_MODE_TIME_RANGE_HAS_A
 export const UPDATE_AI_MODE_QUERY_PROGRESS = "UPDATE_AI_MODE_QUERY_PROGRESS"
 export const UPDATE_AI_MODE_STEP_STATUS = "UPDATE_AI_MODE_STEP_STATUS"
 export const SET_AI_MODE_SHOW_RESULTS = "SET_AI_MODE_SHOW_RESULTS"
+export const SET_AI_MODE_TOKEN_STATISTICS = "SET_AI_MODE_TOKEN_STATISTICS"
 export const INIT_AI_MODE = "INIT_AI_MODE"
 
 // ==================== Action Creators ====================
@@ -337,6 +352,11 @@ export interface SetAIModeShowResultsAction {
     showResults: boolean
 }
 
+export interface SetAIModeTokenStatisticsAction {
+    type: typeof SET_AI_MODE_TOKEN_STATISTICS
+    tokenStatistics: TokenStatistics | null
+}
+
 export interface InitAIModeAction {
     type: typeof INIT_AI_MODE
 }
@@ -384,6 +404,7 @@ export type AIModeActionTypes =
     | UpdateAIModeQueryProgressAction
     | UpdateAIModeStepStatusAction
     | SetAIModeShowResultsAction
+    | SetAIModeTokenStatisticsAction
     | InitAIModeAction
 
 // ==================== Action Creator Functions ====================
@@ -687,6 +708,13 @@ export function setAIModeShowResults(showResults: boolean): AIModeActionTypes {
     return {
         type: SET_AI_MODE_SHOW_RESULTS,
         showResults
+    }
+}
+
+export function setAIModeTokenStatistics(tokenStatistics: TokenStatistics | null): AIModeActionTypes {
+    return {
+        type: SET_AI_MODE_TOKEN_STATISTICS,
+        tokenStatistics
     }
 }
 
@@ -1011,6 +1039,9 @@ export function aiModeReducer(
 
         case SET_AI_MODE_SHOW_RESULTS:
             return { ...state, showResults: action.showResults }
+
+        case SET_AI_MODE_TOKEN_STATISTICS:
+            return { ...state, tokenStatistics: action.tokenStatistics }
 
         default:
             return state

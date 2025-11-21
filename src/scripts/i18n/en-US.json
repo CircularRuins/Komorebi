@@ -267,7 +267,15 @@
                 "noArticlesInTimeRange": "No articles found in the selected time range",
                 "noArticlesInTimeRangeDescription": "Please try selecting a different time range.",
                 "noArticlesMatchTopic": "No articles match the topic",
-                "noArticlesMatchTopicDescription": "Please try adjusting the topic, or select a different time range."
+                "noArticlesMatchTopicDescription": "Please try adjusting the topic, or select a different time range.",
+                "tokenStatistics": "Token Usage Statistics",
+                "chatModel": "Chat Model",
+                "embeddingModel": "Embedding Model",
+                "promptTokens": "Prompt Tokens",
+                "completionTokens": "Completion Tokens",
+                "totalTokens": "Total Tokens",
+                "total": "Total",
+                "tokens": "tokens"
             },
             "errors": {
                 "selectTimeRange": "Please select article publication time first",

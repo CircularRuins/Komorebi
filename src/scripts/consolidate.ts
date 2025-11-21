@@ -3,7 +3,7 @@ import * as db from "./db"
 import lf from "lovefield"
 import intl from "react-intl-universal"
 import type { RSSItem } from "./models/item"
-import type { QueryProgressStep, QueryProgress, ArticleCluster } from "./models/ai-mode"
+import type { QueryProgressStep, QueryProgress, ArticleCluster, TokenStatistics, TokenUsage } from "./models/ai-mode"
 import {
     TOPIC_INTENT_RECOGNITION_SYSTEM_MESSAGE,
     getTopicIntentRecognitionPrompt,
@@ -38,9 +38,45 @@ export interface ConsolidateCallbacks {
     updateStepStatus: (stepId: string, status: QueryProgressStep['status'], message?: string, progress?: number) => void
     updateQueryProgress?: (progress: Partial<QueryProgress>) => void
     getCurrentQueryProgress?: () => QueryProgress | null
+    updateTokenStatistics?: (tokenStatistics: TokenStatistics) => void
 }
 
 // ==================== 辅助函数 ====================
+
+// 初始化Token统计
+function createInitialTokenStatistics(): TokenStatistics {
+    return {
+        chatModel: {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0
+        },
+        embeddingModel: {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0
+        }
+    }
+}
+
+// 累加Token使用量
+function addTokenUsage(statistics: TokenStatistics, usage: { prompt_tokens?: number, completion_tokens?: number, total_tokens?: number }, isChatModel: boolean): void {
+    if (isChatModel) {
+        // Chat Model: 通常有 prompt_tokens, completion_tokens, total_tokens
+        statistics.chatModel.prompt_tokens += usage.prompt_tokens || 0
+        statistics.chatModel.completion_tokens += usage.completion_tokens || 0
+        statistics.chatModel.total_tokens += usage.total_tokens || 0
+    } else {
+        // Embedding Model: 通常只有 prompt_tokens 和 total_tokens，没有 completion_tokens
+        // 格式: { "prompt_tokens": 184, "total_tokens": 184 }
+        // 只使用API返回的total_tokens
+        const totalTokens = usage.total_tokens ?? 0
+        
+        statistics.embeddingModel.prompt_tokens += usage.prompt_tokens ?? 0
+        statistics.embeddingModel.completion_tokens += 0  // Embeddings API 没有 completion_tokens
+        statistics.embeddingModel.total_tokens += totalTokens
+    }
+}
 
 // 清除所有文章的embedding
 export async function clearArticleEmbeddings(): Promise<void> {
@@ -118,7 +154,9 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
 // textToVectorize: 实际用于计算embedding的文本（可能是HyDE生成的文章或原始主题）
 export async function computeTopicEmbedding(
     textToVectorize: string,
-    config: ConsolidateConfig
+    config: ConsolidateConfig,
+    callbacks?: ConsolidateCallbacks,
+    tokenStatistics?: TokenStatistics
 ): Promise<number[]> {
     const { embeddingApiKey, embeddingModel, embeddingApiBaseURL } = config
 
@@ -142,6 +180,12 @@ export async function computeTopicEmbedding(
             input: trimmedText,
         })
 
+        // 收集token使用量
+        if (response.usage && callbacks && callbacks.updateTokenStatistics && tokenStatistics) {
+            addTokenUsage(tokenStatistics, response.usage, false)
+            callbacks.updateTokenStatistics(tokenStatistics)
+        }
+
         if (response.data && response.data.length > 0 && response.data[0].embedding) {
             const embedding = response.data[0].embedding
             return embedding
@@ -163,7 +207,8 @@ export async function computeTopicEmbedding(
 export async function computeAndStoreEmbeddings(
     articles: RSSItem[],
     config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks
+    callbacks: ConsolidateCallbacks,
+    tokenStatistics?: TokenStatistics
 ): Promise<void> {
     const { embeddingApiKey, embeddingModel, embeddingApiBaseURL } = config
 
@@ -278,6 +323,12 @@ export async function computeAndStoreEmbeddings(
                     input: texts,
                 })
 
+                // 收集token使用量
+                if (response.usage && callbacks.updateTokenStatistics && tokenStatistics) {
+                    addTokenUsage(tokenStatistics, response.usage, false)
+                    callbacks.updateTokenStatistics(tokenStatistics)
+                }
+
                 // 验证响应格式
                 if (!response.data || !Array.isArray(response.data) || response.data.length !== batch.length) {
                     throw new Error(`API返回的embedding数量不正确：期望 ${batch.length} 个，实际 ${response.data?.length || 0} 个`)
@@ -389,7 +440,8 @@ async function stepComputeTopicEmbedding(
     originalTopic: string,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks,
-    isHyDE: boolean = false
+    isHyDE: boolean = false,
+    tokenStatistics?: TokenStatistics
 ): Promise<number[]> {
     const trimmedText = textToVectorize.trim()
     // 如果使用HyDE，显示原始主题；否则显示实际文本
@@ -398,7 +450,7 @@ async function stepComputeTopicEmbedding(
     
     try {
         // 直接调用API计算embedding（不缓存）
-        const topicEmbedding = await computeTopicEmbedding(trimmedText, config)
+        const topicEmbedding = await computeTopicEmbedding(trimmedText, config, callbacks, tokenStatistics)
         callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.topicEmbeddingCompleted"))
         return topicEmbedding
     } catch (error) {
@@ -458,7 +510,8 @@ async function stepLoadEmbeddings(
 async function stepComputeEmbeddings(
     items: RSSItem[],
     config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks
+    callbacks: ConsolidateCallbacks,
+    tokenStatistics?: TokenStatistics
 ): Promise<number> {
     // 过滤出还没有embedding的文章
     const articlesNeedingEmbedding = items.filter(item => {
@@ -475,7 +528,7 @@ async function stepComputeEmbeddings(
     callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.needComputeEmbeddings", { count: articlesNeedingEmbedding.length }), 0)
     
     try {
-        await computeAndStoreEmbeddings(articlesNeedingEmbedding, config, callbacks)
+        await computeAndStoreEmbeddings(articlesNeedingEmbedding, config, callbacks, tokenStatistics)
         
         // 计算完成后，批量重新加载这些文章的embedding
         const computedIds = articlesNeedingEmbedding.map(a => a._id)
@@ -532,7 +585,8 @@ export async function stepVectorRetrieval(
     items: RSSItem[],
     topk: number,
     config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks
+    callbacks: ConsolidateCallbacks,
+    tokenStatistics?: TokenStatistics
 ): Promise<RSSItem[]> {
     callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.startVectorRetrieval"))
     
@@ -540,24 +594,18 @@ export async function stepVectorRetrieval(
     
     try {
         // 子步骤0: 生成HyDE假设文章（失败时直接抛出错误）
-        const hypotheticalArticle = await stepGenerateHyDE(trimmedTopic, config, callbacks)
+        const hypotheticalArticle = await stepGenerateHyDE(trimmedTopic, config, callbacks, tokenStatistics)
         
         // 子步骤1: 计算话题向量（使用假设文章）
         // 传入原始topic作为缓存key，但实际计算使用假设文章
-        const topicEmbedding = await stepComputeTopicEmbedding(hypotheticalArticle, trimmedTopic, config, callbacks, true)
+        const topicEmbedding = await stepComputeTopicEmbedding(hypotheticalArticle, trimmedTopic, config, callbacks, true, tokenStatistics)
         
         // 子步骤2: 加载已有文章向量
         const loadedCount = await stepLoadEmbeddings(items, callbacks)
         
         // 子步骤3: 计算新文章向量
-        const computedCount = await stepComputeEmbeddings(items, config, callbacks)
+        const computedCount = await stepComputeEmbeddings(items, config, callbacks, tokenStatistics)
         
-        // 输出embedding统计日志
-        console.log('=== Embedding 统计 ===')
-        console.log(`总文章数: ${items.length}`)
-        console.log(`从已有embedding加载: ${loadedCount} 篇`)
-        console.log(`重新计算embedding: ${computedCount} 篇`)
-        console.log('====================')
         
         // 子步骤4: 计算相似度并筛选
         callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.calculatingSimilarity"), 0)
@@ -629,7 +677,8 @@ export async function stepVectorRetrieval(
 async function stepRecognizeTopicIntent(
     topic: string,
     config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks
+    callbacks: ConsolidateCallbacks,
+    tokenStatistics?: TokenStatistics
 ): Promise<string> {
     const { chatApiKey, model, chatApiBaseURL } = config
 
@@ -675,9 +724,15 @@ async function stepRecognizeTopicIntent(
 
         const completion = await openai.chat.completions.create(completionParams)
 
+        // 收集token使用量
+        if (completion.usage && callbacks.updateTokenStatistics && tokenStatistics) {
+            addTokenUsage(tokenStatistics, completion.usage, true)
+            callbacks.updateTokenStatistics(tokenStatistics)
+        }
+
         if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
             const responseText = completion.choices[0].message.content || ''
-
+            
             // 解析JSON响应
             let responseData
             try {
@@ -729,7 +784,8 @@ async function stepRecognizeClassificationIntent(
     topic: string,
     classificationStandard: string,
     config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks
+    callbacks: ConsolidateCallbacks,
+    tokenStatistics?: TokenStatistics
 ): Promise<string> {
     const { chatApiKey, model, chatApiBaseURL } = config
 
@@ -776,9 +832,15 @@ async function stepRecognizeClassificationIntent(
 
         const completion = await openai.chat.completions.create(completionParams)
 
+        // 收集token使用量
+        if (completion.usage && callbacks.updateTokenStatistics && tokenStatistics) {
+            addTokenUsage(tokenStatistics, completion.usage, true)
+            callbacks.updateTokenStatistics(tokenStatistics)
+        }
+
         if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
             const responseText = completion.choices[0].message.content || ''
-
+            
             // 解析JSON响应
             let responseData
             try {
@@ -830,7 +892,8 @@ async function stepRecognizeClassificationIntent(
 async function stepGenerateHyDE(
     topic: string,
     config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks
+    callbacks: ConsolidateCallbacks,
+    tokenStatistics?: TokenStatistics
 ): Promise<string> {
     const { chatApiKey, model, chatApiBaseURL } = config
 
@@ -875,6 +938,12 @@ async function stepGenerateHyDE(
         }
 
         const completion = await openai.chat.completions.create(completionParams)
+
+        // 收集token使用量
+        if (completion.usage && callbacks.updateTokenStatistics && tokenStatistics) {
+            addTokenUsage(tokenStatistics, completion.usage, true)
+            callbacks.updateTokenStatistics(tokenStatistics)
+        }
 
         if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
             const responseText = completion.choices[0].message.content || ''
@@ -929,7 +998,8 @@ export async function stepLLMRefine(
     articles: RSSItem[],
     intentGuidance: string,
     config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks
+    callbacks: ConsolidateCallbacks,
+    tokenStatistics?: TokenStatistics
 ): Promise<RSSItem[]> {
     const { chatApiKey, model, chatApiBaseURL } = config
 
@@ -1024,6 +1094,12 @@ Summary: ${snippet}`
             }
             
             const completion = await openai.chat.completions.create(completionParams)
+            
+            // 收集token使用量
+            if (completion.usage && callbacks.updateTokenStatistics && tokenStatistics) {
+                addTokenUsage(tokenStatistics, completion.usage, true)
+                callbacks.updateTokenStatistics(tokenStatistics)
+            }
             
             if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
                 const responseText = completion.choices[0].message.content || ''
@@ -1120,6 +1196,9 @@ export async function consolidate(
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
 ): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, classificationGuidance: string | null }> {
+    // 初始化token统计
+    const tokenStatistics = createInitialTokenStatistics()
+    
     // 在开始之前统一验证所有配置并规范化 URL
     // 验证 Chat API 配置
     if (!config.chatApiEndpoint || !config.chatApiEndpoint.trim()) {
@@ -1204,11 +1283,19 @@ export async function consolidate(
                 overallProgress: 100
             })
         }
+        // 更新token统计
+        if (callbacks.updateTokenStatistics) {
+            callbacks.updateTokenStatistics(tokenStatistics)
+        }
         return { articles: [], timeRangeHasArticles: false, topicGuidance: null, classificationGuidance: null }
     }
 
     // 如果没有话题，直接返回所有文章
     if (!topic || !topic.trim()) {
+        // 更新token统计
+        if (callbacks.updateTokenStatistics) {
+            callbacks.updateTokenStatistics(tokenStatistics)
+        }
         return { articles: items, timeRangeHasArticles: true, topicGuidance: null, classificationGuidance: null }
     }
 
@@ -1222,14 +1309,14 @@ export async function consolidate(
     if (classificationStandard && classificationStandard.trim()) {
         // 并行执行两个意图识别步骤
         const [topicGuidanceResult, classificationGuidanceResult] = await Promise.all([
-            stepRecognizeTopicIntent(trimmedTopic, normalizedConfig, callbacks),
-            stepRecognizeClassificationIntent(trimmedTopic, classificationStandard, normalizedConfig, callbacks)
+            stepRecognizeTopicIntent(trimmedTopic, normalizedConfig, callbacks, tokenStatistics),
+            stepRecognizeClassificationIntent(trimmedTopic, classificationStandard, normalizedConfig, callbacks, tokenStatistics)
         ])
         topicGuidance = topicGuidanceResult
         classificationGuidance = classificationGuidanceResult
     } else {
         // 只有主题意图识别
-        topicGuidance = await stepRecognizeTopicIntent(trimmedTopic, normalizedConfig, callbacks)
+        topicGuidance = await stepRecognizeTopicIntent(trimmedTopic, normalizedConfig, callbacks, tokenStatistics)
     }
 
     // 如果文章数量小于等于topk，不需要计算embedding和相似度，直接进行LLM精选
@@ -1257,7 +1344,7 @@ export async function consolidate(
         }
         
         // 步骤2: LLM精选（使用改写后的查询）
-        const refinedArticles = await stepLLMRefine(items, topicGuidance, normalizedConfig, callbacks)
+        const refinedArticles = await stepLLMRefine(items, topicGuidance, normalizedConfig, callbacks, tokenStatistics)
         
         // 如果LLM精选后没有文章，更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤
         if (refinedArticles.length === 0) {
@@ -1289,10 +1376,10 @@ export async function consolidate(
 
     try {
         // 步骤2: 向量检索（包含向量计算和相似度筛选）
-        const selectedArticles = await stepVectorRetrieval(trimmedTopic, items, topk, normalizedConfig, callbacks)
+        const selectedArticles = await stepVectorRetrieval(trimmedTopic, items, topk, normalizedConfig, callbacks, tokenStatistics)
         
         // 步骤3: LLM精选（使用改写后的查询）
-        const refinedArticles = await stepLLMRefine(selectedArticles, topicGuidance, normalizedConfig, callbacks)
+        const refinedArticles = await stepLLMRefine(selectedArticles, topicGuidance, normalizedConfig, callbacks, tokenStatistics)
         
         // 如果LLM精选后没有文章，立即更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤（包括 classify-articles）
         if (refinedArticles.length === 0) {
@@ -1342,9 +1429,13 @@ export async function classifyArticles(
     topicGuidance: string | null,
     classificationGuidance: string | null,
     config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks
+    callbacks: ConsolidateCallbacks,
+    tokenStatistics?: TokenStatistics
 ): Promise<ArticleCluster[]> {
     const { chatApiKey, model, chatApiBaseURL } = config
+
+    // 如果没有传入 tokenStatistics，创建一个新的（用于单独调用 classifyArticles 的情况）
+    const stats = tokenStatistics || createInitialTokenStatistics()
 
     if (articles.length === 0) {
         return []
@@ -1441,9 +1532,15 @@ Summary: ${snippet}`
 
             const completion = await openai.chat.completions.create(completionParams)
 
+            // 收集token使用量
+            if (completion.usage && callbacks.updateTokenStatistics) {
+                addTokenUsage(stats, completion.usage, true)
+                callbacks.updateTokenStatistics(stats)
+            }
+
             if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
                 const responseText = completion.choices[0].message.content || ''
-
+                
                 // 解析JSON响应
                 let responseData
                 try {
@@ -1566,6 +1663,12 @@ Summary: ${snippet}`
                 }
 
                 const completion = await openai.chat.completions.create(completionParams)
+
+                // 收集token使用量
+                if (completion.usage && callbacks.updateTokenStatistics) {
+                    addTokenUsage(stats, completion.usage, true)
+                    callbacks.updateTokenStatistics(stats)
+                }
 
                 if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
                     const responseText = completion.choices[0].message.content || ''

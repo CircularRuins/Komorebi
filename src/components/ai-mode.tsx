@@ -64,6 +64,7 @@ import {
     updateAIModeQueryProgress,
     updateAIModeStepStatus,
     setAIModeShowResults,
+    setAIModeTokenStatistics,
 } from "../scripts/models/ai-mode"
 import {
     consolidate,
@@ -174,10 +175,110 @@ type AIModeProps = {
     updateQueryProgress: (queryProgress: QueryProgress | null) => void
     updateStepStatus: (stepId: string, status: QueryProgressStep['status'], message?: string, progress?: number) => void
     setShowResults: (showResults: boolean) => void
+    setAIModeTokenStatistics: (tokenStatistics: import("../scripts/models/ai-mode").TokenStatistics | null) => void
 }
 
 // 创建 Context
 export const AIModeContext = React.createContext<AIModeContextType | null>(null)
+
+// Token统计组件
+interface TokenStatisticsProps {
+    tokenStatistics: {
+        chatModel: {
+            prompt_tokens: number
+            completion_tokens: number
+            total_tokens: number
+        }
+        embeddingModel: {
+            prompt_tokens: number
+            completion_tokens: number
+            total_tokens: number
+        }
+    } | null
+}
+
+const TokenStatisticsComponent: React.FC<TokenStatisticsProps> = ({ tokenStatistics }) => {
+    if (!tokenStatistics || !tokenStatistics.chatModel || !tokenStatistics.embeddingModel) {
+        return null
+    }
+
+    return (
+        <div style={{
+            backgroundColor: '#1e1e1e', // Cursor风格的深色背景
+            borderRadius: '8px',
+            padding: '20px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            flexShrink: 0
+        }}>
+            <h3 style={{
+                margin: '0 0 16px 0',
+                fontSize: '16px',
+                fontWeight: 600,
+                color: '#ffffff'
+            }}>
+                {intl.get("settings.aiMode.results.tokenStatistics")}
+            </h3>
+            <div style={{
+                display: 'flex',
+                flexDirection: 'row',
+                gap: '12px'
+            }}>
+                {/* Chat Model统计 */}
+                <div style={{
+                    flex: 1,
+                    padding: '12px',
+                    backgroundColor: '#2a2a2a',
+                    borderRadius: '6px'
+                }}>
+                    <div style={{
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: '#e0e0e0',
+                        marginBottom: '8px'
+                    }}>
+                        Chat Model
+                    </div>
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                        fontSize: '13px',
+                        color: '#a0a0a0'
+                    }}>
+                        <div>Prompt Tokens: {(tokenStatistics.chatModel.prompt_tokens || 0).toLocaleString()}</div>
+                        <div>Completion Tokens: {(tokenStatistics.chatModel.completion_tokens || 0).toLocaleString()}</div>
+                        <div style={{ fontWeight: 600, color: '#e0e0e0' }}>
+                            Total Tokens: {(tokenStatistics.chatModel.total_tokens || 0).toLocaleString()}
+                        </div>
+                    </div>
+                </div>
+                {/* Embedding Model统计 */}
+                <div style={{
+                    flex: 1,
+                    padding: '12px',
+                    backgroundColor: '#2a2a2a',
+                    borderRadius: '6px'
+                }}>
+                    <div style={{
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: '#e0e0e0',
+                        marginBottom: '8px'
+                    }}>
+                        Embedding Model
+                    </div>
+                    <div style={{
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#e0e0e0'
+                    }}>
+                        Total Tokens: {(tokenStatistics.embeddingModel.total_tokens || 0).toLocaleString()}
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
 
 export class AIModeComponent extends React.Component<AIModeProps> {
     static contextType = AIModeContext
@@ -651,6 +752,9 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             updateStepStatus: this.updateStepStatus,
             updateQueryProgress: updateQueryProgress,
             getCurrentQueryProgress: () => aiMode.queryProgress,
+            updateTokenStatistics: (tokenStatistics) => {
+                this.props.setAIModeTokenStatistics(tokenStatistics)
+            }
         }
         
         return await consolidate(timeRangeDays, topic, classificationStandard, config, callbacks)
@@ -697,9 +801,15 @@ export class AIModeComponent extends React.Component<AIModeProps> {
         
         const callbacks: ConsolidateCallbacks = {
             updateStepStatus: this.updateStepStatus,
+            updateTokenStatistics: (tokenStatistics) => {
+                this.props.setAIModeTokenStatistics(tokenStatistics)
+            }
         }
         
-        return await consolidateClassifyArticles(articles, topicGuidance, classificationGuidance, config, callbacks)
+        // 获取当前的tokenStatistics，继续累加而不是重新创建
+        const currentTokenStatistics = aiMode.tokenStatistics || null
+        
+        return await consolidateClassifyArticles(articles, topicGuidance, classificationGuidance, config, callbacks, currentTokenStatistics)
     }
 
     // 生成总结
@@ -1182,7 +1292,13 @@ ${articlesText}
                             </h3>
                         </div>
                         
-                        {clusters.map((cluster) => (
+                        {[...clusters].sort((a, b) => {
+                            // "其他"分类始终排在最后
+                            if (a.id === 'cluster-other') return 1
+                            if (b.id === 'cluster-other') return -1
+                            // 其他分类按文章数量从多到少排序
+                            return b.articles.length - a.articles.length
+                        }).map((cluster) => (
                             <div
                                 key={cluster.id}
                                 style={{
@@ -1569,6 +1685,9 @@ ${articlesText}
                                 </div>
                             </div>
 
+                            {/* Token统计显示 */}
+                            <TokenStatisticsComponent tokenStatistics={aiMode.tokenStatistics} />
+
                             {/* 所有步骤完成后的"查看结果"按钮或"无结果"提示 - 深色卡片 */}
                             {(() => {
                                 // 动态检查所有可见步骤是否完成
@@ -1878,7 +1997,8 @@ const mapDispatchToProps = dispatch => ({
     updateQueryProgress: (queryProgress: QueryProgress | null) => dispatch(updateAIModeQueryProgress(queryProgress)),
     updateStepStatus: (stepId: string, status: QueryProgressStep['status'], message?: string, progress?: number) => 
         dispatch(updateAIModeStepStatus(stepId, status, message, progress)),
-    setShowResults: (showResults: boolean) => dispatch(setAIModeShowResults(showResults))
+    setShowResults: (showResults: boolean) => dispatch(setAIModeShowResults(showResults)),
+    setAIModeTokenStatistics: (tokenStatistics: import("../scripts/models/ai-mode").TokenStatistics | null) => dispatch(setAIModeTokenStatistics(tokenStatistics))
 })
 
 const AIMode = connect(mapStateToProps, mapDispatchToProps, null, { forwardRef: true })(AIModeComponent)
