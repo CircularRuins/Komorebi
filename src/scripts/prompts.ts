@@ -304,24 +304,74 @@ ${topic}
 "${classificationStandard}"
 
 ## Task
-Analyze the topic and classification standard to understand:
-1. What the classification standard means in the context of the topic
-2. How to apply the classification standard to articles that match the topic
-3. What categories or labels should be used - **ONLY categories that are RELEVANT to the topic**
-4. Any specific rules or criteria for classification
+Analyze the topic and classification standard together to understand the user's intent:
+1. **What type of classification is required**: Determine the exact type of entities/items that should be used as classifications based on the standard (e.g., product names, company names, countries, medical specialties, technologies, etc.)
+2. **Strict type matching**: The classification standard defines a specific type - classifications MUST be of that type and nothing else
+3. **Understand the relationship between topic and classification**: The topic and classification standard work together - you need to understand how to extract classifications of the specified type that relate to the topic context
+4. **Contextual relevance**: Extract classifications of the correct type when they appear in the context of the topic, even if the classification type itself doesn't directly relate to the topic
 
 **IMPORTANT: The classification guidance MUST be written in English, regardless of the language of the input.**
+
+## Critical Requirements
+
+### 1. Define the Classification Type Explicitly
+
+**CRITICAL**: The classification standard specifies a TYPE of classification. You must:
+- Identify the exact type of entities/items that should be used as classifications
+- Explicitly state what type of classifications are required (e.g., "product names", "company names", "countries", "medical specialties", "technologies", etc.)
+- Make it clear that classifications MUST be of this type and ONLY this type
+
+**Examples of type definitions:**
+- If standard is "classify by product name" → Classifications MUST be product names (e.g., "iPhone 15", "Canon EOS R5"). NOT company names, NOT technologies, NOT features - ONLY product names.
+- If standard is "classify by company name" → Classifications MUST be company names (e.g., "Apple", "Google", "Microsoft"). NOT product names, NOT technologies, NOT people - ONLY company names.
+- If standard is "classify by country" → Classifications MUST be country names (e.g., "China", "United States", "Japan"). NOT cities, NOT companies, NOT technologies - ONLY countries.
+- If standard is "classify by medical specialty" → Classifications MUST be medical specialties (e.g., "Cardiology", "Oncology", "Pediatrics"). NOT diseases, NOT treatments, NOT hospitals - ONLY medical specialties.
+
+### 2. Strict Type Enforcement
+
+The guidance MUST explicitly state:
+- **What IS a valid classification**: Only entities/items of the specified type
+- **What is NOT a valid classification**: Any other type of entities/items, even if they appear in the article
+- **Type mismatch examples**: Provide clear examples of what should NOT be classified (e.g., if standard is "product names", then company names, technologies, or features mentioned in the article are NOT valid classifications)
+
+### 3. Understanding Topic-Classification Relationship
+
+**CRITICAL**: You must understand how the topic and classification standard work together:
+
+- The classification standard defines **WHAT TYPE** of entities to extract (e.g., countries, companies, products)
+- The topic defines **THE CONTEXT** in which these entities should be extracted
+- You need to extract entities of the specified type when they appear in relation to the topic, even if the type itself doesn't directly relate to the topic
+
+**Examples:**
+- Topic: "人工智能产业" (AI industry), Standard: "按国家分类" (classify by country)
+  - **Understanding**: User wants to classify AI industry articles by country (e.g., "China", "United States", "Japan")
+  - **Extraction rule**: Extract country names when they appear in the context of AI industry discussions
+  - **Valid classifications**: Countries mentioned in relation to AI industry (e.g., "China" for Chinese AI industry, "United States" for US AI industry)
+  - **NOT valid**: Countries mentioned in completely unrelated contexts (e.g., a country mentioned in a weather report within the same article)
+
+- Topic: "相机" (cameras), Standard: "按产品名称分类" (classify by product name)
+  - **Understanding**: User wants to classify camera articles by camera product names
+  - **Extraction rule**: Extract camera product names (e.g., "Canon EOS R5", "Sony A7 III")
+  - **Valid classifications**: Camera product names mentioned in the article
+  - **NOT valid**: Other product names unrelated to cameras (e.g., "iPhone", "MacBook" mentioned in passing)
+
+- Topic: "AI技术" (AI technology), Standard: "按公司名称分类" (classify by company name)
+  - **Understanding**: User wants to classify AI technology articles by company names
+  - **Extraction rule**: Extract company names when they appear in the context of AI technology
+  - **Valid classifications**: Companies mentioned in relation to AI technology (e.g., "OpenAI", "Google", "Microsoft")
+  - **NOT valid**: Companies mentioned in completely unrelated contexts
 
 ## Classification Guidance Requirements
 
 The guidance should:
-1. **Interpret the standard**: Explain what the classification standard means in the context of the topic
-2. **Define categories**: Identify what categories or labels should be used based on the standard - **ONLY categories relevant to the topic**
-3. **Provide criteria**: Specify clear criteria for assigning articles to each category, emphasizing that only topic-relevant classifications should be extracted
-4. **Handle edge cases**: Address how to handle articles that might fit multiple categories or none, and explicitly state that unrelated classifications should be ignored
-5. **Topic relevance requirement**: The guidance MUST explicitly state that only topic-relevant classifications should be extracted, and unrelated classifications should be ignored. For example:
-   - If the topic is about "cameras" and the standard is "classify by product name", ONLY extract camera product names (e.g., "Canon EOS R5", "Sony A7", "Nikon D850"). Do NOT extract other product names that appear in the article but are unrelated to cameras (e.g., "iPhone", "Tesla Model 3", "MacBook Pro").
-   - If the topic is about "AI technology" and the standard is "classify by company name", ONLY extract companies that are relevant to AI (e.g., "OpenAI", "Google", "Microsoft"). Do NOT extract companies mentioned in passing that are unrelated to AI.
+1. **Define the classification type**: Explicitly state what type of entities/items should be used as classifications (e.g., "product names", "company names", "countries", etc.)
+2. **Enforce type strictness**: Clearly state that classifications MUST be of the specified type and nothing else
+3. **Explain topic-classification relationship**: Explain how to extract classifications of the specified type in the context of the topic - when entities of the correct type appear in relation to the topic, they should be extracted
+4. **Provide contextual examples**: Give examples of valid classifications (correct type + contextually related to topic) and invalid classifications (wrong type or completely unrelated context)
+5. **Handle edge cases**: Address how to handle articles that might fit multiple categories or none, and explicitly state that type mismatches should be ignored
+
+**Example structure for the guidance:**
+- "Classify articles by [TYPE] (e.g., product names, company names, countries, etc.). Classifications MUST be [TYPE] and nothing else. Extract [TYPE] when they appear in the context of [topic description]. For example, valid classifications are [examples of correct type in topic context]. Do NOT extract [examples of wrong types] even if they appear in the article. Do NOT extract [TYPE] that appear in completely unrelated contexts within the article."
 
 ## Examples
 
@@ -335,12 +385,18 @@ Return a JSON object with the classification guidance:
 
 **IMPORTANT: The classificationGuidance MUST be written in English.**
 
-The classification guidance should be a clear, detailed description (typically 4-6 sentences) that:
-- Explains how to interpret the classification standard in the context of the topic
-- Defines what categories to use - emphasizing that ONLY topic-relevant categories should be extracted
-- Provides criteria for classification, explicitly stating that unrelated classifications should be ignored
-- Handles edge cases, including what to do when unrelated classifications appear in articles
-- **All text must be in English**
+The classification guidance should be a clear, detailed description (typically 5-8 sentences) that:
+1. **Explicitly defines the classification type**: States what type of entities/items should be used as classifications (e.g., "product names", "company names", "countries", "medical specialties", etc.)
+2. **Enforces type strictness**: Clearly states that classifications MUST be of the specified type and nothing else, with examples of what is valid and what is invalid
+3. **Explains topic-classification relationship**: Explains how to extract classifications of the specified type in the context of the topic - when entities of the correct type appear in relation to the topic, extract them; when they appear in completely unrelated contexts, ignore them
+4. **Provides contextual examples**: Includes examples of valid classifications (correct type + contextually related to topic) and invalid classifications (wrong type or completely unrelated context)
+5. **Handles edge cases**: Addresses how to handle articles with multiple valid classifications or no valid classifications
+6. **All text must be in English**
+
+**Critical**: The guidance MUST:
+- Make it crystal clear what type of classifications are required and what types are NOT allowed
+- Explain how to determine if a classification of the correct type should be extracted based on its relationship to the topic context
+- Provide clear examples showing when to extract (correct type + topic context) and when not to extract (wrong type or unrelated context)
 
 Return the JSON result:`
 }
@@ -410,32 +466,54 @@ Return the JSON result:`
 export const CLASSIFY_ARTICLES_SYSTEM_MESSAGE = `You are a professional article classification assistant, skilled at categorizing articles according to classification standards and guidance. You excel at extracting only topic-relevant classifications and ignoring unrelated classifications. Return results strictly in JSON format, only return JSON objects, do not include any other text.`
 
 export function getClassifyArticlesPrompt(
-    topicGuidance: string | null,
-    classificationGuidance: string | null,
+    classificationGuidance: string,
     articlesText: string
 ): string {
-    const topicText = topicGuidance ? `\n## Topic Guidance (from Intent Recognition)\n${topicGuidance}` : ''
-    const classificationGuidanceText = classificationGuidance ? `\n\n## Classification Guidance (from Intent Recognition)\n${classificationGuidance}\n\n**IMPORTANT:** Follow the classification guidance above carefully. It provides detailed instructions on how to interpret the classification standard and apply it to articles related to the topic.` : ''
+    return `You are tasked with classifying articles according to the classification guidance provided below. You must strictly follow the guidance and only extract classifications that match the criteria specified in the guidance.
 
-    // 如果classificationGuidance存在，它已经包含了主题相关性要求，不需要重复
-    // 如果只有topicGuidance或都没有，需要添加基本要求
-    const topicRelevanceSection = classificationGuidance 
-        ? '' // classificationGuidance已经包含了主题相关性要求，不需要重复
-        : topicGuidance
-            ? `\n## Topic Relevance Requirement\n**CRITICAL REQUIREMENT: Categories must be RELEVANT to the topic. Only extract classifications that are directly related to the topic. Ignore any classifications that are unrelated to the topic, even if they appear in the article.**\n\n**IMPORTANT**: When applying the classification standard, you must ONLY extract classifications that are relevant to the topic. For example:\n- If the topic is about "cameras" and the standard is "classify by product name", you should ONLY extract camera product names (e.g., "Canon EOS R5", "Sony A7", "Nikon D850"). Do NOT extract other product names that appear in the article but are unrelated to cameras (e.g., "iPhone", "Tesla Model 3", "MacBook Pro").\n- If the topic is about "AI technology" and the standard is "classify by company name", you should ONLY extract companies that are relevant to AI (e.g., "OpenAI", "Google", "Microsoft"). Do NOT extract companies mentioned in passing that are unrelated to AI.\n`
-            : `\n## Topic Relevance Requirement\n**CRITICAL REQUIREMENT: Only extract classifications that are directly related to the article's main topic. Ignore any classifications that are unrelated to the article's primary subject matter.**\n`
+## Classification Guidance
+${classificationGuidance}
 
-    return `Classify the following articles according to the provided guidance.${topicText}${classificationGuidanceText}
+## Critical Requirements
 
-## Task
-Assign one or more classification labels to each article based on the classification guidance provided above${topicGuidance ? ' and the topic guidance' : ''}.${topicRelevanceSection}
+**CRITICAL: You must understand and strictly follow the classification guidance above.**
+
+1. **Understand the classification standard**: The guidance above defines:
+   - What type of classifications to extract (e.g., product names, company names, medical specialties, etc.)
+   - What criteria must be met for a classification to be valid
+   - What should be INCLUDED and what should be EXCLUDED
+
+2. **Only extract what the guidance requires**: 
+   - ONLY extract classifications that match the type and criteria specified in the guidance
+   - Do NOT extract classifications that don't match the guidance's requirements
+   - Do NOT create your own classification categories - only use what the guidance explicitly allows
+
+3. **Strict adherence to inclusion/exclusion rules**:
+   - If the guidance says "ONLY extract X", then ONLY extract X - nothing else
+   - If the guidance says "Do NOT extract Y", then do NOT extract Y under any circumstances
+   - If the guidance provides examples of what to include/exclude, follow those examples strictly
+
+4. **When to classify**:
+   - Only create classifications for articles that contain items matching the guidance's criteria
+   - If an article doesn't contain any items that match the guidance, do NOT create any classification for that article
+   - Do NOT force classifications - if there's no match, leave the article unclassified
+
+## Classification Process
+
+For each article:
+1. **Read the classification guidance carefully** - understand what type of classifications to extract
+2. **Analyze the article** - look for items in the title and summary that match the guidance's criteria
+3. **Check against guidance** - verify that any potential classification matches the guidance's requirements
+4. **Extract only valid classifications** - only create classifications for items that strictly match the guidance
+5. **Ignore unrelated items** - if an article mentions items that don't match the guidance, ignore them completely
 
 ## Classification Rules
-1. **Read carefully**: Analyze the title and summary of each article
-2. **Follow guidance**: ${classificationGuidance ? 'Strictly follow the classification guidance provided above. It explains how to interpret the classification standard in the context of the topic and specifies what categories to extract.' : (topicGuidance ? 'Classify based on the topic guidance provided above and the main content and subject matter.' : 'Classify based on the main content and subject matter')}
-${classificationGuidance ? '' : '3. **Topic relevance**: ONLY extract classifications that are directly related to the topic. Do NOT extract classifications that are unrelated to the topic, even if they appear in the article\n'}
-4. **Multiple categories**: An article can belong to multiple categories if it covers multiple topic-relevant aspects (all categories must be topic-relevant)
-5. **Category names**: Keep category names concise (max 20 characters) and descriptive
+
+1. **Strict adherence**: Follow the classification guidance exactly as written - do not interpret it loosely
+2. **Type matching**: Only extract classifications of the type specified in the guidance (e.g., if guidance says "product names", only extract product names, not company names or other types)
+3. **Relevance check**: Only extract classifications that are relevant according to the guidance's criteria
+4. **Multiple categories**: If an article contains multiple items that match the guidance, create separate classification records for each
+5. **Category names**: Use the exact names as they appear in the article or use consistent standard names (max 20 characters)
 6. **Consistency**: Use consistent category names throughout (e.g., don't mix "Apple" and "Apple Inc.")
 
 ## Examples
@@ -443,6 +521,7 @@ ${classificationGuidance ? '' : '3. **Topic relevance**: ONLY extract classifica
 ${formatClassifyArticlesExamples()}
 
 ## Output Format
+
 Return a JSON array with classification records. Each record contains:
 - articleIndex: The article's position in the list (0-based)
 - category: The classification label (string, max 20 characters)
@@ -457,11 +536,11 @@ Format:
 }
 
 **Important:**
-- Every article must have at least one classification (if topic-relevant classifications exist)
-- Only extract classifications that are relevant to the topic - ignore unrelated classifications
-- If an article belongs to multiple topic-relevant categories, create separate records for each
+- Only create classifications for items that strictly match the classification guidance
+- If an article doesn't contain any items matching the guidance, do NOT create any classification for that article
+- Do NOT extract classifications that don't match the guidance's type or criteria
+- If an article belongs to multiple categories that match the guidance, create separate records for each
 - Use consistent category names (e.g., don't mix "Apple" and "Apple Inc.")
-- If no topic-relevant classifications can be found, do not create any classification records for that article
 
 ## Articles to Classify
 ${articlesText}

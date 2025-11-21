@@ -25,6 +25,7 @@ import {
     ArticleCluster,
     QueryProgress,
     QueryProgressStep,
+    TokenStatistics,
     AIModeState,
     updateAIModeTimeRange,
     updateAIModeTopic,
@@ -210,14 +211,16 @@ const TokenStatisticsComponent: React.FC<TokenStatisticsProps> = ({ tokenStatist
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
             flexShrink: 0
         }}>
-            <h3 style={{
+            <div style={{
                 margin: '0 0 16px 0',
-                fontSize: '16px',
+                fontSize: '13px',
                 fontWeight: 600,
-                color: '#ffffff'
+                color: '#858585',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
             }}>
                 {intl.get("settings.aiMode.results.tokenStatistics")}
-            </h3>
+            </div>
             <div style={{
                 display: 'flex',
                 flexDirection: 'row',
@@ -268,11 +271,17 @@ const TokenStatisticsComponent: React.FC<TokenStatisticsProps> = ({ tokenStatist
                         Embedding Model
                     </div>
                     <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
                         fontSize: '13px',
-                        fontWeight: 600,
-                        color: '#e0e0e0'
+                        color: '#a0a0a0'
                     }}>
-                        Total Tokens: {(tokenStatistics.embeddingModel.total_tokens || 0).toLocaleString()}
+                        <div>Prompt Tokens: {(tokenStatistics.embeddingModel.prompt_tokens || 0).toLocaleString()}</div>
+                        <div>Completion Tokens: —</div>
+                        <div style={{ fontWeight: 600, color: '#e0e0e0' }}>
+                            Total Tokens: {(tokenStatistics.embeddingModel.total_tokens || 0).toLocaleString()}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -734,7 +743,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
 
 
     // ==================== 主函数: 查询符合条件的文章（使用consolidate函数）====================
-    queryArticles = async (timeRangeDays: number | null, topic: string | null, classificationStandard: string | null = null): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, classificationGuidance: string | null }> => {
+    queryArticles = async (timeRangeDays: number | null, topic: string | null, classificationStandard: string | null = null): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, classificationGuidance: string | null, tokenStatistics: TokenStatistics }> => {
         const { aiMode, updateQueryProgress } = this.props
         
         const config: ConsolidateConfig = {
@@ -762,7 +771,7 @@ export class AIModeComponent extends React.Component<AIModeProps> {
 
 
     // 对文章进行分类分析
-    classifyArticles = async (articles: RSSItem[], topicGuidance: string | null = null, classificationGuidance: string | null = null): Promise<ArticleCluster[]> => {
+    classifyArticles = async (articles: RSSItem[], topicGuidance: string | null = null, classificationGuidance: string | null = null, tokenStatistics?: TokenStatistics | null): Promise<ArticleCluster[]> => {
         const { aiMode } = this.props
         
         // 验证配置
@@ -806,8 +815,8 @@ export class AIModeComponent extends React.Component<AIModeProps> {
             }
         }
         
-        // 获取当前的tokenStatistics，继续累加而不是重新创建
-        const currentTokenStatistics = aiMode.tokenStatistics || null
+        // 优先使用传入的tokenStatistics参数，如果没有传入则从props读取（保持向后兼容和独立调用支持）
+        const currentTokenStatistics = tokenStatistics !== undefined ? tokenStatistics : (aiMode.tokenStatistics || null)
         
         return await consolidateClassifyArticles(articles, topicGuidance, classificationGuidance, config, callbacks, currentTokenStatistics)
     }
@@ -907,7 +916,7 @@ ${articlesText}
     handleGenerateSummary = async () => {
         const { aiMode } = this.props
         const { timeRange, topicInput } = aiMode
-        const { updateTopic, updateTopicInput, updateClassificationStandard, updateClassificationStandardInput, setLoading, setClustering, setError, setSummary, setArticleCount, setFilteredArticles, setClusters, setTimeRangeHasArticles, updateQueryProgress, setShowResults, setShowErrorDialog, setErrorDialogMessage } = this.props
+        const { updateTopic, updateTopicInput, updateClassificationStandard, updateClassificationStandardInput, setLoading, setClustering, setError, setSummary, setArticleCount, setFilteredArticles, setClusters, setTimeRangeHasArticles, updateQueryProgress, setShowResults, setShowErrorDialog, setErrorDialogMessage, setAIModeTokenStatistics } = this.props
 
         // 验证时间范围必须选择
         if (!timeRange) {
@@ -957,6 +966,7 @@ ${articlesText}
         setClusters([])
         updateQueryProgress(queryProgress)
         setShowResults(false)
+        setAIModeTokenStatistics(null) // 清空 token statistics，确保每次新查询都从零开始
         
         // 通知 Context 更新
         if (typeof window !== 'undefined') {
@@ -970,7 +980,7 @@ ${articlesText}
 
             // 查询文章（根据时间范围和话题）
             const result = await this.queryArticles(timeRangeDays, currentTopic, trimmedClassificationStandard)
-            const { articles, timeRangeHasArticles, topicGuidance, classificationGuidance } = result
+            const { articles, timeRangeHasArticles, topicGuidance, classificationGuidance, tokenStatistics } = result
             
             // 保存时间范围内是否有文章的信息
             setTimeRangeHasArticles(timeRangeHasArticles)
@@ -1117,7 +1127,8 @@ ${articlesText}
 
             // 使用LLM对文章进行分类分析
             try {
-                const clusters = await this.classifyArticles(articlesWithValidSources, topicGuidance, classificationGuidance)
+                // 使用 consolidate 函数返回的 tokenStatistics（这是最新的，不依赖可能过时的 props）
+                const clusters = await this.classifyArticles(articlesWithValidSources, topicGuidance, classificationGuidance, tokenStatistics)
                 
                 setClusters(clusters)
                 setClustering(false)
@@ -1155,7 +1166,7 @@ ${articlesText}
     }
 
     handleClearSummary = () => {
-        const { setSummary, setError, setArticleCount, setFilteredArticles, setClusters, setShowResults, updateQueryProgress } = this.props
+        const { setSummary, setError, setArticleCount, setFilteredArticles, setClusters, setShowResults, updateQueryProgress, setAIModeTokenStatistics } = this.props
         setSummary('')
         setError(null)
         setArticleCount(0)
@@ -1163,6 +1174,7 @@ ${articlesText}
         setClusters([])
         setShowResults(false)
         updateQueryProgress(null)
+        setAIModeTokenStatistics(null)
         
         // 延迟触发事件，确保 Redux 状态更新完成后再更新 Context
         if (typeof window !== 'undefined') {

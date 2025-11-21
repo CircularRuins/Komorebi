@@ -313,7 +313,7 @@ export async function computeAndStoreEmbeddings(
                 const texts = batch.map(article => {
                     // 拼接标题和摘要
                     const title = article.title || ''
-                    const snippet = article.snippet || ''
+                    const snippet = article.snippet || (article.content ? article.content.substring(0, 300) : '')
                     return `${title}\n${snippet}`.trim()
                 })
 
@@ -1054,7 +1054,7 @@ export async function stepLLMRefine(
             // 准备当前批次的文章文本
             const articlesText = batch.map((article, index) => {
                 const dateStr = article.date.toLocaleDateString('en-US')
-                const snippet = article.snippet || (article.content ? article.content.substring(0, 300) : '')
+                const snippet = ((article.snippet || '') + ' ' + (article.content ? article.content.substring(0, 500) : '')).trim()
                 return `Article ${index}:
 Title: ${article.title}
 Published Date: ${dateStr}
@@ -1195,7 +1195,7 @@ export async function consolidate(
     classificationStandard: string | null,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
-): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, classificationGuidance: string | null }> {
+): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, classificationGuidance: string | null, tokenStatistics: TokenStatistics }> {
     // 初始化token统计
     const tokenStatistics = createInitialTokenStatistics()
     
@@ -1287,7 +1287,7 @@ export async function consolidate(
         if (callbacks.updateTokenStatistics) {
             callbacks.updateTokenStatistics(tokenStatistics)
         }
-        return { articles: [], timeRangeHasArticles: false, topicGuidance: null, classificationGuidance: null }
+        return { articles: [], timeRangeHasArticles: false, topicGuidance: null, classificationGuidance: null, tokenStatistics }
     }
 
     // 如果没有话题，直接返回所有文章
@@ -1296,7 +1296,7 @@ export async function consolidate(
         if (callbacks.updateTokenStatistics) {
             callbacks.updateTokenStatistics(tokenStatistics)
         }
-        return { articles: items, timeRangeHasArticles: true, topicGuidance: null, classificationGuidance: null }
+        return { articles: items, timeRangeHasArticles: true, topicGuidance: null, classificationGuidance: null, tokenStatistics }
     }
 
     const trimmedTopic = topic.trim()
@@ -1368,10 +1368,10 @@ export async function consolidate(
                     currentMessage: intl.get("settings.aiMode.progress.messages.completed")
                 })
             }
-            return { articles: [], timeRangeHasArticles: true, topicGuidance, classificationGuidance }
+            return { articles: [], timeRangeHasArticles: true, topicGuidance, classificationGuidance, tokenStatistics }
         }
         
-        return { articles: refinedArticles, timeRangeHasArticles: true, topicGuidance, classificationGuidance }
+        return { articles: refinedArticles, timeRangeHasArticles: true, topicGuidance, classificationGuidance, tokenStatistics }
     }
 
     try {
@@ -1412,10 +1412,10 @@ export async function consolidate(
                     callbacks.updateQueryProgress(finalProgress)
                 }
             }
-            return { articles: [], timeRangeHasArticles: true, topicGuidance, classificationGuidance }
+            return { articles: [], timeRangeHasArticles: true, topicGuidance, classificationGuidance, tokenStatistics }
         }
         
-        return { articles: refinedArticles, timeRangeHasArticles: true, topicGuidance, classificationGuidance }
+        return { articles: refinedArticles, timeRangeHasArticles: true, topicGuidance, classificationGuidance, tokenStatistics }
     } catch (error) {
         throw error
     }
@@ -1491,14 +1491,14 @@ export async function classifyArticles(
             // 准备当前批次的文章文本
             const articlesText = batch.map((article, index) => {
                 const dateStr = article.date.toLocaleDateString('en-US')
-                const snippet = article.snippet || (article.content ? article.content.substring(0, 300) : '')
+                const snippet = ((article.snippet || '') + ' ' + (article.content ? article.content.substring(0, 500) : '')).trim()
                 return `Article ${index}:
 Title: ${article.title}
 Published Date: ${dateStr}
 Summary: ${snippet}`
             }).join('\n\n')
 
-            const prompt = getClassifyArticlesPrompt(topicGuidance, classificationGuidance, articlesText)
+            const prompt = getClassifyArticlesPrompt(classificationGuidance, articlesText)
 
             const openai = new OpenAI({
                 apiKey: chatApiKey,
