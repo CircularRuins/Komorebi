@@ -174,18 +174,7 @@ class Page extends React.Component<PageProps> {
                                     <div className="side-article-wrapper">
                                         <ArticleContainer itemId={this.props.itemId} />
                                     </div>
-                                ) : (
-                                    <div className="side-logo-wrapper">
-                                        <img
-                                            className="light"
-                                            src="icons/logo-outline.svg"
-                                        />
-                                        <img
-                                            className="dark"
-                                            src="icons/logo-outline-dark.svg"
-                                        />
-                                    </div>
-                                )}
+                                ) : null}
                             </div>
                         )}
                     </>

@@ -80,34 +80,11 @@
     content: "/";
     margin: 0 6px;
 }
-.side-article-wrapper,
-.side-logo-wrapper {
+.side-article-wrapper {
     flex-grow: 1;
     padding-top: var(--navHeight);
     height: calc(100% - var(--navHeight));
     background: var(--white);
-}
-.side-logo-wrapper {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-.side-logo-wrapper > img {
-    width: 120px;
-    height: 120px;
-    user-select: none;
-    -webkit-user-drag: none;
-}
-.side-logo-wrapper > img.dark {
-    display: none;
-}
-@media (prefers-color-scheme: dark) {
-    .side-logo-wrapper > img.light {
-        display: none;
-    }
-    .side-logo-wrapper > img.dark {
-        display: inline;
-    }
 }
 .side-article-wrapper .article {
     display: flex;

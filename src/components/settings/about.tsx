@@ -6,7 +6,6 @@ class AboutTab extends React.Component {
     render = () => (
         <div className="tab-body">
             <Stack className="settings-about" horizontalAlign="center">
-                <img src="icons/logo.svg" style={{ width: 120, height: 120 }} />
                 <h3 style={{ fontWeight: 600 }}>Komorebi</h3>
                 <small>
                     {intl.get("settings.version")} {window.utils.getVersion()}
