@@ -806,7 +806,7 @@
         ]
     },
     {
-        "groupName": "wechat",
+        "groupName": "Wechat",
         "feeds": [
             {
                 "name": "人人都是产品经理",
@@ -1267,6 +1267,43 @@
             {
                 "name": "43 Talks",
                 "url": "https://wechat2rss.bestblogs.dev/feed/4efe7ec6970afd4a050d6f10b9e8131a9d5e6816.xml"
+            }
+        ]
+    },
+    {
+        "groupName": "Finance & Economy",
+        "feeds": [
+            {
+                "name": "华尔街日报",
+                "url": "https://cn.wsj.com/zh-hans/rss"
+            },
+            {
+                "name": "财联社快讯",
+                "url": "https://feeds.crabpi.com/cls-telegraph"
+            },
+            {
+                "name": "雪球热门话题",
+                "url": "https://xueqiu.com/hots/topic/rss"
+            },
+            {
+                "name": "Bloomberg - Markets",
+                "url": "https://feeds.bloomberg.com/markets/news.rss"
+            },
+            {
+                "name": "36氪 - 金融",
+                "url": "https://36kr.com/feed"
+            },
+            {
+                "name": "MarketWatch - Top Stories",
+                "url": "https://www.marketwatch.com/rss/topstories"
+            },
+            {
+                "name": "Quartz",
+                "url": "https://qz.com/feed/"
+            },
+            {
+                "name": "FT中文网",
+                "url": "https://www.ftchinese.com/rss/news"
             }
         ]
     }

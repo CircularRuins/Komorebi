@@ -95,7 +95,8 @@ export class RSSSource {
                     if (await validateFavicon(iconUrl)) {
                         source.iconurl = iconUrl
                     } else {
-                        source.iconurl = ""
+                        // 验证失败时设置为undefined，这样addSource会触发updateFavicon从网站HTML获取
+                        source.iconurl = undefined
                     }
                 }
             }
@@ -366,8 +367,8 @@ export function addSource(
                 const feed = await RSSSource.fetchMetaData(source)
                 const inserted = await dispatch(insertSource(source))
                 inserted.unreadCount = feed.items.length
-                // 如果feed中没有图标，再从网站HTML中获取
-                if (!inserted.iconurl) {
+                // 如果feed中没有图标或图标为空字符串，再从网站HTML中获取
+                if (!inserted.iconurl || inserted.iconurl === "") {
                     dispatch(updateFavicon([inserted.sid]))
                 } else {
                     // 如果从XML中获取到了图标，需要更新数据库
