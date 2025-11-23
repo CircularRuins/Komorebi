@@ -287,7 +287,6 @@ img.favicon.dropdown {
     }
     body.darwin .menu-container .menu.item-on {
         background-color: transparent;
-        opacity: 0;
     }
     .menu-container .menu::after {
         content: "";
