@@ -77,16 +77,15 @@ export class FeedFilter {
             cutoffDate.setDate(cutoffDate.getDate() - filter.timeRange)
             predicates.push(db.items.date.gte(cutoffDate))
         }
-        // 特殊值 0 表示"今天"
+        // 特殊值 0 表示"24小时以内"
         if (filter.timeRange === 0) {
-            const todayStart = new Date()
-            todayStart.setHours(0, 0, 0, 0)
-            const todayEnd = new Date()
-            todayEnd.setHours(23, 59, 59, 999)
+            const currentTime = new Date()
+            const cutoffTime = new Date()
+            cutoffTime.setTime(currentTime.getTime() - 24 * 60 * 60 * 1000)
             predicates.push(
                 lf.op.and(
-                    db.items.date.gte(todayStart),
-                    db.items.date.lte(todayEnd)
+                    db.items.date.gte(cutoffTime),
+                    db.items.date.lte(currentTime)
                 )
             )
         }
@@ -117,13 +116,12 @@ export class FeedFilter {
             cutoffDate.setDate(cutoffDate.getDate() - filter.timeRange)
             flag = flag && item.date.getTime() >= cutoffDate.getTime()
         }
-        // 特殊值 0 表示"今天"
+        // 特殊值 0 表示"24小时以内"
         if (filter.timeRange === 0) {
-            const todayStart = new Date()
-            todayStart.setHours(0, 0, 0, 0)
-            const todayEnd = new Date()
-            todayEnd.setHours(23, 59, 59, 999)
-            flag = flag && item.date.getTime() >= todayStart.getTime() && item.date.getTime() <= todayEnd.getTime()
+            const currentTime = new Date()
+            const cutoffTime = new Date()
+            cutoffTime.setTime(currentTime.getTime() - 24 * 60 * 60 * 1000)
+            flag = flag && item.date.getTime() >= cutoffTime.getTime() && item.date.getTime() <= currentTime.getTime()
         }
         return Boolean(flag)
     }

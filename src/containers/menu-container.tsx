@@ -38,11 +38,10 @@ const getTodayUnreadCount = createSelector(
         const todayFeed = feeds[ALL_TODAY]
         if (!todayFeed) return 0
         
-        // 获取今天的开始和结束时间
-        const todayStart = new Date()
-        todayStart.setHours(0, 0, 0, 0)
-        const todayEnd = new Date()
-        todayEnd.setHours(23, 59, 59, 999)
+        // 获取24小时以内的时间范围
+        const currentTime = new Date()
+        const cutoffTime = new Date()
+        cutoffTime.setTime(currentTime.getTime() - 24 * 60 * 60 * 1000)
         
         // 获取所有可见的源ID
         const visibleSids = Object.values(sources)
@@ -54,9 +53,9 @@ const getTodayUnreadCount = createSelector(
             return todayFeed.iids.filter(iid => {
                 const item = items[iid]
                 if (!item || item.hasRead) return false
-                // 检查是否是今天的文章
+                // 检查是否是24小时以内的文章
                 const itemDate = item.date.getTime()
-                return itemDate >= todayStart.getTime() && itemDate <= todayEnd.getTime()
+                return itemDate >= cutoffTime.getTime() && itemDate <= currentTime.getTime()
             }).length
         }
         
@@ -67,9 +66,9 @@ const getTodayUnreadCount = createSelector(
                 visibleSids.includes(item.source) &&
                 !item.hasRead
             ) {
-                // 检查是否是今天的文章
+                // 检查是否是24小时以内的文章
                 const itemDate = item.date.getTime()
-                if (itemDate >= todayStart.getTime() && itemDate <= todayEnd.getTime()) {
+                if (itemDate >= cutoffTime.getTime() && itemDate <= currentTime.getTime()) {
                     count++
                 }
             }

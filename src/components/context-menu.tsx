@@ -8,6 +8,7 @@ import {
     getSearchEngineName,
     platformCtrl,
 } from "../scripts/utils"
+import { SearchEngines } from "../schema-types"
 import {
     ContextualMenu,
     IContextualMenuItem,
@@ -50,7 +51,7 @@ export const renderShareQR = (item: IContextualMenuItem) => (
 )
 
 function getSearchItem(text: string): IContextualMenuItem {
-    const engine = window.settings.getSearchEngine()
+    const engine = SearchEngines.Google
     return {
         key: "searchText",
         text: intl.get("context.search", {

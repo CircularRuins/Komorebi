@@ -4,9 +4,7 @@ import {
     urlTest,
     byteToMB,
     calculateItemSize,
-    getSearchEngineName,
 } from "../../scripts/utils"
-import { SearchEngines } from "../../schema-types"
 import {
     exportAll,
 } from "../../scripts/settings"
@@ -99,20 +97,6 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
         this.props.setFetchInterval(item.key as number)
     }
 
-    searchEngineOptions = (): IDropdownOption[] =>
-        [
-            SearchEngines.Google,
-            SearchEngines.Bing,
-            SearchEngines.Baidu,
-            SearchEngines.DuckDuckGo,
-        ].map(engine => ({
-            key: engine,
-            text: getSearchEngineName(engine),
-        }))
-    onSearchEngineChanged = (item: IDropdownOption) => {
-        window.settings.setSearchEngine(item.key as number)
-    }
-
     deleteOptions = (): IDropdownOption[] => [
         { key: "7", text: intl.get("app.daysAgo", { days: 7 }) },
         { key: "14", text: intl.get("app.daysAgo", { days: 14 }) },
@@ -198,18 +182,6 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
                         defaultSelectedKey={window.settings.getFetchInterval()}
                         options={this.fetchIntervalOptions()}
                         onChanged={this.onFetchIntervalChanged}
-                        style={{ width: 200 }}
-                    />
-                </Stack.Item>
-            </Stack>
-
-            <Label>{intl.get("searchEngine.name")}</Label>
-            <Stack horizontal>
-                <Stack.Item>
-                    <Dropdown
-                        defaultSelectedKey={window.settings.getSearchEngine()}
-                        options={this.searchEngineOptions()}
-                        onChanged={this.onSearchEngineChanged}
                         style={{ width: 200 }}
                     />
                 </Stack.Item>
