@@ -23,14 +23,27 @@ body.vertical {
     --gray: #484644;
     --primary: #0078d4;
     --primary-alt: #004578;
+    color: #323130;
+    background-color: #ffffff;
 }
+/* Force light mode - override dark mode media query */
 @media (prefers-color-scheme: dark) {
     :root {
-        color: #f8f8f8;
-        --gray: #a19f9d;
-        --primary: #4ba0e1;
-        --primary-alt: #65aee6;
+        /* Keep light mode colors even in dark mode */
+        color: #323130;
+        --gray: #484644;
+        --primary: #0078d4;
+        --primary-alt: #004578;
+        background-color: #ffffff;
     }
+    body {
+        background-color: #ffffff;
+        color: #323130;
+    }
+}
+body {
+    background-color: #ffffff;
+    color: #323130;
 }
 
 h1,

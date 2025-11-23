@@ -12,7 +12,7 @@
     max-width: calc(100% - 64px);
     height: calc(100% - 64px);
     max-height: calc(100vh - var(--navHeight) - 64px);
-    background-color: var(--white);
+    background-color: var(--neutralLighterAlt);
     box-shadow: 0 6.4px 14.4px 0 rgba(0, 0, 0, 0.132),
         0 1.2px 3.6px 0 rgba(0, 0, 0, 0.108);
     overflow: hidden;
@@ -36,7 +36,13 @@
     height: 100%;
     user-select: none;
 }
-.article webview,
+.article webview {
+    width: 100%;
+    height: calc(100% - 48px);
+    border: none;
+    color: var(--black);
+    background-color: #ffffff;
+}
 .article .error-prompt {
     width: 100%;
     height: calc(100% - 48px);
@@ -46,13 +52,49 @@
 .article webview.error {
     display: none;
 }
-.article i.ms-Icon {
-    color: var(--neutralDarker);
+/* 文章工具栏使用浅色背景，深色图标和文字 */
+.article > .ms-Stack:first-child {
+    background-color: #ffffff;
 }
 .article .actions {
-    color: var(--black);
-    border-bottom: 1px solid var(--neutralQuaternaryAlt);
+    color: #323130;
+    border-bottom: 1px solid #e1dfdd;
     padding-bottom: 8px;
+    background-color: #ffffff;
+}
+.article .actions .source-name {
+    color: #323130;
+}
+/* 文章容器内的 CommandBarButton 使用浅色背景，深色图标 */
+.article .actions .ms-Button--commandBar,
+.article .ms-Button--commandBar {
+    color: #323130;
+    background-color: transparent;
+}
+.article .actions .ms-Button--commandBar .ms-Button-icon,
+.article .ms-Button--commandBar .ms-Button-icon {
+    color: #323130;
+}
+.article .actions .ms-Button--commandBar:hover,
+.article .ms-Button--commandBar:hover {
+    background-color: #f3f2f1;
+    color: #323130;
+}
+.article .actions .ms-Button--commandBar:hover .ms-Button-icon,
+.article .ms-Button--commandBar:hover .ms-Button-icon {
+    color: #323130;
+}
+.article .actions .ms-Button--commandBar:active,
+.article .ms-Button--commandBar:active {
+    background-color: #edebe9;
+    color: #323130;
+}
+.article .actions .ms-Button--commandBar:active .ms-Button-icon,
+.article .ms-Button--commandBar:active .ms-Button-icon {
+    color: #323130;
+}
+.article i.ms-Icon {
+    color: #323130;
 }
 .article .actions .favicon,
 .article .actions .ms-Spinner {
@@ -72,7 +114,7 @@
     display: inline-block;
 }
 .article .actions .creator {
-    color: var(--neutralSecondaryAlt);
+    color: #8a8886;
     user-select: text;
 }
 .article .actions .creator::before {
@@ -84,7 +126,7 @@
     flex-grow: 1;
     padding-top: var(--navHeight);
     height: calc(100% - var(--navHeight));
-    background: var(--white);
+    background: var(--neutralLighterAlt);
 }
 .side-article-wrapper .article {
     display: flex;
@@ -94,14 +136,14 @@
     border-bottom: none;
 }
 .side-article-wrapper .article > .ms-Stack {
-    border-top: 1px solid var(--neutralQuaternaryAlt);
+    border-top: 1px solid #e1dfdd;
 }
 .list-feed-container:first-child::before,
 .side-article-wrapper::before {
     content: "";
     display: block;
     width: 100%;
-    border-bottom: 1px solid var(--neutralQuaternaryAlt);
+    border-bottom: 1px solid #e1dfdd;
     position: absolute;
     top: calc(var(--navHeight) - 1px);
 }
