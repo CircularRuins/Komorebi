@@ -1,7 +1,6 @@
 import * as React from "react"
 import intl from "react-intl-universal"
 import {
-    Label,
     Pivot,
     PivotItem,
 } from "@fluentui/react"
@@ -164,10 +163,6 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
 
         return (
             <div style={{ marginTop: "24px", paddingBottom: "16px" }}>
-                <Label styles={{ root: { fontSize: '14px', fontWeight: 600 } }}>
-                    {intl.get("sources.recommendedFeeds")}
-                </Label>
-
                 <Pivot
                     selectedKey={selectedGroupKey}
                     onLinkClick={this.handlePivotChange}
@@ -183,10 +178,11 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
                                     style={{
                                         display: "flex",
                                         flexWrap: "wrap",
+                                        justifyContent: "space-between",
                                         gap: "12px",
                                         width: "100%",
                                         maxWidth: "100%",
-                                        maxHeight: "400px",
+                                        maxHeight: "calc(100vh - 322px)",
                                         overflowY: "auto",
                                         overflowX: "hidden",
                                         boxSizing: "border-box",
@@ -211,6 +207,15 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
                             </div>
                         </PivotItem>
                     ))}
+                    <PivotItem
+                        key="more"
+                        headerText={intl.get("more")}
+                        itemKey="more"
+                    >
+                        <div style={{ padding: "4px 16px", boxSizing: "border-box" }}>
+                            {/* More tab content - to be implemented */}
+                        </div>
+                    </PivotItem>
                 </Pivot>
             </div>
         )

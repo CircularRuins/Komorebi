@@ -17,6 +17,7 @@ import {
     Dropdown,
     IDropdownOption,
     PrimaryButton,
+    ProgressIndicator,
 } from "@fluentui/react"
 import DangerButton from "../utils/danger-button"
 
@@ -25,6 +26,12 @@ type AppTabProps = {
     setFetchInterval: (interval: number) => void
     deleteArticles: (days: number) => Promise<void>
     importAll: () => Promise<void>
+    importOPML: (onError?: (title: string, content: string) => void) => void
+    exportOPML: () => void
+    isOPMLImport: boolean
+    fetchingItems: boolean
+    fetchingTotal: number
+    fetchingProgress: number
 }
 
 type AppTabState = {
@@ -33,6 +40,9 @@ type AppTabState = {
     itemSize: string
     cacheSize: string
     deleteIndex: string
+    showImportErrorDialog: boolean
+    importErrorTitle: string
+    importErrorContent: string
 }
 
 class AppTab extends React.Component<AppTabProps, AppTabState> {
@@ -44,6 +54,9 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
             itemSize: null,
             cacheSize: null,
             deleteIndex: null,
+            showImportErrorDialog: false,
+            importErrorTitle: "",
+            importErrorContent: "",
         }
         this.getItemSize()
         this.getCacheSize()
@@ -158,8 +171,29 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
             window.settings.setProxy(this.state.pacUrl)
     }
 
+    handleImportError = (title: string, content: string) => {
+        this.setState({
+            showImportErrorDialog: true,
+            importErrorTitle: title,
+            importErrorContent: content,
+        })
+    }
+
+    handleCloseImportErrorDialog = () => {
+        this.setState({
+            showImportErrorDialog: false,
+            importErrorTitle: "",
+            importErrorContent: "",
+        })
+    }
+
+    handleCopyImportError = () => {
+        const text = `${this.state.importErrorTitle}: ${this.state.importErrorContent}`
+        window.utils.writeClipboard(text)
+    }
+
     render = () => (
-        <div className="tab-body">
+        <div className="tab-body" style={{ position: 'relative' }}>
             <Label>{intl.get("app.language")}</Label>
             <Stack horizontal>
                 <Stack.Item>
@@ -288,6 +322,114 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
                     />
                 </Stack.Item>
             </Stack>
+
+            <Label styles={{ root: { fontSize: '14px', fontWeight: 600, marginTop: '32px' } }}>{intl.get("sources.opmlFile")}</Label>
+            <Stack horizontal>
+                <Stack.Item>
+                    <PrimaryButton
+                        onClick={() => this.props.importOPML(this.handleImportError)}
+                        text={intl.get("sources.import")}
+                        styles={{
+                            root: {
+                                height: '28px',
+                                minWidth: '80px',
+                                fontSize: '13px',
+                            },
+                        }}
+                    />
+                </Stack.Item>
+                <Stack.Item>
+                    <DefaultButton
+                        onClick={this.props.exportOPML}
+                        text={intl.get("sources.export")}
+                        styles={{
+                            root: {
+                                height: '28px',
+                                minWidth: '80px',
+                                fontSize: '13px',
+                            },
+                        }}
+                    />
+                </Stack.Item>
+            </Stack>
+            {this.props.isOPMLImport && this.props.fetchingItems && this.props.fetchingTotal > 0 && (
+                <div style={{ marginTop: '12px' }}>
+                    <ProgressIndicator
+                        percentComplete={this.props.fetchingProgress / this.props.fetchingTotal}
+                    />
+                </div>
+            )}
+
+            {/* OPML导入错误对话框 */}
+            {this.state.showImportErrorDialog && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 1000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        pointerEvents: 'none',
+                    }}
+                    onClick={this.handleCloseImportErrorDialog}>
+                    {/* 对话框内容 */}
+                    <div
+                        style={{
+                            position: 'relative',
+                            backgroundColor: 'var(--white)',
+                            borderRadius: '4px',
+                            padding: '20px',
+                            maxWidth: '400px',
+                            width: '85%',
+                            boxShadow: '0 6.4px 14.4px rgba(0, 0, 0, 0.132), 0 1.2px 3.6px rgba(0, 0, 0, 0.108)',
+                            maxHeight: '80%',
+                            overflow: 'auto',
+                            pointerEvents: 'auto',
+                        }}
+                        onClick={(e) => e.stopPropagation()}>
+                        {/* 标题 */}
+                        <div style={{ marginBottom: '12px' }}>
+                            <h2 style={{ 
+                                margin: 0, 
+                                fontSize: '18px', 
+                                fontWeight: 600, 
+                                color: 'var(--neutralPrimary)' 
+                            }}>
+                                {this.state.importErrorTitle}
+                            </h2>
+                        </div>
+                        {/* 错误内容区域 */}
+                        <div style={{ 
+                            marginBottom: '16px', 
+                            color: 'var(--neutralPrimary)', 
+                            fontSize: '13px', 
+                            whiteSpace: 'pre-wrap',
+                            lineHeight: '1.5',
+                        }}>
+                            {this.state.importErrorContent}
+                        </div>
+                        {/* 按钮区域 */}
+                        <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'flex-end',
+                            gap: '8px',
+                        }}>
+                            <DefaultButton 
+                                onClick={this.handleCopyImportError} 
+                                text={intl.get("context.copy")} 
+                            />
+                            <DefaultButton 
+                                onClick={this.handleCloseImportErrorDialog} 
+                                text={intl.get("confirm")} 
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

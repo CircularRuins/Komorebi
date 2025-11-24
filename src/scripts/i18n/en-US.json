@@ -172,10 +172,10 @@
                     "14": "Within 14 days"
                 },
                 "topic": "Topic (Required)",
-                "topicHint": "Flexibly enter topics you care about, such as: progress in AI programming, latest developments in building materials industry, etc.",
+                "topicHint": "Freely fill in topics you care about, such as: US stocks, AI applications in the medical field, etc.",
                 "recentTopics": "Recent Topics",
                 "classificationStandard": "Classification Standard (Optional)",
-                "classificationStandardHint": "Guide AI to organize by category. For example, when the topic is progress in AI programming, you can fill in: classify by product name. When the topic is latest developments in building materials industry, you can fill in: classify by company. If left blank, all articles matching the topic will be displayed directly without classification.",
+                "classificationStandardHint": "Freely fill in classification standards to guide AI to organize by category, such as: classify by product name, classify by company name, etc. If left blank, all articles matching the topic will be displayed directly without classification.",
                 "recentStandards": "Recent Classification Standards",
                 "generate": "Consolidate",
                 "clear": "Clear Results"
@@ -289,10 +289,10 @@
             },
             "placeholder": {
                 "title": "AI Assistant - Article Consolidate",
-                "description": "Set options in the left menu bar, then click the \"Consolidate\" button to generate a summary",
+                "description": "Set options in the left menu bar, then click \"Consolidate\"",
                 "timeRangeHint": "Filter by article publication time.",
-                "topicHint": "Flexibly enter topics you care about, such as: progress in AI programming, latest developments in building materials industry, etc.",
-                "classificationStandardHint": "Guide AI to organize by category. For example, when the topic is progress in AI programming, you can fill in: classify by product name. When the topic is latest developments in building materials industry, you can fill in: classify by company. If left blank, all articles matching the topic will be displayed directly without classification."
+                "topicHint": "Freely fill in topics you care about, such as: US stocks, AI applications in the medical field, etc.",
+                "classificationStandardHint": "Freely fill in classification standards to guide AI to organize by category, such as: classify by product name, classify by company name, etc. If left blank, all articles matching the topic will be displayed directly without classification."
             },
             "common": {
                 "error": "Error",
@@ -334,7 +334,9 @@
         "recommendedFeeds": "Recommended Feeds",
         "subscribed": "Followed",
         "subscribe": "Follow",
-        "unsubscribe": "Unsubscribe"
+        "unsubscribe": "Unsubscribe",
+        "youMightLike": "Suggested",
+        "exploreMore": "More"
     },
     "groups": {
         "exist": "This group already exists.",

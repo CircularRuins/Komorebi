@@ -1,4 +1,6 @@
 import { connect } from "react-redux"
+import { createSelector } from "reselect"
+import { RootState } from "../../scripts/reducer"
 import {
     initIntl,
     saveSettings,
@@ -8,7 +10,23 @@ import * as db from "../../scripts/db"
 import AppTab from "../../components/settings/app"
 import { importAll } from "../../scripts/settings"
 import { updateUnreadCounts } from "../../scripts/models/source"
+import { importOPML, exportOPML } from "../../scripts/models/group"
 import { AppDispatch } from "../../scripts/utils"
+
+const getFetchingItems = (state: RootState) => state.app.fetchingItems
+const getFetchingTotal = (state: RootState) => state.app.fetchingTotal
+const getFetchingProgress = (state: RootState) => state.app.fetchingProgress
+const getIsOPMLImport = (state: RootState) => state.app.isOPMLImport
+
+const mapStateToProps = createSelector(
+    [getFetchingItems, getFetchingTotal, getFetchingProgress, getIsOPMLImport],
+    (fetchingItems, fetchingTotal, fetchingProgress, isOPMLImport) => ({
+        fetchingItems: fetchingItems,
+        fetchingTotal: fetchingTotal,
+        fetchingProgress: fetchingProgress,
+        isOPMLImport: isOPMLImport,
+    })
+)
 
 const mapDispatchToProps = (dispatch: AppDispatch) => ({
     setLanguage: (option: string) => {
@@ -36,7 +54,10 @@ const mapDispatchToProps = (dispatch: AppDispatch) => ({
         let cancelled = await importAll()
         if (cancelled) dispatch(saveSettings())
     },
+    importOPML: (onError?: (title: string, content: string) => void) => 
+        dispatch(importOPML(onError)),
+    exportOPML: () => dispatch(exportOPML()),
 })
 
-const AppTabContainer = connect(null, mapDispatchToProps)(AppTab)
+const AppTabContainer = connect(mapStateToProps, mapDispatchToProps)(AppTab)
 export default AppTabContainer

@@ -9,7 +9,6 @@ import {
     MessageBar,
     MessageBarType,
     Icon,
-    ProgressIndicator,
 } from "@fluentui/react"
 import {
     SourceState,
@@ -22,22 +21,13 @@ import RecommendedFeeds from "./recommended-feeds"
 type SourcesTabProps = {
     sources: SourceState
     serviceOn: boolean
-    fetchingItems: boolean
-    fetchingTotal: number
-    fetchingProgress: number
-    isOPMLImport: boolean
     addSource: (url: string) => Promise<number>
     deleteSource: (source: RSSSource) => Promise<void>
     clearSourceIcon: (source: RSSSource) => void
-    importOPML: (onError?: (title: string, content: string) => void) => void
-    exportOPML: () => void
 }
 
 type SourcesTabState = {
     showSuccessMessage: boolean
-    showImportErrorDialog: boolean
-    importErrorTitle: string
-    importErrorContent: string
     newUrl: string
     recommendedFeeds: RecommendedFeedGroup[]
     isSubscribing: { [url: string]: boolean }
@@ -53,9 +43,6 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         this.state = {
             newUrl: "",
             showSuccessMessage: false,
-            showImportErrorDialog: false,
-            importErrorTitle: "",
-            importErrorContent: "",
             recommendedFeeds: [],
             isSubscribing: {},
             lastOperationType: null,
@@ -85,27 +72,6 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         if ((event.metaKey || event.ctrlKey) && event.key === 'v') {
             event.stopPropagation()
         }
-    }
-
-    handleImportError = (title: string, content: string) => {
-        this.setState({
-            showImportErrorDialog: true,
-            importErrorTitle: title,
-            importErrorContent: content,
-        })
-    }
-
-    handleCloseImportErrorDialog = () => {
-        this.setState({
-            showImportErrorDialog: false,
-            importErrorTitle: "",
-            importErrorContent: "",
-        })
-    }
-
-    handleCopyImportError = () => {
-        const text = `${this.state.importErrorTitle}: ${this.state.importErrorContent}`
-        window.utils.writeClipboard(text)
     }
 
     addSource = async (event: React.FormEvent) => {
@@ -224,52 +190,11 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                     </span>
                 </Stack>
             )}
-            {/* OPML导入导出部分 */}
-            <div style={{ marginTop: '0', marginBottom: '32px' }}>
-                <Label styles={{ root: { fontSize: '14px', fontWeight: 600 } }}>{intl.get("sources.opmlFile")}</Label>
-                <Stack horizontal>
-                    <Stack.Item>
-                        <PrimaryButton
-                            onClick={() => this.props.importOPML(this.handleImportError)}
-                            text={intl.get("sources.import")}
-                            styles={{
-                                root: {
-                                    height: '28px',
-                                    minWidth: '80px',
-                                    fontSize: '13px',
-                                },
-                            }}
-                        />
-                    </Stack.Item>
-                    <Stack.Item>
-                        <DefaultButton
-                            onClick={this.props.exportOPML}
-                            text={intl.get("sources.export")}
-                            styles={{
-                                root: {
-                                    height: '28px',
-                                    minWidth: '80px',
-                                    fontSize: '13px',
-                                },
-                            }}
-                        />
-                    </Stack.Item>
-                </Stack>
-                {this.props.isOPMLImport && this.props.fetchingItems && this.props.fetchingTotal > 0 && (
-                    <div style={{ marginTop: '12px' }}>
-                        <ProgressIndicator
-                            percentComplete={this.props.fetchingProgress / this.props.fetchingTotal}
-                        />
-                    </div>
-                )}
-            </div>
-
             {/* 添加订阅源部分 */}
             <div style={{ marginTop: '32px', marginBottom: '32px' }}>
                 <form onSubmit={this.addSource}>
-                <Label htmlFor="newUrl" styles={{ root: { fontSize: '14px', fontWeight: 600 } }}>{intl.get("sources.add")}</Label>
                 <Stack horizontal>
-                    <Stack.Item grow>
+                    <Stack.Item styles={{ root: { width: "66.67%" } }}>
                         <TextField
                             onGetErrorMessage={v => {
                                 const trimmed = v.trim()
@@ -280,7 +205,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                                     : intl.get("sources.badUrl")
                             }}
                             validateOnLoad={false}
-                            placeholder={intl.get("sources.inputUrl")}
+                            placeholder="RSS URL"
                             value={this.state.newUrl}
                             id="newUrl"
                             name="newUrl"
@@ -292,7 +217,19 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                         <PrimaryButton
                             disabled={!urlTest(this.state.newUrl.trim())}
                             type="submit"
-                            text={intl.get("add")}
+                            iconProps={{ iconName: "Add" }}
+                            styles={{
+                                root: {
+                                    minWidth: "32px",
+                                    width: "32px",
+                                    height: "32px",
+                                    padding: 0,
+                                },
+                                icon: {
+                                    fontSize: "16px",
+                                },
+                            }}
+                            title={intl.get("add")}
                         />
                     </Stack.Item>
                 </Stack>
@@ -308,77 +245,6 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                         onSubscribe={this.handleSubscribeRecommended}
                         isSubscribing={this.state.isSubscribing}
                     />
-                </div>
-            )}
-
-            {/* OPML导入错误对话框 */}
-            {this.state.showImportErrorDialog && (
-                <div
-                    style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        zIndex: 1000,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        pointerEvents: 'none',
-                    }}
-                    onClick={this.handleCloseImportErrorDialog}>
-                    {/* 对话框内容 */}
-                    <div
-                        style={{
-                            position: 'relative',
-                            backgroundColor: 'var(--white)',
-                            borderRadius: '4px',
-                            padding: '20px',
-                            maxWidth: '400px',
-                            width: '85%',
-                            boxShadow: '0 6.4px 14.4px rgba(0, 0, 0, 0.132), 0 1.2px 3.6px rgba(0, 0, 0, 0.108)',
-                            maxHeight: '80%',
-                            overflow: 'auto',
-                            pointerEvents: 'auto',
-                        }}
-                        onClick={(e) => e.stopPropagation()}>
-                        {/* 标题 */}
-                        <div style={{ marginBottom: '12px' }}>
-                            <h2 style={{ 
-                                margin: 0, 
-                                fontSize: '18px', 
-                                fontWeight: 600, 
-                                color: 'var(--neutralPrimary)' 
-                            }}>
-                                {this.state.importErrorTitle}
-                            </h2>
-                        </div>
-                        {/* 错误内容区域 */}
-                        <div style={{ 
-                            marginBottom: '16px', 
-                            color: 'var(--neutralPrimary)', 
-                            fontSize: '13px', 
-                            whiteSpace: 'pre-wrap',
-                            lineHeight: '1.5',
-                        }}>
-                            {this.state.importErrorContent}
-                        </div>
-                        {/* 按钮区域 */}
-                        <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'flex-end',
-                            gap: '8px',
-                        }}>
-                            <DefaultButton 
-                                onClick={this.handleCopyImportError} 
-                                text={intl.get("context.copy")} 
-                            />
-                            <DefaultButton 
-                                onClick={this.handleCloseImportErrorDialog} 
-                                text={intl.get("confirm")} 
-                            />
-                        </div>
-                    </div>
                 </div>
             )}
         </div>

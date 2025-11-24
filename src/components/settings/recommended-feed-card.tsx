@@ -1,11 +1,9 @@
 import * as React from "react"
 import intl from "react-intl-universal"
 import {
-    Stack,
     Icon,
 } from "@fluentui/react"
 import { RecommendedFeed } from "../../scripts/utils/recommended-feeds"
-import { fetchFavicon } from "../../scripts/utils"
 
 type RecommendedFeedCardProps = {
     feed: RecommendedFeed
@@ -26,6 +24,13 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
         if (!isSubscribing) {
             await onSubscribe(feed)
         }
+    }
+
+    const truncateText = (text: string, maxLength: number): string => {
+        if (text.length <= maxLength) {
+            return text
+        }
+        return text.substring(0, maxLength) + "..."
     }
 
     return (
@@ -107,8 +112,7 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
                         minWidth: 0,
                         overflow: "hidden",
                         display: "flex",
-                        alignItems: "center",
-                        minHeight: "28px",
+                        flexDirection: "column",
                     }}
                 >
                     <div
@@ -120,8 +124,22 @@ const RecommendedFeedCard: React.FunctionComponent<RecommendedFeedCardProps> = (
                             lineHeight: "1.4",
                             wordBreak: "break-word",
                         }}
+                        title={feed.name}
                     >
-                        {feed.name}
+                        {truncateText(feed.name, 18)}
+                    </div>
+                    <div
+                        style={{
+                            fontSize: "10px",
+                            fontWeight: 400,
+                            color: "var(--neutralSecondary)",
+                            width: "100%",
+                            lineHeight: "1.4",
+                            marginTop: "3px",
+                        }}
+                        title={feed.url}
+                    >
+                        {truncateText(feed.url, 22)}
                     </div>
                 </div>
 

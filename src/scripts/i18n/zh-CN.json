@@ -117,7 +117,7 @@
         "writeError": "写入文件时发生错误",
         "name": "选项",
         "fetching": "正在更新订阅源，请稍候…",
-        "exit": "退出选项",
+        "exit": "退出",
         "sources": "订阅源",
         "ai": "AI配置",
         "grouping": "分组与排序",
@@ -170,10 +170,10 @@
                     "14": "14天内"
                 },
                 "topic": "主题（必填）",
-                "topicHint": "灵活输入您关注的主题，如：AI编程领域的进展、建材行业的最新动态等。",
+                "topicHint": "自由填写您关注的主题，如：美股、AI在医药领域的应用等。",
                 "recentTopics": "常选主题",
                 "classificationStandard": "分类标准（可选）",
-                "classificationStandardHint": "指导AI按照类别整理，如：当主题是AI编程领域的进展时，可填写：按产品名称分类。当主题是建材行业的最新动态时，可填写：按公司分类。如不填写，则直接展示所有符合主题的文章，不进行分类。",
+                "classificationStandardHint": "自由填写分类标准，指导AI按照类别整理，如：按产品名称分类、按公司名称分类等。如不填写，则直接展示所有符合主题的文章，不进行分类。",
                 "recentStandards": "常用分类标准",
                 "generate": "整理汇总",
                 "clear": "清空结果"
@@ -287,10 +287,10 @@
             },
             "placeholder": {
                 "title": "AI助手-文章整理汇总",
-                "description": "在左侧菜单栏设定好选项，然后点击\"整理汇总\"按钮生成总结",
+                "description": "在左侧菜单栏设定好选项，然后点击\"整理汇总\"",
                 "timeRangeHint": "根据文章发布时间筛选。",
-                "topicHint": "灵活输入您关注的主题，如：AI编程领域的进展、建材行业的最新动态等。",
-                "classificationStandardHint": "指导AI按照类别整理，如：当主题是AI编程领域的进展时，可填写：按产品名称分类。当主题是建材行业的最新动态时，可填写：按公司分类。如不填写，则直接展示所有符合主题的文章，不进行分类。"
+                "topicHint": "自由填写您关注的主题，如：美股、AI在医药领域的应用等。",
+                "classificationStandardHint": "自由填写分类标准，指导AI按照类别整理，如：按产品名称分类、按公司名称分类等。如不填写，则直接展示所有符合主题的文章，不进行分类。"
             },
             "common": {
                 "error": "错误",
@@ -332,7 +332,9 @@
         "recommendedFeeds": "推荐订阅源",
         "subscribed": "已订阅",
         "subscribe": "订阅",
-        "unsubscribe": "取消订阅"
+        "unsubscribe": "取消订阅",
+        "youMightLike": "推荐",
+        "exploreMore": "更多"
     },
     "groups": {
         "exist": "该分组已存在",
