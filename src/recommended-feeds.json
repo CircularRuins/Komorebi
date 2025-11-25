@@ -115,10 +115,6 @@
                 "url": "https://api.xgo.ing/rss/user/a636de3cbda0495daabd15b9fd298614"
             },
             {
-                "name": "李继刚",
-                "url": "https://api.xgo.ing/rss/user/ca2fa444b6ea4b8b974fe148056e497a"
-            },
-            {
                 "name": "Demis Hassabis",
                 "url": "https://api.xgo.ing/rss/user/4a884d5e2f3740c5a26c9c093de6388a"
             },
@@ -295,10 +291,6 @@
                 "url": "https://api.xgo.ing/rss/user/b3d904c0d7c446558ef3a1e7f2eb362b"
             },
             {
-                "name": "Dify",
-                "url": "https://api.xgo.ing/rss/user/0be252fedbe84ad7bea21be44b18da89"
-            },
-            {
                 "name": "Julien Chaumond",
                 "url": "https://api.xgo.ing/rss/user/44d9fa384087448a94d3c8595f8d535e"
             },
@@ -353,10 +345,6 @@
             {
                 "name": "Varun Mohan",
                 "url": "https://api.xgo.ing/rss/user/7794c4268a504019a94af1778857a703"
-            },
-            {
-                "name": "宝玉",
-                "url": "https://api.xgo.ing/rss/user/97f1484ae48c430fbbf3438099743674"
             },
             {
                 "name": "ManusAI",
@@ -451,10 +439,6 @@
                 "url": "https://api.xgo.ing/rss/user/68b610deb24b47ae9a236811563cda86"
             },
             {
-                "name": "歸藏(guizang.ai)",
-                "url": "https://api.xgo.ing/rss/user/831fac36aa0a49a9af79f35dc1c9b5d9"
-            },
-            {
                 "name": "Dia",
                 "url": "https://api.xgo.ing/rss/user/6384ee3c656c48fea5e8b3cdacece4d0"
             },
@@ -471,20 +455,12 @@
                 "url": "https://api.xgo.ing/rss/user/179bcc4b8e5d4274b6e9e935f9fd4434"
             },
             {
-                "name": "小互",
-                "url": "https://api.xgo.ing/rss/user/74e542992cf7441390c708f5601071d4"
-            },
-            {
                 "name": "cat",
                 "url": "https://api.xgo.ing/rss/user/66a6b39ddcfa42e39621e0ab293c1bdd"
             },
             {
                 "name": "Augment Code",
                 "url": "https://api.xgo.ing/rss/user/e153fdd077df458b8298d975c060dcc3"
-            },
-            {
-                "name": "向阳乔木",
-                "url": "https://api.xgo.ing/rss/user/9de19c78f7454ad08c956c1a00d237fe"
             },
             {
                 "name": "Fellou",
@@ -579,10 +555,6 @@
                 "url": "https://api.xgo.ing/rss/user/9f35c76341554bd78c2b9e63dc4fa5d8"
             },
             {
-                "name": "meng shao",
-                "url": "https://api.xgo.ing/rss/user/48aae530e0bf413aa7d44380f418e2e3"
-            },
-            {
                 "name": "Jan Leike",
                 "url": "https://api.xgo.ing/rss/user/dceb5cd131b34c72a8376cba8ea5d864"
             },
@@ -601,10 +573,6 @@
             {
                 "name": "Suhail",
                 "url": "https://api.xgo.ing/rss/user/c961547e08df4396b3ab69367a07a1cd"
-            },
-            {
-                "name": "AI产品黄叔",
-                "url": "https://api.xgo.ing/rss/user/5b632b7fba274f62928cdcc9d3db4c5e"
             },
             {
                 "name": "GitHub",
@@ -690,10 +658,6 @@
             {
                 "name": "Fireship",
                 "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA"
-            },
-            {
-                "name": "Spring I/O",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCLMPXsvSrhNPN3i9h-u8PYg"
             },
             {
                 "name": "Dwarkesh Patel",
@@ -792,10 +756,6 @@
                 "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCB_DbqNN9w30tnyWJSrIwyA"
             },
             {
-                "name": "TED",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCAuUUnT6oDeKwE6v1NGQxug"
-            },
-            {
                 "name": "LangChain",
                 "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCC-lyoTfSrcJzA1ab3APAgw"
             },
@@ -810,60 +770,12 @@
         "feeds": [
             
             {
-                "name": "腾讯技术工程",
-                "url": "https://wechat2rss.bestblogs.dev/feed/1e0ac39f8952b2e7f0807313cf2633d25078a171.xml"
-            },
-            {
                 "name": "机器之心",
                 "url": "https://wechat2rss.bestblogs.dev/feed/8d97af31b0de9e48da74558af128a4673d78c9a3.xml"
             },
             {
-                "name": "阿里技术",
-                "url": "https://wechat2rss.bestblogs.dev/feed/6535a444e9651fecae3383363be7589acdebe2b6.xml"
-            },
-            {
-                "name": "小米技术",
-                "url": "https://wechat2rss.bestblogs.dev/feed/8bbc1ba1d363e70cd42d1ce89fb9070cb075c3b3.xml"
-            },
-            {
-                "name": "哔哩哔哩技术",
-                "url": "https://wechat2rss.bestblogs.dev/feed/3a12ae4fde5bb74aab2fddc9f710a3c057eab82f.xml"
-            },
-            {
-                "name": "阿里云开发者",
-                "url": "https://wechat2rss.bestblogs.dev/feed/39fc51b0b1316137e608c45da5dbbca4f9eb9538.xml"
-            },
-            {
-                "name": "字节跳动技术团队",
-                "url": "https://wechat2rss.bestblogs.dev/feed/d3a9e4d6f125cc98d1691dbc30cd97fec7ae2d03.xml"
-            },
-            {
-                "name": "京东技术",
-                "url": "https://wechat2rss.bestblogs.dev/feed/fa0be550682410cc187c0d1eab1a0fc4e073b949.xml"
-            },
-            {
-                "name": "得物技术",
-                "url": "https://wechat2rss.bestblogs.dev/feed/1cde72c9129b1f79cbb150166e7fed9a7568ee10.xml"
-            },
-            {
-                "name": "百度Geek说",
-                "url": "https://wechat2rss.bestblogs.dev/feed/6cc437d76f9dc4f7c35011c72e471e33e7bdd384.xml"
-            },
-            {
                 "name": "阿里研究院",
                 "url": "https://wechat2rss.bestblogs.dev/feed/e2f1190c120f7f3d74b630bfcfe9e58296bd535c.xml"
-            },
-            {
-                "name": "谷歌开发者",
-                "url": "https://wechat2rss.bestblogs.dev/feed/9c65b8470acb8a5400199616536995d5ba90f52e.xml"
-            },
-            {
-                "name": "小红书技术REDtech",
-                "url": "https://wechat2rss.bestblogs.dev/feed/0f8c47df6fd304112518544776e0bbf1d98ba0b9.xml"
-            },
-            {
-                "name": "智谱",
-                "url": "https://wechat2rss.bestblogs.dev/feed/433d2134dca54d80804daf32e8be546155be3300.xml"
             },
             {
                 "name": "月之暗面 Kimi",
@@ -874,20 +786,8 @@
                 "url": "https://wechat2rss.bestblogs.dev/feed/4ebee6222ae08705b8aabc9116f0defbcb6b17c6.xml"
             },
             {
-                "name": "百度AI",
-                "url": "https://wechat2rss.bestblogs.dev/feed/d0767d885e6ba213344fb0c0408c51331e23a994.xml"
-            },
-            {
                 "name": "腾讯混元",
                 "url": "https://wechat2rss.bestblogs.dev/feed/306ce19a1ca590c9c2df781789e828d1acfa1356.xml"
-            },
-            {
-                "name": "腾讯研究院",
-                "url": "https://wechat2rss.bestblogs.dev/feed/6152301e0978bffb0a8284cab339262b9764dcfb.xml"
-            },
-            {
-                "name": "快手技术",
-                "url": "https://wechat2rss.bestblogs.dev/feed/c4cc10d2e32a5fa12927581ae581a336f399fe75.xml"
             },
             {
                 "name": "DeepSeek",
@@ -900,10 +800,6 @@
             {
                 "name": "MiniMax 稀宇科技",
                 "url": "https://wechat2rss.bestblogs.dev/feed/00306b171f754d463b28cf83f3ba086ad009b430.xml"
-            },
-            {
-                "name": "网易科技",
-                "url": "https://wechat2rss.bestblogs.dev/feed/028fbc21062e744c7b606880ebca01e22cb4b7b7.xml"
             }
         ]
     },
@@ -911,8 +807,12 @@
         "groupName": "Newsletters",
         "feeds": [
             {
-                "name": "AI Valley",
+                "name": "The AI Valley",
                 "url": "https://kill-the-newsletter.com/feeds/q5hapxprd7q94se8dsdk.xml"
+            },
+            {
+                "name": "Every",
+                "url": "https://kill-the-newsletter.com/feeds/484dq9i75tzvsjie5bfi.xml"
             }
         ]
     }

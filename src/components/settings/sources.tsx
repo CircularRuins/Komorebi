@@ -244,6 +244,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                         subscribedUrls={this.getSubscribedUrls()}
                         onSubscribe={this.handleSubscribeRecommended}
                         isSubscribing={this.state.isSubscribing}
+                        sources={this.props.sources}
                     />
                 </div>
             )}

@@ -504,6 +504,29 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                             }}
                         />
                     </TooltipHost>
+                    <TooltipHost
+                        content={intl.get("close")}
+                        delay={TooltipDelay.zero}>
+                        <CommandBarButton
+                            iconProps={{
+                                iconName: "Cancel",
+                                style: { fontSize: 16 },
+                            }}
+                            onClick={this.props.dismiss}
+                            styles={{
+                                root: {
+                                    minWidth: 40,
+                                    height: 32,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                },
+                                icon: {
+                                    fontSize: 16,
+                                },
+                            }}
+                        />
+                    </TooltipHost>
                 </Stack>
                 <Stack horizontal horizontalAlign="end" style={{ width: 112 }}>
                     <CommandBarButton

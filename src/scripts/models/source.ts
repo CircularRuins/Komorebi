@@ -2,7 +2,6 @@ import intl from "react-intl-universal"
 import * as db from "../db"
 import lf from "lovefield"
 import {
-    fetchFavicon,
     validateFavicon,
     ActionStatus,
     AppThunk,
@@ -10,6 +9,7 @@ import {
     MyParserItem,
     getCachedFeedIcon,
     setCachedFeedIcon,
+    getFeedIcon,
 } from "../utils"
 import {
     RSSItem,
@@ -94,10 +94,15 @@ export class RSSSource {
                 if (iconUrl) {
                     if (await validateFavicon(iconUrl)) {
                         source.iconurl = iconUrl
+                        // 存入缓存
+                        setCachedFeedIcon(source.url, iconUrl)
                     } else {
                         // 验证失败时设置为undefined，这样addSource会触发updateFavicon从网站HTML获取
                         source.iconurl = undefined
                     }
+                } else {
+                    // 如果 feed XML 中没有图标，设置为 undefined，让 updateFavicon 从网站 HTML 获取
+                    source.iconurl = undefined
                 }
             }
         }
@@ -495,25 +500,26 @@ export function updateFavicon(
                 (force || source.iconurl === undefined)
             ) {
                 let favicon: string | null = null
-                // 检测是否是 YouTube feed，统一使用本地 YouTube 图标
-                if (/youtube\.com/.test(url)) {
-                    favicon = "icons/youtube-favicon-32x32.png"
-                } else {
-                    // 如果不是强制更新，先检查缓存
-                    if (!force) {
-                        favicon = getCachedFeedIcon(url)
-                    }
-                    // 如果缓存中没有，则从网络获取
-                    if (!favicon) {
-                        favicon = await fetchFavicon(url)
-                        // 如果获取成功，存入缓存
-                        if (favicon) {
-                            setCachedFeedIcon(url, favicon)
-                        }
-                    }
+                
+                // 统一获取顺序：1. localStorage 缓存 → 2. XML
+                // 1. 检查 localStorage 缓存
+                if (!force) {
+                    favicon = getCachedFeedIcon(url)
                 }
-                // 如果获取失败，设置为空字符串而不是undefined
-                source.iconurl = favicon || ""
+                
+                // 2. 从 XML 获取
+                if (!favicon) {
+                    favicon = await getFeedIcon(url, force)
+                }
+                
+                // 如果获取成功，更新数据库和缓存
+                if (favicon) {
+                    source.iconurl = favicon
+                    setCachedFeedIcon(url, favicon)
+                } else {
+                    // 如果获取失败，设置为空字符串而不是undefined
+                    source.iconurl = ""
+                }
                 await dispatch(updateSource(source))
             }
         })
@@ -612,3 +618,4 @@ export function sourceReducer(
             return state
     }
 }
+

@@ -354,12 +354,16 @@ export async function fetchFavicon(url: string) {
             }
         }
         url = url + "/favicon.ico"
-        if (await validateFavicon(url)) {
-            return url
-        } else {
-            return null
+        try {
+            if (await validateFavicon(url)) {
+                return url
+            }
+        } catch {
+            // CORS 错误或其他验证错误，忽略
         }
-    } catch {
+        return null
+    } catch (error) {
+        // CORS 错误或其他网络错误，静默处理
         return null
     }
 }
@@ -375,6 +379,9 @@ export async function validateFavicon(url: string) {
         ) {
             flag = true
         }
+    } catch (error) {
+        // CORS 错误或其他网络错误，返回 false
+        flag = false
     } finally {
         return flag
     }
@@ -432,6 +439,76 @@ export function setCachedFeedIcon(url: string, iconUrl: string): void {
         localStorage.setItem(cacheKey, JSON.stringify(data))
     } catch (error) {
         // 如果存储失败（如 localStorage 已满），忽略错误
+    }
+}
+
+/**
+ * 统一的 feed 图标获取函数
+ * 封装完整的图标获取逻辑：从 feed XML 获取（需验证）
+ * 注意：数据库检查应在调用此函数之前进行
+ * @param url feed URL
+ * @param force 是否强制刷新，忽略缓存
+ * @returns 图标 URL，如果获取失败则返回 null
+ */
+export async function getFeedIcon(url: string, force: boolean = false): Promise<string | null> {
+    try {
+        // 检测是否是 YouTube feed，统一使用本地 YouTube 图标
+        if (/youtube\.com/.test(url)) {
+            return "icons/youtube-favicon-32x32.png"
+        }
+
+        // 如果不是强制更新，先检查缓存
+        if (!force) {
+            const cachedIcon = getCachedFeedIcon(url)
+            if (cachedIcon) {
+                return cachedIcon
+            }
+        }
+
+        // 从 feed XML 中获取图标（需要验证）
+        try {
+            const feed = await parseRSS(url)
+            
+            let iconUrl: string | null = null
+            // RSS 2.0: <image><url>
+            if (feed.image?.url) {
+                iconUrl = feed.image.url
+            }
+            // Atom: <logo> 或 <icon>
+            else if (feed.logo) {
+                iconUrl = feed.logo
+            }
+            else if (feed.icon) {
+                iconUrl = feed.icon
+            }
+            // iTunes播客: <itunes:image>
+            else if (feed.itunesImage?.href) {
+                iconUrl = feed.itunesImage.href
+            }
+            else if (typeof feed.itunesImage === "string") {
+                iconUrl = feed.itunesImage
+            }
+            
+            // 验证从 feed XML 中获取的图标是否有效
+            if (iconUrl) {
+                try {
+                    if (await validateFavicon(iconUrl)) {
+                        // 存入缓存
+                        setCachedFeedIcon(url, iconUrl)
+                        return iconUrl
+                    }
+                } catch {
+                    // 验证失败（可能是 CORS 错误），返回 null
+                }
+            }
+        } catch (error) {
+            // 如果从 feed XML 获取失败（可能是 CORS 错误），返回 null
+        }
+
+        return null
+    } catch (error) {
+        console.error(`Failed to get feed icon for ${url}:`, error)
+        return null
     }
 }
 

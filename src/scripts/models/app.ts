@@ -16,6 +16,7 @@ import {
     getWindowBreakpoint,
     initTouchBarWithTexts,
 } from "../utils"
+import { updateRecommendedFeedIcons } from "../utils/recommended-feeds"
 import { INIT_FEEDS, FeedActionTypes, ALL, ALL_TOTAL, ALL_TODAY, initFeeds } from "./feed"
 import {
     SourceGroupActionTypes,
@@ -422,8 +423,10 @@ export function initApp(): AppThunk {
                 dispatch(selectAllArticles())
                 await dispatch(fetchItems())
             })
-            .then(() => {
+            .then(async () => {
                 dispatch(updateFavicon())
+                // 同时更新推荐订阅源的图标
+                await updateRecommendedFeedIcons(false)
             })
     }
 }

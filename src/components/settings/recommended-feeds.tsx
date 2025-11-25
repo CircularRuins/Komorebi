@@ -9,13 +9,14 @@ import {
     RecommendedFeed,
 } from "../../scripts/utils/recommended-feeds"
 import RecommendedFeedCard from "./recommended-feed-card"
-import { fetchFavicon, parseRSS, validateFavicon, getCachedFeedIcon, setCachedFeedIcon } from "../../scripts/utils"
+import { getFeedIcon, getCachedFeedIcon } from "../../scripts/utils"
 
 type RecommendedFeedsProps = {
     groups: RecommendedFeedGroup[]
     subscribedUrls: Set<string>
     onSubscribe: (feed: RecommendedFeed) => Promise<void>
     isSubscribing: { [url: string]: boolean }
+    sources?: { [sid: number]: { url: string; iconurl?: string } }
 }
 
 type RecommendedFeedsState = {
@@ -33,59 +34,56 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
         }
     }
 
-    getIconFromFeed = async (url: string): Promise<string | null> => {
-        try {
-            // 检测是否是 YouTube feed，统一使用本地 YouTube 图标
-            if (/youtube\.com/.test(url)) {
-                return "icons/youtube-favicon-32x32.png"
+    fetchIconsForFeeds = async (feeds: RecommendedFeed[], force: boolean = false) => {
+        const iconPromises = feeds.map(async (feed) => {
+            try {
+                let iconUrl: string | null = null
+                
+                // 统一获取顺序：1. localStorage 缓存 → 2. XML
+                // 1. 检查 localStorage 缓存
+                if (!force) {
+                    iconUrl = getCachedFeedIcon(feed.url)
+                }
+                
+                // 2. 从 XML 获取
+                if (!iconUrl) {
+                    iconUrl = await getFeedIcon(feed.url, force)
+                }
+                
+                if (iconUrl) {
+                    this.setState(prevState => ({
+                        feedIcons: {
+                            ...prevState.feedIcons,
+                            [feed.url]: iconUrl,
+                        },
+                    }))
+                }
+            } catch (error) {
+                console.error(`Failed to fetch icon for ${feed.url}:`, error)
             }
-            
-            const feed = await parseRSS(url)
-            let iconUrl: string | null = null
-            
-            // RSS 2.0: <image><url>
-            if (feed.image?.url) {
-                iconUrl = feed.image.url
-            }
-            // Atom: <logo> 或 <icon>
-            else if (feed.logo) {
-                iconUrl = feed.logo
-            }
-            else if (feed.icon) {
-                iconUrl = feed.icon
-            }
-            // iTunes播客: <itunes:image>
-            else if (feed.itunesImage?.href) {
-                iconUrl = feed.itunesImage.href
-            }
-            else if (typeof feed.itunesImage === "string") {
-                iconUrl = feed.itunesImage
-            }
-            
-            // 验证图标URL是否有效（对于从 feed XML 中直接获取的图标）
-            if (iconUrl && await validateFavicon(iconUrl)) {
-                return iconUrl
-            }
-            return null
-        } catch {
-            return null
-        }
+        })
+        
+        await Promise.all(iconPromises)
     }
 
     componentDidMount = async () => {
         // 为所有推荐源获取图标
         const allFeeds = this.props.groups.flatMap(group => group.feeds)
         
-        // 先从缓存加载图标
+        // 统一获取顺序：1. localStorage 缓存 → 2. XML
         const cachedIcons: { [url: string]: string } = {}
         allFeeds.forEach(feed => {
             // YouTube feed 使用本地图标，不需要缓存
             if (/youtube\.com/.test(feed.url)) {
                 cachedIcons[feed.url] = "icons/youtube-favicon-32x32.png"
             } else {
-                const cachedIcon = getCachedFeedIcon(feed.url)
-                if (cachedIcon) {
-                    cachedIcons[feed.url] = cachedIcon
+                let iconUrl: string | null = null
+                
+                // 1. 检查 localStorage 缓存
+                iconUrl = getCachedFeedIcon(feed.url)
+                
+                if (iconUrl) {
+                    cachedIcons[feed.url] = iconUrl
                 }
             }
         })
@@ -102,49 +100,49 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
         
         // 为没有缓存的 feed 获取图标
         const feedsNeedingFetch = allFeeds.filter(feed => !cachedIcons[feed.url])
-        const iconPromises = feedsNeedingFetch.map(async (feed) => {
-            try {
-                // 检测是否是 YouTube feed，统一使用本地 YouTube 图标
-                if (/youtube\.com/.test(feed.url)) {
-                    const iconUrl = "icons/youtube-favicon-32x32.png"
-                    this.setState(prevState => ({
-                        feedIcons: {
-                            ...prevState.feedIcons,
-                            [feed.url]: iconUrl,
-                        },
-                    }))
-                    return
-                }
-                
-                // 1. 先尝试从 feed XML 中获取图标
-                let iconUrl = await this.getIconFromFeed(feed.url)
-                
-                // 2. 如果 feed XML 中没有，再尝试从网站 HTML 获取
-                if (!iconUrl) {
-                    iconUrl = await fetchFavicon(feed.url)
-                    // 验证从网站 HTML 获取的图标是否有效
-                    if (iconUrl && !(await validateFavicon(iconUrl))) {
-                        iconUrl = null
-                    }
-                }
-                
-                if (iconUrl) {
-                    // 存入缓存
-                    setCachedFeedIcon(feed.url, iconUrl)
-                    this.setState(prevState => ({
-                        feedIcons: {
-                            ...prevState.feedIcons,
-                            [feed.url]: iconUrl,
-                        },
-                    }))
-                }
-            } catch (error) {
-                console.error(`Failed to fetch icon for ${feed.url}:`, error)
-            }
-        })
+        await this.fetchIconsForFeeds(feedsNeedingFetch, false)
+    }
+
+    componentDidUpdate = async (prevProps: RecommendedFeedsProps) => {
+        const allFeeds = this.props.groups.flatMap(group => group.feeds)
+        let needsUpdate = false
+        const feedsToUpdate: RecommendedFeed[] = []
         
-        // 并行获取所有图标
-        await Promise.all(iconPromises)
+        // 如果 groups 发生变化，重新获取图标
+        if (prevProps.groups !== this.props.groups) {
+            const prevFeeds = prevProps.groups.flatMap(group => group.feeds)
+            
+            // 找出新增的 feed
+            const newFeeds = allFeeds.filter(feed => 
+                !prevFeeds.some(prevFeed => prevFeed.url === feed.url)
+            )
+            
+            if (newFeeds.length > 0) {
+                feedsToUpdate.push(...newFeeds)
+                needsUpdate = true
+            }
+            
+            // 找出之前获取失败但现在需要重新获取的 feed
+            const failedFeeds = allFeeds.filter(feed => {
+                const hasIcon = this.state.feedIcons[feed.url]
+                const wasInPrev = prevFeeds.some(prevFeed => prevFeed.url === feed.url)
+                return !hasIcon && wasInPrev
+            })
+            
+            if (failedFeeds.length > 0) {
+                feedsToUpdate.push(...failedFeeds)
+                needsUpdate = true
+            }
+        }
+        
+        // 统一处理需要更新的 feed
+        if (needsUpdate && feedsToUpdate.length > 0) {
+            // 去重
+            const uniqueFeeds = Array.from(
+                new Map(feedsToUpdate.map(feed => [feed.url, feed])).values()
+            )
+            await this.fetchIconsForFeeds(uniqueFeeds, false)
+        }
     }
 
     handlePivotChange = (item?: PivotItem, ev?: React.MouseEvent<HTMLElement>) => {
