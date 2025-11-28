@@ -631,6 +631,13 @@ export function appReducer(
                         menuKey: "ai-mode",
                         title: "",
                     }
+                case PageType.AlphaXiv:
+                    return {
+                        ...state,
+                        menu: state.menu && action.keepMenu,
+                        menuKey: "alphaxiv",
+                        title: "",
+                    }
             }
         case CLOSE_CONTEXT_MENU:
             return {

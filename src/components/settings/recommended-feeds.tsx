@@ -3,11 +3,16 @@ import intl from "react-intl-universal"
 import {
     Pivot,
     PivotItem,
+    Icon,
 } from "@fluentui/react"
 import {
     RecommendedFeedGroup,
     RecommendedFeed,
 } from "../../scripts/utils/recommended-feeds"
+import {
+    MoreSection,
+    loadMoreSections,
+} from "../../scripts/utils/more-sections"
 import RecommendedFeedCard from "./recommended-feed-card"
 import { getFeedIcon, getCachedFeedIcon } from "../../scripts/utils"
 
@@ -22,15 +27,21 @@ type RecommendedFeedsProps = {
 type RecommendedFeedsState = {
     selectedGroupKey: string
     feedIcons: { [url: string]: string }
+    moreSections: MoreSection[]
+    expandedSections: Set<string>
 }
 
 class RecommendedFeeds extends React.Component<RecommendedFeedsProps, RecommendedFeedsState> {
+    markdownContentRefs: { [key: string]: React.RefObject<HTMLDivElement> } = {}
+
     constructor(props: RecommendedFeedsProps) {
         super(props)
         // 默认选中第一个分组
         this.state = {
             selectedGroupKey: props.groups.length > 0 ? props.groups[0].groupName : "",
             feedIcons: {},
+            moreSections: [],
+            expandedSections: new Set<string>(),
         }
     }
 
@@ -101,9 +112,17 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
         // 为没有缓存的 feed 获取图标
         const feedsNeedingFetch = allFeeds.filter(feed => !cachedIcons[feed.url])
         await this.fetchIconsForFeeds(feedsNeedingFetch, false)
+        
+        // 加载 More sections 数据
+        const moreSections = await loadMoreSections()
+        console.log("Loaded more sections:", moreSections)
+        this.setState({ moreSections }, () => {
+            // 在状态更新后添加链接事件处理器
+            setTimeout(() => this.attachLinkHandlers(), 0)
+        })
     }
 
-    componentDidUpdate = async (prevProps: RecommendedFeedsProps) => {
+    componentDidUpdate = async (prevProps: RecommendedFeedsProps, prevState: RecommendedFeedsState) => {
         const allFeeds = this.props.groups.flatMap(group => group.feeds)
         let needsUpdate = false
         const feedsToUpdate: RecommendedFeed[] = []
@@ -143,12 +162,70 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
             )
             await this.fetchIconsForFeeds(uniqueFeeds, false)
         }
+        
+        // 如果 moreSections 发生变化，重新添加链接事件处理器
+        if (this.state.moreSections !== prevState.moreSections || this.state.expandedSections !== prevState.expandedSections) {
+            setTimeout(() => this.attachLinkHandlers(), 0)
+        }
+    }
+
+    attachLinkHandlers = () => {
+        // 为所有 markdown-content 中的链接添加点击事件
+        this.state.moreSections.forEach(section => {
+            if (!this.markdownContentRefs[section.id]) {
+                this.markdownContentRefs[section.id] = React.createRef<HTMLDivElement>()
+            }
+            const ref = this.markdownContentRefs[section.id]
+            if (ref && ref.current) {
+                const links = ref.current.querySelectorAll('a[href]')
+                links.forEach(link => {
+                    // 检查是否已经添加过事件监听器
+                    if ((link as any).__linkHandlerAttached) {
+                        return
+                    }
+                    
+                    // 标记为已处理
+                    (link as any).__linkHandlerAttached = true
+                    
+                    // 添加点击事件监听器
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        const href = link.getAttribute('href')
+                        if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+                            if (window.utils && window.utils.openExternal) {
+                                window.utils.openExternal(href, false)
+                            } else {
+                                // 降级方案：使用 window.open
+                                window.open(href, '_blank')
+                            }
+                        }
+                    })
+                })
+            }
+        })
     }
 
     handlePivotChange = (item?: PivotItem, ev?: React.MouseEvent<HTMLElement>) => {
         if (item && item.props.itemKey) {
             this.setState({ selectedGroupKey: item.props.itemKey })
         }
+    }
+
+    toggleSection = (sectionId: string) => {
+        this.setState(prevState => {
+            const newExpandedSections = new Set(prevState.expandedSections)
+            const wasExpanded = newExpandedSections.has(sectionId)
+            if (wasExpanded) {
+                newExpandedSections.delete(sectionId)
+            } else {
+                newExpandedSections.add(sectionId)
+            }
+            return { expandedSections: newExpandedSections }
+        }, () => {
+            // 在展开section后，添加链接事件处理器
+            setTimeout(() => this.attachLinkHandlers(), 0)
+        })
     }
 
     render() {
@@ -207,11 +284,167 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
                     ))}
                     <PivotItem
                         key="more"
-                        headerText={intl.get("more")}
+                        headerText="More"
                         itemKey="more"
                     >
                         <div style={{ padding: "4px 16px", boxSizing: "border-box" }}>
-                            {/* More tab content - to be implemented */}
+                            {this.state.moreSections.length === 0 ? (
+                                <div style={{ color: "var(--neutralSecondary)", fontSize: "14px" }}>
+                                    Loading...
+                                </div>
+                            ) : (
+                                this.state.moreSections.map((section) => {
+                                    const isExpanded = this.state.expandedSections.has(section.id)
+                                    const title = intl.get(section.titleKey) || section.titleKey
+                                    return (
+                                        <div
+                                            key={section.id}
+                                            style={{
+                                                marginBottom: "16px",
+                                                border: "1px solid var(--neutralLight)",
+                                                borderRadius: "8px",
+                                                backgroundColor: "var(--white)",
+                                                transition: "box-shadow 0.2s ease",
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)"
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.boxShadow = "none"
+                                            }}
+                                        >
+                                            <div
+                                                onClick={() => this.toggleSection(section.id)}
+                                                style={{
+                                                    padding: "12px 16px",
+                                                    cursor: "pointer",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "space-between",
+                                                    backgroundColor: "var(--white)",
+                                                    userSelect: "none",
+                                                    transition: "background-color 0.2s ease",
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.backgroundColor = "var(--white)"
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.backgroundColor = "var(--white)"
+                                                }}
+                                            >
+                                                <span style={{ fontWeight: 500, fontSize: "14px", color: "var(--neutralPrimary)" }}>
+                                                    {title}
+                                                </span>
+                                                <Icon
+                                                    iconName={isExpanded ? "ChevronDown" : "ChevronRight"}
+                                                    style={{ fontSize: "12px", color: "var(--neutralSecondary)" }}
+                                                />
+                                            </div>
+                                            {isExpanded && (
+                                                <div
+                                                    style={{
+                                                        padding: "16px",
+                                                        borderTop: "1px solid var(--neutralLight)",
+                                                        backgroundColor: "var(--white)",
+                                                    }}
+                                                >
+                                                    {section.content ? (
+                                                        <div
+                                                            ref={(() => {
+                                                                if (!this.markdownContentRefs[section.id]) {
+                                                                    this.markdownContentRefs[section.id] = React.createRef<HTMLDivElement>()
+                                                                }
+                                                                return this.markdownContentRefs[section.id]
+                                                            })()}
+                                                            style={{
+                                                                color: "var(--neutralPrimary)",
+                                                                fontSize: "14px",
+                                                                lineHeight: "1.8",
+                                                            }}
+                                                            className="markdown-content"
+                                                            dangerouslySetInnerHTML={{ __html: section.content }}
+                                                        />
+                                                    ) : (
+                                                        <div style={{ color: "var(--neutralSecondary)", fontSize: "14px" }}>
+                                                            Content coming soon...
+                                                        </div>
+                                                    )}
+                                                    <style>{`
+                                                        .markdown-content h1 {
+                                                            font-size: 20px;
+                                                            font-weight: 600;
+                                                            margin: 16px 0 12px 0;
+                                                            color: var(--neutralPrimary);
+                                                        }
+                                                        .markdown-content h2 {
+                                                            font-size: 18px;
+                                                            font-weight: 600;
+                                                            margin: 14px 0 10px 0;
+                                                            color: var(--neutralPrimary);
+                                                        }
+                                                        .markdown-content h3 {
+                                                            font-size: 16px;
+                                                            font-weight: 600;
+                                                            margin: 12px 0 8px 0;
+                                                            color: var(--neutralPrimary);
+                                                        }
+                                                        .markdown-content p {
+                                                            margin: 8px 0;
+                                                            color: var(--neutralPrimary);
+                                                        }
+                                                        .markdown-content ul, .markdown-content ol {
+                                                            margin: 8px 0;
+                                                            padding-left: 24px;
+                                                        }
+                                                        .markdown-content li {
+                                                            margin: 4px 0;
+                                                            color: var(--neutralPrimary);
+                                                        }
+                                                        .markdown-content code {
+                                                            background-color: var(--neutralLighter);
+                                                            padding: 2px 6px;
+                                                            border-radius: 3px;
+                                                            font-family: 'Courier New', monospace;
+                                                            font-size: 13px;
+                                                        }
+                                                        .markdown-content pre {
+                                                            background-color: var(--neutralLighter);
+                                                            padding: 12px;
+                                                            border-radius: 4px;
+                                                            overflow-x: auto;
+                                                            margin: 12px 0;
+                                                        }
+                                                        .markdown-content pre code {
+                                                            background-color: transparent;
+                                                            padding: 0;
+                                                        }
+                                                        .markdown-content a {
+                                                            color: var(--themePrimary);
+                                                            text-decoration: none;
+                                                        }
+                                                        .markdown-content a:hover {
+                                                            text-decoration: underline;
+                                                        }
+                                                        .markdown-content strong {
+                                                            font-weight: 600;
+                                                        }
+                                                        .markdown-content em {
+                                                            font-style: italic;
+                                                        }
+                                                        .markdown-content img {
+                                                            max-width: 100%;
+                                                            height: auto;
+                                                            margin: 12px 0;
+                                                            border-radius: 4px;
+                                                            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                                                        }
+                                                    `}</style>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })
+                            )}
                         </div>
                     </PivotItem>
                 </Pivot>

@@ -1,0 +1,33 @@
+[
+  {
+    "id": "twitter",
+    "titleKey": "sources.howToSubscribeMoreTwitter",
+    "content": "",
+    "markdownFile": "more-sections/twitter-guide.md"
+  },
+  {
+    "id": "youtube",
+    "titleKey": "sources.howToSubscribeMoreYoutube",
+    "content": "",
+    "markdownFile": "more-sections/youtube-guide.md"
+  },
+  {
+    "id": "wechat",
+    "titleKey": "sources.howToSubscribeMoreWechat",
+    "content": "",
+    "markdownFile": "more-sections/wechat-guide.md"
+  },
+  {
+    "id": "newsletters",
+    "titleKey": "sources.howToSubscribeMoreNewsletters",
+    "content": "",
+    "markdownFile": "more-sections/newsletters-guide.md"
+  },
+  {
+    "id": "arxiv",
+    "titleKey": "sources.howToSubscribeMoreArxiv",
+    "content": "",
+    "markdownFile": "more-sections/arxiv-guide.md"
+  }
+]
+

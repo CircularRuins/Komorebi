@@ -4,6 +4,7 @@
     "allRead": "All read",
     "starred": "Starred",
     "todayArticles": "Today's articles",
+    "alphaxiv": "alphaXiv",
     "add": "Add",
     "create": "Create",
     "icon": "Icon",
@@ -336,7 +337,12 @@
         "subscribe": "Follow",
         "unsubscribe": "Unsubscribe",
         "youMightLike": "Suggested",
-        "exploreMore": "More"
+        "exploreMore": "More",
+        "howToSubscribeMoreTwitter": "How to subscribe to more Twitter users?",
+        "howToSubscribeMoreYoutube": "How to subscribe to more Youtube channels?",
+        "howToSubscribeMoreWechat": "How to subscribe to more WeChat public accounts?",
+        "howToSubscribeMoreNewsletters": "How to subscribe to more Newsletters?",
+        "howToSubscribeMoreArxiv": "How to subscribe to more arXiv?"
     },
     "groups": {
         "exist": "This group already exists.",

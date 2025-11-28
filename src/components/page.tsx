@@ -4,6 +4,7 @@ import { FeedContainer } from "../containers/feed-container"
 import { AnimationClassNames, Icon, FocusTrapZone, TooltipHost, TooltipDelay } from "@fluentui/react"
 import ArticleContainer from "../containers/article-container"
 import AIMode from "./ai-mode"
+import AlphaXiv from "./alphaxiv"
 import { ViewType } from "../schema-types"
 import SourcesTabContainer from "../containers/settings/sources-container"
 
@@ -31,6 +32,7 @@ class Page extends React.Component<PageProps> {
 
     render = () => {
         const isAIMode = this.props.feeds.includes("ai-mode")
+        const isAlphaXiv = this.props.feeds.includes("alphaxiv")
         
         // 检查是否为AI模式
         if (isAIMode) {
@@ -126,9 +128,13 @@ class Page extends React.Component<PageProps> {
                                 <div
                                     className="article-wrapper"
                                     onClick={e => e.stopPropagation()}>
-                                    <ArticleContainer itemId={this.props.itemId} />
+                                    {this.props.itemId === -1 ? (
+                                        <AlphaXiv dismiss={this.props.dismissItem} />
+                                    ) : (
+                                        <ArticleContainer itemId={this.props.itemId} />
+                                    )}
                                 </div>
-                                {this.props.itemFromFeed && (
+                                {this.props.itemFromFeed && this.props.itemId !== -1 && (
                                     <>
                                         <div className="btn-group prev">
                                             <TooltipHost
@@ -172,7 +178,11 @@ class Page extends React.Component<PageProps> {
                                 </div>
                                 {this.props.itemId ? (
                                     <div className="side-article-wrapper">
-                                        <ArticleContainer itemId={this.props.itemId} />
+                                        {this.props.itemId === -1 ? (
+                                            <AlphaXiv dismiss={this.props.dismissItem} />
+                                        ) : (
+                                            <ArticleContainer itemId={this.props.itemId} />
+                                        )}
                                     </div>
                                 ) : null}
                             </div>

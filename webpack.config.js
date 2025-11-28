@@ -1,5 +1,7 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin")
 const NodePolyfillPlugin = require("node-polyfill-webpack-plugin")
+const CopyWebpackPlugin = require("copy-webpack-plugin")
+const path = require("path")
 
 module.exports = [
     {
@@ -66,6 +68,10 @@ module.exports = [
                     },
                     use: [{ loader: "ts-loader" }],
                 },
+                {
+                    test: /\.md$/,
+                    type: "asset/source",
+                },
             ],
         },
         output: {
@@ -76,6 +82,14 @@ module.exports = [
             new NodePolyfillPlugin(),
             new HtmlWebpackPlugin({
                 template: "./src/index.html",
+            }),
+            new CopyWebpackPlugin({
+                patterns: [
+                    {
+                        from: path.resolve(__dirname, "src/more-sections"),
+                        to: path.resolve(__dirname, "dist/more-sections"),
+                    },
+                ],
             }),
         ],
     },

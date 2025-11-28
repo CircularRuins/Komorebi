@@ -4,6 +4,7 @@
     "allRead": "全部已读",
     "starred": "已收藏",
     "todayArticles": "今日文章",
+    "alphaxiv": "alphaXiv",
     "add": "添加",
     "create": "新建",
     "icon": "图标",
@@ -334,7 +335,12 @@
         "subscribe": "订阅",
         "unsubscribe": "取消订阅",
         "youMightLike": "推荐",
-        "exploreMore": "更多"
+        "exploreMore": "更多",
+        "howToSubscribeMoreTwitter": "如何订阅更多Twitter用户？",
+        "howToSubscribeMoreYoutube": "如何订阅更多Youtube频道？",
+        "howToSubscribeMoreWechat": "如何订阅更多Wechat公众号？",
+        "howToSubscribeMoreNewsletters": "如何订阅更多Newsletters？",
+        "howToSubscribeMoreArxiv": "如何订阅更多arxiv？"
     },
     "groups": {
         "exist": "该分组已存在",

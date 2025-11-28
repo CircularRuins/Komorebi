@@ -35,6 +35,7 @@ export enum PageType {
     Sources,
     Page,
     AIMode,
+    AlphaXiv,
 }
 
 interface SelectPageAction {
@@ -173,6 +174,30 @@ export function selectAIMode(): AppThunk {
             keepMenu: getWindowBreakpoint(),
             filter: getState().page.filter,
             init: true,
+        } as PageActionTypes)
+    }
+}
+
+export function selectAlphaXiv(init = false): AppThunk {
+    return (dispatch, getState) => {
+        const state = getState()
+        // 保持当前的 feedId，不改变主内容区域
+        // 只设置特殊的 itemId (-1) 来触发文章视图显示 alphaxiv
+        dispatch({
+            type: SHOW_ITEM,
+            feedId: state.page.feedId || ALL_TODAY,
+            item: {
+                _id: -1,
+                source: -1,
+                title: "alphaXiv",
+                link: "https://www.alphaxiv.org/",
+                date: new Date(),
+                snippet: "",
+                creator: "",
+                hasRead: false,
+                starred: false,
+                hidden: false,
+            } as RSSItem,
         } as PageActionTypes)
     }
 }
@@ -453,6 +478,9 @@ export function pageReducer(
                         feedId: "ai-mode",
                         itemId: null,
                     }
+                case PageType.AlphaXiv:
+                    // 不改变 feedId，保持当前的主内容区域
+                    return state
                 default:
                     return state
             }

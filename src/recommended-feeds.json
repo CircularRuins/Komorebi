@@ -815,5 +815,22 @@
                 "url": "https://kill-the-newsletter.com/feeds/484dq9i75tzvsjie5bfi.xml"
             }
         ]
+    },
+    {
+        "groupName": "Arxiv",
+        "feeds": [
+            {
+                "name": "DeepSeek-AI",
+                "url": "http://export.arxiv.org/api/query?search_query=au%3Adeepseek&sortBy=lastUpdatedDate&sortOrder=descending&start=0&max_results=10"
+            },
+            {
+                "name": "Qwen Team",
+                "url": "http://export.arxiv.org/api/query?search_query=au%3AQwen&sortBy=lastUpdatedDate&sortOrder=descending&start=0&max_results=10"
+            },
+            {
+                "name": "Alphaxiv",
+                "url": "https://rss.app/feeds/bRs9D2EwA0BOgeJG.xml"
+            }
+        ]
     }
 ]

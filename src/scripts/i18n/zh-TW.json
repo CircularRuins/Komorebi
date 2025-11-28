@@ -1,5 +1,6 @@
 {
     "allArticles": "全部文章",
+    "alphaxiv": "alphaXiv",
     "add": "新增",
     "create": "新建",
     "icon": "圖示",
@@ -151,7 +152,18 @@
         "deleteWarning": "這將移除訂閱源與所有已儲存的文章",
         "selected": "選中訂閱源",
         "selectedMulti": "選中多個訂閱源",
-        "hidden": "從“全部文章”中隱藏"
+        "hidden": "從\"全部文章\"中隱藏",
+        "recommendedFeeds": "推薦訂閱源",
+        "subscribed": "已訂閱",
+        "subscribe": "訂閱",
+        "unsubscribe": "取消訂閱",
+        "youMightLike": "推薦",
+        "exploreMore": "更多",
+        "howToSubscribeMoreTwitter": "如何訂閱更多Twitter用戶？",
+        "howToSubscribeMoreYoutube": "如何訂閱更多Youtube頻道？",
+        "howToSubscribeMoreWechat": "如何訂閱更多Wechat公眾號？",
+        "howToSubscribeMoreNewsletters": "如何訂閱更多Newsletters？",
+        "howToSubscribeMoreArxiv": "如何訂閱更多arxiv？"
     },
     "groups": {
         "exist": "該分組已存在",

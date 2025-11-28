@@ -15,6 +15,7 @@ import {
     selectAllArticles,
     selectAllArticlesTotal,
     selectTodayArticles,
+    selectAlphaXiv,
     selectSources,
     toggleSourcesPage,
 } from "../scripts/models/page"
@@ -100,6 +101,9 @@ const mapDispatchToProps = dispatch => ({
     },
     todayArticles: (init = false) => {
         dispatch(selectTodayArticles(init)), dispatch(initFeeds())
+    },
+    selectAlphaxiv: (init = false) => {
+        dispatch(selectAlphaXiv(init))
     },
     selectSourceGroup: (group: SourceGroup, menuKey: string) => {
         dispatch(selectSources(group.sids, menuKey, ""))

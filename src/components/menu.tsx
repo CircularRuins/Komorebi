@@ -21,6 +21,7 @@ export type MenuProps = {
     allArticles: (init?: boolean) => void
     allArticlesTotal: (init?: boolean) => void
     todayArticles: (init?: boolean) => void
+    selectAlphaxiv: (init?: boolean) => void
     selectSourceGroup: (group: SourceGroup, menuKey: string) => void
     selectSource: (source: RSSSource) => void
     groupContextMenu: (sids: number[], event: React.MouseEvent) => void
@@ -58,6 +59,15 @@ export class Menu extends React.Component<MenuProps, MenuState> {
         return [
             {
                 links: [
+                    {
+                        name: intl.get("alphaxiv"),
+                        ariaLabel: intl.get("alphaxiv"),
+                        key: "alphaxiv",
+                        icon: "Globe",
+                        onClick: () =>
+                            this.props.selectAlphaxiv(this.props.selected !== "alphaxiv"),
+                        url: null,
+                    },
                     {
                         name: intl.get("todayArticles"),
                         ariaLabel:

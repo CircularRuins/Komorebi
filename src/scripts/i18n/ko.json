@@ -1,5 +1,6 @@
 {
     "allArticles": "모든 글",
+    "alphaxiv": "alphaXiv",
     "add": "추가",
     "create": "생성",
     "icon": "아이콘",
@@ -143,7 +144,18 @@
         "badUrl": "유효하지 않은 URL",
         "deleteWarning": "피드와 저장된 글들이 모두 삭제됩니다.",
         "selected": "선택된 피드",
-        "selectedMulti": "선택된 여러 개의 피드"
+        "selectedMulti": "선택된 여러 개의 피드",
+        "recommendedFeeds": "추천 피드",
+        "subscribed": "구독 중",
+        "subscribe": "구독",
+        "unsubscribe": "구독 취소",
+        "youMightLike": "추천",
+        "exploreMore": "더 보기",
+        "howToSubscribeMoreTwitter": "더 많은 Twitter 사용자를 구독하는 방법은?",
+        "howToSubscribeMoreYoutube": "더 많은 Youtube 채널을 구독하는 방법은?",
+        "howToSubscribeMoreWechat": "더 많은 WeChat 공개 계정을 구독하는 방법은?",
+        "howToSubscribeMoreNewsletters": "더 많은 Newsletters를 구독하는 방법은?",
+        "howToSubscribeMoreArxiv": "더 많은 arXiv를 구독하는 방법은?"
     },
     "groups": {
         "exist": "이미 존재하는 그룹입니다.",

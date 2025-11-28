@@ -25,6 +25,7 @@
     "@types/react": "^16.9.35",
     "@types/react-dom": "^16.9.8",
     "@types/react-redux": "^7.1.9",
+    "copy-webpack-plugin": "^13.0.1",
     "electron": "^34.3.0",
     "electron-builder": "^23.0.3",
     "electron-react-devtools": "^0.5.3",

@@ -1,5 +1,6 @@
 {
     "allArticles": "全ての記事",
+    "alphaxiv": "alphaXiv",
     "add": "追加",
     "create": "新規",
     "icon": "アイコン",
@@ -143,7 +144,18 @@
         "badUrl": "無効なURL",
         "deleteWarning": "フィード及び保管している記事を削除することになります。",
         "selected": "選択されたフィード",
-        "selectedMulti": "選択されたフィード(複数)"
+        "selectedMulti": "選択されたフィード(複数)",
+        "recommendedFeeds": "おすすめフィード",
+        "subscribed": "購読中",
+        "subscribe": "購読",
+        "unsubscribe": "購読解除",
+        "youMightLike": "おすすめ",
+        "exploreMore": "もっと見る",
+        "howToSubscribeMoreTwitter": "より多くのTwitterユーザーを購読するには？",
+        "howToSubscribeMoreYoutube": "より多くのYoutubeチャンネルを購読するには？",
+        "howToSubscribeMoreWechat": "より多くのWeChat公式アカウントを購読するには？",
+        "howToSubscribeMoreNewsletters": "より多くのNewslettersを購読するには？",
+        "howToSubscribeMoreArxiv": "より多くのarXivを購読するには？"
     },
     "groups": {
         "exist": "このグループは既に存在します。",
