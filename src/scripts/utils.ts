@@ -311,6 +311,41 @@ export async function parseRSS(url: string) {
                                 }
                             }
                         }
+                        
+                        // Manually extract Atom <summary> tag for feeds like arXiv
+                        // Atom feeds use <summary> instead of <content> or <description>
+                        if (!item.content || item.content.trim() === "") {
+                            let summaryElement: Element | null = null
+                            
+                            try {
+                                summaryElement = xmlItem.querySelector("summary")
+                            } catch (e) {
+                                // querySelector failed
+                            }
+                            
+                            if (!summaryElement) {
+                                const summaries = xmlItem.getElementsByTagName("summary")
+                                if (summaries.length > 0) {
+                                    summaryElement = summaries[0]
+                                }
+                            }
+                            
+                            // Also try with Atom namespace
+                            if (!summaryElement) {
+                                const atomNS = "http://www.w3.org/2005/Atom"
+                                const summaries = xmlItem.getElementsByTagNameNS(atomNS, "summary")
+                                if (summaries.length > 0) {
+                                    summaryElement = summaries[0]
+                                }
+                            }
+                            
+                            if (summaryElement && summaryElement.textContent) {
+                                const summaryText = summaryElement.textContent.trim()
+                                if (summaryText) {
+                                    item.content = summaryText
+                                }
+                            }
+                        }
                     }
                 })
             } catch (e) {

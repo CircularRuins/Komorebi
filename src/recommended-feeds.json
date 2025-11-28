@@ -817,19 +817,11 @@
         ]
     },
     {
-        "groupName": "Arxiv",
+        "groupName": "arXiv",
         "feeds": [
             {
-                "name": "DeepSeek-AI",
-                "url": "http://export.arxiv.org/api/query?search_query=au%3Adeepseek&sortBy=lastUpdatedDate&sortOrder=descending&start=0&max_results=10"
-            },
-            {
-                "name": "Qwen Team",
-                "url": "http://export.arxiv.org/api/query?search_query=au%3AQwen&sortBy=lastUpdatedDate&sortOrder=descending&start=0&max_results=10"
-            },
-            {
-                "name": "Alphaxiv",
-                "url": "https://rss.app/feeds/bRs9D2EwA0BOgeJG.xml"
+                "name": "agent memory",
+                "url": "http://export.arxiv.org/api/query?search_query=abs%3Amemory+AND+abs%3A%28agent+OR+agentic%29&sortBy=submittedDate&sortOrder=descending&start=0&max_results=10"
             }
         ]
     }
