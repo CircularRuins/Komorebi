@@ -51,7 +51,11 @@
     "menu": {
         "close": "關閉選單",
         "subscriptions": "訂閱源",
-        "aiFeature": "AI功能"
+        "aiFeature": "AI功能",
+        "smartFilter": "智能篩選",
+        "hotTopics": "熱點話題",
+        "smartFilterPlaceholder": "智能篩選功能開發中...",
+        "hotTopicsPlaceholder": "熱點話題功能開發中..."
     },
     "article": {
         "error": "文章載入失敗",

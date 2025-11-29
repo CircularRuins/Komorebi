@@ -3,6 +3,7 @@ import intl from "react-intl-universal"
 import { FeedContainer } from "../containers/feed-container"
 import { AnimationClassNames, Icon, FocusTrapZone, TooltipHost, TooltipDelay } from "@fluentui/react"
 import ArticleContainer from "../containers/article-container"
+import ArticleSearch from "./utils/article-search"
 import AIMode from "./ai-mode"
 import AlphaXiv from "./alphaxiv"
 import { ViewType } from "../schema-types"
@@ -45,9 +46,11 @@ type PageProps = {
     itemFromFeed: boolean
     viewType: ViewType
     showSourcesPage: boolean
+    showAIFeaturesPage: boolean
     dismissItem: () => void
     offsetItem: (offset: number) => void
     toggleSourcesPage: (show: boolean) => void
+    toggleAIFeaturesPage: (show: boolean) => void
     goBack: () => void
 }
 
@@ -64,6 +67,204 @@ class Page extends React.Component<PageProps> {
         const isAlphaXiv = this.props.feeds.includes("alphaxiv")
         const isAppPreferences = this.props.feeds.includes("app-preferences")
         const isAIConfig = this.props.feeds.includes("ai-config")
+        
+        // 检查是否为订阅源设置页面（优先级最高，因为它是覆盖性的设置页面）
+        if (this.props.showSourcesPage) {
+            return (
+                <>
+                    <div
+                        className={
+                            "sources-page" + (this.props.menuOn ? " menu-on" : "")
+                        }
+                        style={{
+                            height: "100%",
+                            overflow: "auto",
+                            padding: "20px",
+                        }}>
+                        <div style={{ marginBottom: "20px" }}>
+                            <a
+                                className="btn"
+                                onClick={() => this.props.toggleSourcesPage(false)}
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                    cursor: "pointer",
+                                    textDecoration: "none",
+                                    color: "white",
+                                    fontSize: "12px",
+                                }}
+                                title={intl.get("settings.exit") || "返回"}>
+                                <Icon iconName="Back" />
+                                <span>{intl.get("settings.exit") || "返回"}</span>
+                            </a>
+                        </div>
+                        <SourcesTabContainer />
+                    </div>
+                    {/* 如果 itemId 是 -1，显示 alphaxiv 弹窗 */}
+                    {this.props.itemId === -1 && (
+                        <FocusTrapZone
+                            disabled={this.props.contextOn}
+                            ignoreExternalFocusing={true}
+                            isClickableOutsideFocusTrap={true}
+                            className={"article-container" + (this.props.menuOn ? " menu-on" : "")}
+                            onClick={this.props.dismissItem}>
+                            <div
+                                className="article-wrapper"
+                                onClick={e => e.stopPropagation()}>
+                                <AlphaXiv dismiss={this.props.dismissItem} />
+                            </div>
+                        </FocusTrapZone>
+                    )}
+                </>
+            )
+        }
+        
+        // 检查是否为AI功能卡片页面（覆盖性页面，优先级高于 feedId 控制的页面）
+        if (this.props.showAIFeaturesPage) {
+            return (
+                <>
+                    <div
+                        className={
+                            "ai-features-page" + (this.props.menuOn ? " menu-on" : "")
+                        }
+                        style={{
+                            height: "100%",
+                            overflow: "auto",
+                            padding: "20px",
+                        }}>
+                        <div style={{ marginBottom: "20px" }}>
+                            <a
+                                className="btn"
+                                onClick={() => this.props.toggleAIFeaturesPage(false)}
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                    cursor: "pointer",
+                                    textDecoration: "none",
+                                    color: "white",
+                                    fontSize: "12px",
+                                }}
+                                title={intl.get("settings.exit") || "返回"}>
+                                <Icon iconName="Back" />
+                                <span>{intl.get("settings.exit") || "返回"}</span>
+                            </a>
+                        </div>
+                        <div style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "flex-start",
+                        }}>
+                            <div style={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                                gap: "24px",
+                                maxWidth: "800px",
+                                width: "100%",
+                            }}>
+                            {/* 热点话题卡片 */}
+                            <div
+                                style={{
+                                    backgroundColor: "var(--white)",
+                                    borderRadius: "8px",
+                                    padding: "24px",
+                                    cursor: "pointer",
+                                    transition: "all 0.2s ease",
+                                    border: "1px solid var(--neutralLight)",
+                                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)"
+                                    e.currentTarget.style.transform = "translateY(-2px)"
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)"
+                                    e.currentTarget.style.transform = "translateY(0)"
+                                }}
+                                onClick={() => {
+                                    alert(intl.get("menu.hotTopicsPlaceholder"))
+                                }}
+                            >
+                                <h2 style={{
+                                    fontSize: "18px",
+                                    fontWeight: 600,
+                                    margin: "0 0 8px 0",
+                                    color: "var(--neutralPrimary)"
+                                }}>
+                                    {intl.get("menu.hotTopics")}
+                                </h2>
+                                <p style={{
+                                    fontSize: "14px",
+                                    color: "var(--neutralSecondary)",
+                                    margin: 0,
+                                    lineHeight: "1.5"
+                                }}>
+                                    {intl.get("menu.hotTopicsPlaceholder")}
+                                </p>
+                            </div>
+                            
+                            {/* 智能筛选卡片 */}
+                            <div
+                                style={{
+                                    backgroundColor: "var(--white)",
+                                    borderRadius: "8px",
+                                    padding: "24px",
+                                    cursor: "pointer",
+                                    transition: "all 0.2s ease",
+                                    border: "1px solid var(--neutralLight)",
+                                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.15)"
+                                    e.currentTarget.style.transform = "translateY(-2px)"
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)"
+                                    e.currentTarget.style.transform = "translateY(0)"
+                                }}
+                                onClick={() => {
+                                    alert(intl.get("menu.smartFilterPlaceholder"))
+                                }}
+                            >
+                                <h2 style={{
+                                    fontSize: "18px",
+                                    fontWeight: 600,
+                                    margin: "0 0 8px 0",
+                                    color: "var(--neutralPrimary)"
+                                }}>
+                                    {intl.get("menu.smartFilter")}
+                                </h2>
+                                <p style={{
+                                    fontSize: "14px",
+                                    color: "var(--neutralSecondary)",
+                                    margin: 0,
+                                    lineHeight: "1.5"
+                                }}>
+                                    {intl.get("menu.smartFilterPlaceholder")}
+                                </p>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    {/* 如果 itemId 是 -1，显示 alphaxiv 弹窗 */}
+                    {this.props.itemId === -1 && (
+                        <FocusTrapZone
+                            disabled={this.props.contextOn}
+                            ignoreExternalFocusing={true}
+                            isClickableOutsideFocusTrap={true}
+                            className={"article-container" + (this.props.menuOn ? " menu-on" : "")}
+                            onClick={this.props.dismissItem}>
+                            <div
+                                className="article-wrapper"
+                                onClick={e => e.stopPropagation()}>
+                                <AlphaXiv dismiss={this.props.dismissItem} />
+                            </div>
+                        </FocusTrapZone>
+                    )}
+                </>
+            )
+        }
         
         // 检查是否为应用偏好页面
         if (isAppPreferences) {
@@ -210,6 +411,7 @@ class Page extends React.Component<PageProps> {
                                 className={
                                     "main" + (this.props.menuOn ? " menu-on" : "")
                                 }>
+                                <ArticleSearch />
                                 {this.props.feeds.map(fid => (
                                     <FeedContainer
                                         viewType={this.props.viewType}
@@ -268,6 +470,7 @@ class Page extends React.Component<PageProps> {
                                 className={
                                     "list-main" + (this.props.menuOn ? " menu-on" : "")
                                 }>
+                                <ArticleSearch />
                                 <div className="list-feed-container">
                                     {this.props.feeds.map(fid => (
                                         <FeedContainer

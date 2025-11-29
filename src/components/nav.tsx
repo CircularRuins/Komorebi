@@ -53,7 +53,6 @@ class Switch extends React.Component<SwitchProps> {
 type NavProps = {
     state: AppState
     itemShown: boolean
-    search: () => void
     fetch: () => void
     logs: () => void
     openSourcesSettings: () => void
@@ -124,9 +123,6 @@ class Nav extends React.Component<NavProps, NavState> {
     navShortcutsHandler = (e: KeyboardEvent | IObjectWithKey) => {
         if (!this.props.state.settings.display) {
             switch (e.key) {
-                case "F2":
-                    this.props.search()
-                    break
                 case "F5":
                     this.fetch()
                     break

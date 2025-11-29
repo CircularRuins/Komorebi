@@ -23,6 +23,7 @@ export type MenuProps = {
     allArticlesTotal: (init?: boolean) => void
     todayArticles: (init?: boolean) => void
     selectAlphaxiv: (init?: boolean) => void
+    selectAIFeatures: () => void
     selectSourceGroup: (group: SourceGroup, menuKey: string) => void
     selectSource: (source: RSSSource) => void
     groupContextMenu: (sids: number[], event: React.MouseEvent) => void
@@ -38,6 +39,7 @@ export type MenuProps = {
     updateSourceGroup: (group: SourceGroup) => void
     reorderSourceGroups: (groups: SourceGroup[]) => void
     clearSourceIcon: (source: RSSSource) => void
+    search: () => void
 }
 
 type MenuState = {
@@ -58,23 +60,6 @@ export class Menu extends React.Component<MenuProps, MenuState> {
             .reduce((a, b) => a + b, 0)
         
         const fixedLinks: INavLink[] = [
-            {
-                name: intl.get("menu.aiFeature"),
-                ariaLabel: intl.get("menu.aiFeature"),
-                key: "ai-feature",
-                icon: "AIMode",
-                onClick: () => this.props.toggleAIMode(!this.props.isAIMode),
-                url: null,
-            },
-            {
-                name: intl.get("alphaxiv"),
-                ariaLabel: intl.get("alphaxiv"),
-                key: "alphaxiv",
-                icon: "Globe",
-                onClick: () =>
-                    this.props.selectAlphaxiv(this.props.selected !== "alphaxiv"),
-                url: null,
-            },
             {
                 name: intl.get("todayArticles"),
                 ariaLabel:
@@ -104,6 +89,31 @@ export class Menu extends React.Component<MenuProps, MenuState> {
                 icon: "FavoriteStarFill",
                 onClick: () =>
                     this.props.allArticlesTotal(this.props.selected !== ALL_TOTAL),
+                url: null,
+            },
+            {
+                name: intl.get("search"),
+                ariaLabel: intl.get("search"),
+                key: "search",
+                icon: "Search",
+                onClick: () => this.props.search(),
+                url: null,
+            },
+            {
+                name: intl.get("alphaxiv"),
+                ariaLabel: intl.get("alphaxiv"),
+                key: "alphaxiv",
+                icon: "Globe",
+                onClick: () =>
+                    this.props.selectAlphaxiv(this.props.selected !== "alphaxiv"),
+                url: null,
+            },
+            {
+                name: intl.get("menu.aiFeature"),
+                ariaLabel: intl.get("menu.aiFeature"),
+                key: "ai-features",
+                icon: "AIMode",
+                onClick: () => this.props.selectAIFeatures(),
                 url: null,
             },
         ]
@@ -266,6 +276,7 @@ export class Menu extends React.Component<MenuProps, MenuState> {
             </div>
         )
     }
+
 
     render() {
         // 如果是AI功能模式，渲染AI功能菜单（通过全局状态访问）

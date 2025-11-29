@@ -18,7 +18,9 @@ import {
     selectAlphaXiv,
     selectSources,
     selectAIMode,
+    selectAIFeatures,
     toggleSourcesPage,
+    toggleSearch,
 } from "../scripts/models/page"
 import { ViewType } from "../schema-types"
 import { initFeeds, ALL_TODAY } from "../scripts/models/feed"
@@ -106,6 +108,9 @@ const mapDispatchToProps = dispatch => ({
     selectAlphaxiv: (init = false) => {
         dispatch(selectAlphaXiv(init))
     },
+    selectAIFeatures: () => {
+        dispatch(selectAIFeatures())
+    },
     selectSourceGroup: (group: SourceGroup, menuKey: string) => {
         dispatch(selectSources(group.sids, menuKey, ""))
         dispatch(initFeeds())
@@ -143,6 +148,7 @@ const mapDispatchToProps = dispatch => ({
             dispatch(selectAllArticles())
         }
     },
+    search: () => dispatch(toggleSearch()),
 })
 
 const MenuContainer = connect(mapStateToProps, mapDispatchToProps)(Menu)

@@ -638,6 +638,10 @@ export function appReducer(
                         menuKey: "alphaxiv",
                         title: "",
                     }
+                case PageType.AIFeatures:
+                    // AI功能页面现在使用 showAIFeaturesPage 状态控制，不再通过 menuKey
+                    // 这个 case 保留用于向后兼容，但不设置 menuKey
+                    return state
             }
         case CLOSE_CONTEXT_MENU:
             return {

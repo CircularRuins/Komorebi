@@ -5,5 +5,12 @@
       "esModuleInterop": true,
       "target": "ES2019",
       "module": "CommonJS"
-    }
+    },
+    "exclude": [
+      "node_modules",
+      "tmp",
+      "dist",
+      "build",
+      "bin"
+    ]
 }

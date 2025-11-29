@@ -246,6 +246,35 @@ img.favicon.dropdown {
     background: linear-gradient(var(--neutralLighterAlt), #faf9f800);
     z-index: 1;
 }
+.article-search {
+    z-index: 1001;
+    position: absolute;
+    top: calc(var(--navHeight));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50%;
+    margin: 0;
+    border: none;
+    -webkit-app-region: none;
+    height: 24px;
+    box-shadow: 0 1.6px 3.6px 0 rgba(0, 0, 0, 0.132),
+        0 0.3px 0.9px 0 rgba(0, 0, 0, 0.108);
+}
+.article-search input {
+    font-size: 11px;
+    height: 24px;
+    line-height: 24px;
+}
+.article-search .ms-SearchBox {
+    height: 24px;
+}
+.article-search .ms-SearchBox-iconContainer {
+    height: 24px;
+    line-height: 24px;
+}
+.list-main .article-search {
+    width: 50%;
+}
 .main,
 .list-main {
     transition: margin-left var(--transition-timing) 0.367s;
@@ -303,6 +332,12 @@ img.favicon.dropdown {
     .list-main.menu-on {
         margin-left: 240px;
         width: calc(100% - 240px);
+    }
+    .menu-on .article-search {
+        width: 50%;
+    }
+    .list-main.menu-on .article-search {
+        width: 50%;
     }
 
     nav.hide-btns .btn-group .btn:not(.ai-mode-btn),

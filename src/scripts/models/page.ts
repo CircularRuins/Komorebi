@@ -26,6 +26,7 @@ export const DISMISS_ITEM = "DISMISS_ITEM"
 export const APPLY_FILTER = "APPLY_FILTER"
 export const TOGGLE_SEARCH = "TOGGLE_SEARCH"
 export const TOGGLE_SOURCES_PAGE = "TOGGLE_SOURCES_PAGE"
+export const TOGGLE_AI_FEATURES_PAGE = "TOGGLE_AI_FEATURES_PAGE"
 
 export enum PageType {
     AllArticles,
@@ -37,6 +38,7 @@ export enum PageType {
     AlphaXiv,
     AppPreferences,
     AIConfig,
+    AIFeatures,
 }
 
 interface SelectPageAction {
@@ -83,6 +85,11 @@ interface ToggleSourcesPageAction {
     show: boolean
 }
 
+interface ToggleAIFeaturesPageAction {
+    type: typeof TOGGLE_AI_FEATURES_PAGE
+    show: boolean
+}
+
 export type PageActionTypes =
     | SelectPageAction
     | SwitchViewAction
@@ -92,6 +99,7 @@ export type PageActionTypes =
     | ToggleSearchAction
     | SetViewConfigsAction
     | ToggleSourcesPageAction
+    | ToggleAIFeaturesPageAction
 
 export function selectAllArticles(init = false): AppThunk {
     return (dispatch, getState) => {
@@ -179,11 +187,22 @@ export function selectAIMode(): AppThunk {
     }
 }
 
+export function selectAIFeatures(): AppThunk {
+    return (dispatch) => {
+        dispatch(toggleAIFeaturesPage(true))
+    }
+}
+
+export const toggleAIFeaturesPage = (show: boolean): PageActionTypes => ({
+    type: TOGGLE_AI_FEATURES_PAGE,
+    show: show,
+})
+
 export function selectAlphaXiv(init = false): AppThunk {
     return (dispatch, getState) => {
         const state = getState()
-        // 保持当前的 feedId，不改变主内容区域
         // 只设置特殊的 itemId (-1) 来触发文章视图显示 alphaxiv
+        // 不 dispatch SELECT_PAGE，保持 menuKey 和 feedId 不变
         dispatch({
             type: SHOW_ITEM,
             feedId: state.page.feedId || ALL_TODAY,
@@ -464,6 +483,7 @@ export class PageState {
     itemFromFeed = true
     searchOn = false
     showSourcesPage = false
+    showAIFeaturesPage = false
 }
 
 export function pageReducer(
@@ -505,6 +525,7 @@ export function pageReducer(
                     }
                 case PageType.AlphaXiv:
                     // 不改变 feedId，保持当前的主内容区域
+                    // 注意：selectAlphaXiv 现在不 dispatch SELECT_PAGE，所以这个 case 不会被触发
                     return state
                 case PageType.AppPreferences:
                     return {
@@ -516,6 +537,12 @@ export function pageReducer(
                     return {
                         ...state,
                         feedId: "ai-config",
+                        itemId: null,
+                    }
+                case PageType.AIFeatures:
+                    return {
+                        ...state,
+                        feedId: "ai-features",
                         itemId: null,
                     }
                 default:
@@ -574,6 +601,11 @@ export function pageReducer(
             return {
                 ...state,
                 showSourcesPage: action.show,
+            }
+        case TOGGLE_AI_FEATURES_PAGE:
+            return {
+                ...state,
+                showAIFeaturesPage: action.show,
             }
         default:
             return state

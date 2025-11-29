@@ -7,7 +7,7 @@ import {
     toggleLogMenu,
     openSettingsTab,
 } from "../scripts/models/app"
-import { toggleSearch, selectAIMode, selectAllArticles, selectAppPreferences, selectAIConfig } from "../scripts/models/page"
+import { selectAIMode, selectAllArticles, selectAppPreferences, selectAIConfig } from "../scripts/models/page"
 import { ViewType } from "../schema-types"
 import Nav from "../components/nav"
 
@@ -41,7 +41,6 @@ const mapDispatchToProps = dispatch => ({
     openSourcesSettings: () => dispatch(openSettingsTab("sources")),
     openGroupingSettings: () => dispatch(openSettingsTab("grouping")),
     openAppSettings: () => dispatch(selectAppPreferences()),
-    search: () => dispatch(toggleSearch()),
     toggleAIMode: (enabled: boolean) => {
         if (enabled) {
             dispatch(selectAIMode())
