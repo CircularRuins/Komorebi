@@ -1,8 +1,6 @@
 import * as React from "react"
 import intl from "react-intl-universal"
-import { Icon } from "@fluentui/react/lib/Icon"
-import { AnimationClassNames } from "@fluentui/react/lib/Styling"
-import { Stack, Pivot, PivotItem } from "@fluentui/react"
+import { Stack } from "@fluentui/react"
 import { Label } from "@fluentui/react/lib/Label"
 import { TextField } from "@fluentui/react/lib/TextField"
 import { PrimaryButton, DefaultButton } from "@fluentui/react/lib/Button"
@@ -43,223 +41,207 @@ class AIConfig extends React.Component<AIConfigProps> {
         super(props)
     }
 
-    onKeyDown = (event: KeyboardEvent) => {
-        if (event.key === "Escape" && this.props.display) {
-            this.props.onCancel(this.props.chatApiEndpoint, this.props.chatApiKey, this.props.embeddingApiEndpoint, this.props.embeddingApiKey, this.props.model, this.props.embeddingModel, this.props.embeddingQPS, this.props.topk)
-        }
-    }
-
-    componentDidUpdate = (prevProps: AIConfigProps) => {
-        if (this.props.display !== prevProps.display) {
-            if (this.props.display) {
-                document.body.addEventListener("keydown", this.onKeyDown)
-            } else {
-                document.body.removeEventListener("keydown", this.onKeyDown)
-            }
-        }
-    }
-
-    componentWillUnmount() {
-        document.body.removeEventListener("keydown", this.onKeyDown)
-    }
+    // 移除键盘事件处理，因为现在在页面模式下不需要 ESC 关闭
 
     render = () =>
         this.props.display && (
-            <div className="settings-container">
-                <div
-                    className="btn-group"
-                    style={{
-                        position: "absolute",
-                        top: 70,
-                        left: "calc(50% - 404px)",
-                    }}>
-                    <a
-                        className="btn"
-                        title={intl.get("settings.exit")}
-                        onClick={() => this.props.onCancel(this.props.chatApiEndpoint, this.props.chatApiKey, this.props.embeddingApiEndpoint, this.props.embeddingApiKey, this.props.model, this.props.embeddingModel, this.props.embeddingQPS, this.props.topk)}>
-                        <Icon iconName="Back" />
-                    </a>
+            <div className="tab-body">
+                {/* Chat 模型配置区域 */}
+                <div style={{
+                    padding: '20px',
+                    marginBottom: '24px',
+                    backgroundColor: 'var(--neutralLighterAlt)',
+                    borderRadius: '4px',
+                    border: '1px solid var(--neutralLight)'
+                }}>
+                    <Label style={{ fontSize: '14px', fontWeight: 600, marginTop: '0', marginBottom: '12px' }}>{intl.get("settings.aiMode.config.chatModelTitle")}</Label>
+                    <Label style={{ fontSize: '12px' }}>{intl.get("settings.aiMode.config.chatApiEndpoint")}</Label>
+                    <Stack horizontal>
+                        <Stack.Item grow>
+                            <TextField
+                                value={this.props.tempChatApiEndpoint}
+                                onChange={this.props.onChatApiEndpointChange}
+                                placeholder="https://api.openai.com/v1/chat/completions"
+                                styles={{ field: { fontSize: '12px' } }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+                    <span className="settings-hint up" style={{ fontSize: '11px' }}>
+                        {intl.get("settings.aiMode.config.chatApiEndpointHint")}
+                    </span>
+
+                    <Label style={{ fontSize: '12px' }}>{intl.get("settings.aiMode.config.chatApiKey")}</Label>
+                    <Stack horizontal>
+                        <Stack.Item grow>
+                            <TextField
+                                type="password"
+                                value={this.props.tempChatApiKey}
+                                onChange={this.props.onChatApiKeyChange}
+                                placeholder="sk-..."
+                                styles={{ field: { fontSize: '12px' } }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+                    <span className="settings-hint up" style={{ fontSize: '11px' }}>
+                        {intl.get("settings.aiMode.config.chatApiKeyHint")}
+                    </span>
+
+                    <Label style={{ fontSize: '12px' }}>{intl.get("settings.aiMode.config.chatModelName")}</Label>
+                    <Stack horizontal>
+                        <Stack.Item grow>
+                            <TextField
+                                value={this.props.tempModel}
+                                onChange={this.props.onModelChange}
+                                placeholder={intl.get("settings.aiMode.config.chatModelPlaceholder")}
+                                styles={{ field: { fontSize: '12px' } }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+                    <span className="settings-hint up" style={{ fontSize: '11px' }}>
+                        {intl.get("settings.aiMode.config.chatModelHint")}
+                    </span>
                 </div>
-                <div className={"settings " + AnimationClassNames.slideUpIn20}>
-                    <Pivot selectedKey="ai-config">
-                        <PivotItem
-                            headerText={intl.get("settings.ai")}
-                            itemIcon="Cloud"
-                            itemKey="ai-config">
-                            <div className="tab-body">
-                            <Label style={{ fontSize: '16px', fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>{intl.get("settings.aiMode.config.chatModelTitle")}</Label>
-                            <Label>{intl.get("settings.aiMode.config.chatApiEndpoint")}</Label>
-                            <Stack horizontal>
-                                <Stack.Item grow>
-                                    <TextField
-                                        value={this.props.tempChatApiEndpoint}
-                                        onChange={this.props.onChatApiEndpointChange}
-                                        placeholder="https://api.openai.com/v1/chat/completions"
-                                    />
-                                </Stack.Item>
-                            </Stack>
-                            <span className="settings-hint up">
-                                {intl.get("settings.aiMode.config.chatApiEndpointHint")}
-                            </span>
 
-                            <Label>{intl.get("settings.aiMode.config.chatApiKey")}</Label>
-                            <Stack horizontal>
-                                <Stack.Item grow>
-                                    <TextField
-                                        type="password"
-                                        value={this.props.tempChatApiKey}
-                                        onChange={this.props.onChatApiKeyChange}
-                                        placeholder="sk-..."
-                                    />
-                                </Stack.Item>
-                            </Stack>
-                            <span className="settings-hint up">
-                                {intl.get("settings.aiMode.config.chatApiKeyHint")}
-                            </span>
+                {/* Embedding 模型配置区域 */}
+                <div style={{
+                    padding: '20px',
+                    marginBottom: '24px',
+                    backgroundColor: 'var(--neutralLighterAlt)',
+                    borderRadius: '4px',
+                    border: '1px solid var(--neutralLight)'
+                }}>
+                    <Label style={{ fontSize: '14px', fontWeight: 600, marginTop: '0', marginBottom: '12px' }}>{intl.get("settings.aiMode.config.embeddingModelTitle")}</Label>
+                    <Label style={{ fontSize: '12px' }}>{intl.get("settings.aiMode.config.embeddingApiEndpoint")}</Label>
+                    <Stack horizontal>
+                        <Stack.Item grow>
+                            <TextField
+                                value={this.props.tempEmbeddingApiEndpoint}
+                                onChange={this.props.onEmbeddingApiEndpointChange}
+                                placeholder="https://api.openai.com/v1/embeddings"
+                                styles={{ field: { fontSize: '12px' } }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+                    <span className="settings-hint up" style={{ fontSize: '11px' }}>
+                        {intl.get("settings.aiMode.config.embeddingApiEndpointHint")}
+                    </span>
 
-                            <Label>{intl.get("settings.aiMode.config.chatModelName")}</Label>
-                            <Stack horizontal>
-                                <Stack.Item grow>
-                                    <TextField
-                                        value={this.props.tempModel}
-                                        onChange={this.props.onModelChange}
-                                        placeholder={intl.get("settings.aiMode.config.chatModelPlaceholder")}
-                                    />
-                                </Stack.Item>
-                            </Stack>
-                            <span className="settings-hint up">
-                                {intl.get("settings.aiMode.config.chatModelHint")}
-                            </span>
+                    <Label style={{ fontSize: '12px' }}>{intl.get("settings.aiMode.config.embeddingApiKey")}</Label>
+                    <Stack horizontal>
+                        <Stack.Item grow>
+                            <TextField
+                                type="password"
+                                value={this.props.tempEmbeddingApiKey}
+                                onChange={this.props.onEmbeddingApiKeyChange}
+                                placeholder="sk-..."
+                                styles={{ field: { fontSize: '12px' } }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+                    <span className="settings-hint up" style={{ fontSize: '11px' }}>
+                        {intl.get("settings.aiMode.config.embeddingApiKeyHint")}
+                    </span>
 
-                            <Label style={{ fontSize: '16px', fontWeight: 600, marginTop: '24px', marginBottom: '8px' }}>{intl.get("settings.aiMode.config.embeddingModelTitle")}</Label>
-                            <Label>{intl.get("settings.aiMode.config.embeddingApiEndpoint")}</Label>
-                            <Stack horizontal>
-                                <Stack.Item grow>
-                                    <TextField
-                                        value={this.props.tempEmbeddingApiEndpoint}
-                                        onChange={this.props.onEmbeddingApiEndpointChange}
-                                        placeholder="https://api.openai.com/v1/embeddings"
-                                    />
-                                </Stack.Item>
-                            </Stack>
-                            <span className="settings-hint up">
-                                {intl.get("settings.aiMode.config.embeddingApiEndpointHint")}
-                            </span>
+                    <Label style={{ fontSize: '12px' }}>{intl.get("settings.aiMode.config.embeddingModelName")}</Label>
+                    <Stack horizontal>
+                        <Stack.Item grow>
+                            <TextField
+                                value={this.props.tempEmbeddingModel}
+                                onChange={this.props.onEmbeddingModelChange}
+                                placeholder="text-embedding-ada-002"
+                                styles={{ field: { fontSize: '12px' } }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+                    <span className="settings-hint up" style={{ fontSize: '11px' }}>
+                        {intl.get("settings.aiMode.config.embeddingModelHint")}
+                    </span>
+                    <span className="settings-hint up" style={{ color: '#ffffff', fontWeight: 500, fontSize: '11px', display: 'block', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {intl.get("settings.aiMode.config.embeddingModelChangeHint")}
+                    </span>
 
-                            <Label>{intl.get("settings.aiMode.config.embeddingApiKey")}</Label>
-                            <Stack horizontal>
-                                <Stack.Item grow>
-                                    <TextField
-                                        type="password"
-                                        value={this.props.tempEmbeddingApiKey}
-                                        onChange={this.props.onEmbeddingApiKeyChange}
-                                        placeholder="sk-..."
-                                    />
-                                </Stack.Item>
-                            </Stack>
-                            <span className="settings-hint up">
-                                {intl.get("settings.aiMode.config.embeddingApiKeyHint")}
-                            </span>
-
-                            <Label>{intl.get("settings.aiMode.config.embeddingModelName")}</Label>
-                            <Stack horizontal>
-                                <Stack.Item grow>
-                                    <TextField
-                                        value={this.props.tempEmbeddingModel}
-                                        onChange={this.props.onEmbeddingModelChange}
-                                        placeholder="text-embedding-ada-002"
-                                    />
-                                </Stack.Item>
-                            </Stack>
-                            <span className="settings-hint up">
-                                {intl.get("settings.aiMode.config.embeddingModelHint")}
-                            </span>
-                            <span className="settings-hint up" style={{ color: '#ffffff', fontWeight: 500 }}>
-                                {intl.get("settings.aiMode.config.embeddingModelChangeHint")}
-                            </span>
-
-                            <Label>{intl.get("settings.aiMode.config.embeddingQPS")}</Label>
-                            <Stack horizontal>
-                                <Stack.Item grow>
-                                    <TextField
-                                        value={this.props.tempEmbeddingQPS}
-                                        onChange={this.props.onEmbeddingQPSChange}
-                                        placeholder="30"
-                                    />
-                                </Stack.Item>
-                            </Stack>
-                            <span className="settings-hint up">
-                                {intl.get("settings.aiMode.config.embeddingQPSHint")}
-                            </span>
-
-                            <Label>{intl.get("settings.aiMode.config.clearEmbeddings")}</Label>
-                            <Stack horizontal>
-                                <Stack.Item>
-                                    <DefaultButton
-                                        text={intl.get("settings.aiMode.config.clearEmbeddings")}
-                                        onClick={async () => {
-                                            if (window.utils && window.utils.showMessageBox) {
-                                                const confirmed = await window.utils.showMessageBox(
-                                                    intl.get("settings.aiMode.config.clearEmbeddings"),
-                                                    intl.get("settings.aiMode.config.clearEmbeddingsHint"),
-                                                    intl.get("confirm"),
-                                                    intl.get("cancel"),
-                                                    true,
-                                                    "warning"
-                                                )
-                                                if (confirmed) {
-                                                    try {
-                                                        await this.props.onClearEmbeddings()
-                                                        if (window.utils && window.utils.showMessageBox) {
-                                                            await window.utils.showMessageBox(
-                                                                intl.get("settings.aiMode.config.clearEmbeddings"),
-                                                                intl.get("settings.aiMode.common.clearEmbeddingsSuccess", { defaultValue: "文章Embedding已清除" }),
-                                                                intl.get("settings.aiMode.common.ok"),
-                                                                "",
-                                                                false,
-                                                                "none"
-                                                            )
-                                                        }
-                                                    } catch (error) {
-                                                        if (window.utils && window.utils.showMessageBox) {
-                                                            await window.utils.showMessageBox(
-                                                                intl.get("settings.aiMode.common.error"),
-                                                                error instanceof Error ? error.message : String(error),
-                                                                intl.get("settings.aiMode.common.ok"),
-                                                                "",
-                                                                false,
-                                                                "error"
-                                                            )
-                                                        }
-                                                    }
+                    <Stack horizontal>
+                        <Stack.Item>
+                            <PrimaryButton
+                                text={intl.get("settings.aiMode.config.clearEmbeddings")}
+                                onClick={async () => {
+                                    if (window.utils && window.utils.showMessageBox) {
+                                        const confirmed = await window.utils.showMessageBox(
+                                            intl.get("settings.aiMode.config.clearEmbeddings"),
+                                            intl.get("settings.aiMode.config.clearEmbeddingsHint"),
+                                            intl.get("confirm"),
+                                            intl.get("cancel"),
+                                            true,
+                                            "warning"
+                                        )
+                                        if (confirmed) {
+                                            try {
+                                                await this.props.onClearEmbeddings()
+                                                if (window.utils && window.utils.showMessageBox) {
+                                                    await window.utils.showMessageBox(
+                                                        intl.get("settings.aiMode.config.clearEmbeddings"),
+                                                        intl.get("settings.aiMode.common.clearEmbeddingsSuccess", { defaultValue: "文章Embedding已清除" }),
+                                                        intl.get("settings.aiMode.common.ok"),
+                                                        "",
+                                                        false,
+                                                        "none"
+                                                    )
+                                                }
+                                            } catch (error) {
+                                                if (window.utils && window.utils.showMessageBox) {
+                                                    await window.utils.showMessageBox(
+                                                        intl.get("settings.aiMode.common.error"),
+                                                        error instanceof Error ? error.message : String(error),
+                                                        intl.get("settings.aiMode.common.ok"),
+                                                        "",
+                                                        false,
+                                                        "error"
+                                                    )
                                                 }
                                             }
-                                        }}
-                                    />
-                                </Stack.Item>
-                            </Stack>
-                            <span className="settings-hint up">
-                                {intl.get("settings.aiMode.config.clearEmbeddingsHint")}
-                            </span>
+                                        }
+                                    }
+                                }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+                    <span className="settings-hint up" style={{ fontSize: '11px' }}>
+                        {intl.get("settings.aiMode.config.clearEmbeddingsHint")}
+                    </span>
 
-                            <Label>{intl.get("settings.aiMode.config.topk")}</Label>
-                            <Stack horizontal>
-                                <Stack.Item grow>
-                                    <TextField
-                                        value={this.props.tempTopk}
-                                        onChange={this.props.onTopkChange}
-                                        placeholder="100"
-                                        type="number"
-                                        min={1}
-                                        step={1}
-                                    />
-                                </Stack.Item>
-                            </Stack>
-                            <span className="settings-hint up">
-                                {intl.get("settings.aiMode.config.topkHint")}
-                            </span>
+                    <Label style={{ fontSize: '12px' }}>{intl.get("settings.aiMode.config.embeddingQPS")}</Label>
+                    <Stack horizontal>
+                        <Stack.Item grow>
+                            <TextField
+                                value={this.props.tempEmbeddingQPS}
+                                onChange={this.props.onEmbeddingQPSChange}
+                                placeholder="30"
+                                styles={{ field: { fontSize: '12px' } }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+                    <span className="settings-hint up" style={{ fontSize: '11px' }}>
+                        {intl.get("settings.aiMode.config.embeddingQPSHint")}
+                    </span>
 
-                            <Stack horizontal>
+                    <Label style={{ fontSize: '12px' }}>{intl.get("settings.aiMode.config.topk")}</Label>
+                    <Stack horizontal>
+                        <Stack.Item grow>
+                            <TextField
+                                value={this.props.tempTopk}
+                                onChange={this.props.onTopkChange}
+                                placeholder="100"
+                                type="number"
+                                min={1}
+                                step={1}
+                                styles={{ field: { fontSize: '12px' } }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+                </div>
+
+                {/* 操作按钮区域 */}
+                <Stack horizontal>
                                 <Stack.Item>
                                     <DefaultButton
                                         text={intl.get("settings.aiMode.config.cancel")}
@@ -273,10 +255,6 @@ class AIConfig extends React.Component<AIConfigProps> {
                                     />
                                 </Stack.Item>
                             </Stack>
-                            </div>
-                        </PivotItem>
-                    </Pivot>
-                </div>
             </div>
         )
 }

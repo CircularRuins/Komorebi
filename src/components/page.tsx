@@ -7,6 +7,34 @@ import AIMode from "./ai-mode"
 import AlphaXiv from "./alphaxiv"
 import { ViewType } from "../schema-types"
 import SourcesTabContainer from "../containers/settings/sources-container"
+import AppTabContainer from "../containers/settings/app-container"
+import AIConfigContainer from "../containers/ai-config-container"
+import { connect } from "react-redux"
+import { RootState } from "../scripts/reducer"
+import AIConfig from "./ai-config"
+import { clearArticleEmbeddings } from "../scripts/consolidate"
+import {
+    updateAIModeTempChatApiEndpoint,
+    updateAIModeTempChatApiKey,
+    updateAIModeTempEmbeddingApiEndpoint,
+    updateAIModeTempEmbeddingApiKey,
+    updateAIModeTempModel,
+    updateAIModeTempEmbeddingModel,
+    updateAIModeTempEmbeddingQPS,
+    updateAIModeTempTopk,
+    updateAIModeChatApiEndpoint,
+    updateAIModeChatApiKey,
+    updateAIModeEmbeddingApiEndpoint,
+    updateAIModeEmbeddingApiKey,
+    updateAIModeModel,
+    updateAIModeEmbeddingModel,
+    updateAIModeEmbeddingQPS,
+    updateAIModeTopk,
+    setAIModeShowErrorDialog,
+    setAIModeErrorDialogMessage,
+} from "../scripts/models/ai-mode"
+import { selectAllArticles } from "../scripts/models/page"
+import { AppDispatch } from "../scripts/utils"
 
 type PageProps = {
     menuOn: boolean
@@ -20,6 +48,7 @@ type PageProps = {
     dismissItem: () => void
     offsetItem: (offset: number) => void
     toggleSourcesPage: (show: boolean) => void
+    goBack: () => void
 }
 
 class Page extends React.Component<PageProps> {
@@ -33,10 +62,82 @@ class Page extends React.Component<PageProps> {
     render = () => {
         const isAIMode = this.props.feeds.includes("ai-mode")
         const isAlphaXiv = this.props.feeds.includes("alphaxiv")
+        const isAppPreferences = this.props.feeds.includes("app-preferences")
+        const isAIConfig = this.props.feeds.includes("ai-config")
         
-        // 检查是否为AI模式
+        // 检查是否为应用偏好页面
+        if (isAppPreferences) {
+            return (
+                <div
+                    className={
+                        "app-preferences-page" + (this.props.menuOn ? " menu-on" : "")
+                    }
+                    style={{
+                        height: "100%",
+                        overflow: "auto",
+                        padding: "20px",
+                    }}>
+                    <div style={{ marginBottom: "20px" }}>
+                        <a
+                            className="btn"
+                            onClick={this.props.goBack}
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                cursor: "pointer",
+                                textDecoration: "none",
+                                color: "white",
+                                fontSize: "12px",
+                            }}
+                            title={intl.get("settings.exit") || "返回"}>
+                            <Icon iconName="Back" />
+                            <span>{intl.get("settings.exit") || "返回"}</span>
+                        </a>
+                    </div>
+                    <AppTabContainer />
+                </div>
+            )
+        }
+        
+        // 检查是否为AI配置页面
+        if (isAIConfig) {
+            return (
+                <div
+                    className={
+                        "ai-config-page" + (this.props.menuOn ? " menu-on" : "")
+                    }
+                    style={{
+                        height: "100%",
+                        overflow: "auto",
+                        padding: "20px",
+                    }}>
+                    <div style={{ marginBottom: "20px" }}>
+                        <a
+                            className="btn"
+                            onClick={this.props.goBack}
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                cursor: "pointer",
+                                textDecoration: "none",
+                                color: "white",
+                                fontSize: "12px",
+                            }}
+                            title={intl.get("settings.exit") || "返回"}>
+                            <Icon iconName="Back" />
+                            <span>{intl.get("settings.exit") || "返回"}</span>
+                        </a>
+                    </div>
+                    <AIConfigPageWrapper />
+                </div>
+            )
+        }
+        
+        // 检查是否为AI功能
         if (isAIMode) {
-            // AI模式：始终显示 AI 模式页面，如果有 itemId 则弹出文章窗口
+            // AI功能：始终显示 AI 功能页面，如果有 itemId 则弹出文章窗口
             return (
                 <>
                     <div className="ai-mode-page">
@@ -193,5 +294,100 @@ class Page extends React.Component<PageProps> {
         )
     }
 }
+
+// AI配置页面包装器组件，用于在页面模式下显示AI配置
+const AIConfigPageWrapperComponent = (props: any) => {
+    const aiMode = props.aiMode
+    const dispatch = props.dispatch
+    
+    const handleConfirm = (tempChatApiEndpoint: string, tempChatApiKey: string, tempEmbeddingApiEndpoint: string, tempEmbeddingApiKey: string, tempModel: string, tempEmbeddingModel: string, tempEmbeddingQPS: string, tempTopk: string) => {
+        // 验证topk
+        const topk = parseInt(tempTopk, 10)
+        if (isNaN(topk) || topk < 1 || !Number.isInteger(topk)) {
+            dispatch(setAIModeShowErrorDialog(true))
+            dispatch(setAIModeErrorDialogMessage(intl.get("settings.aiMode.errors.topkInvalid")))
+            return
+        }
+        
+        // 验证embeddingQPS
+        const embeddingQPS = parseInt(tempEmbeddingQPS, 10)
+        if (isNaN(embeddingQPS) || embeddingQPS < 1 || !Number.isInteger(embeddingQPS)) {
+            dispatch(setAIModeShowErrorDialog(true))
+            dispatch(setAIModeErrorDialogMessage(intl.get("settings.aiMode.errors.embeddingQPSInvalid")))
+            return
+        }
+        
+        // 保存到 Redux
+        dispatch(updateAIModeChatApiEndpoint(tempChatApiEndpoint))
+        dispatch(updateAIModeChatApiKey(tempChatApiKey))
+        dispatch(updateAIModeEmbeddingApiEndpoint(tempEmbeddingApiEndpoint))
+        dispatch(updateAIModeEmbeddingApiKey(tempEmbeddingApiKey))
+        dispatch(updateAIModeModel(tempModel))
+        dispatch(updateAIModeEmbeddingModel(tempEmbeddingModel))
+        dispatch(updateAIModeEmbeddingQPS(embeddingQPS))
+        dispatch(updateAIModeTopk(topk))
+        // 导航回之前的页面
+        dispatch(selectAllArticles())
+    }
+    
+    const handleCancel = (chatApiEndpoint: string, chatApiKey: string, embeddingApiEndpoint: string, embeddingApiKey: string, model: string, embeddingModel: string, embeddingQPS: number, topk: number) => {
+        // 恢复临时状态为已保存的值
+        dispatch(updateAIModeTempChatApiEndpoint(chatApiEndpoint))
+        dispatch(updateAIModeTempChatApiKey(chatApiKey))
+        dispatch(updateAIModeTempEmbeddingApiEndpoint(embeddingApiEndpoint))
+        dispatch(updateAIModeTempEmbeddingApiKey(embeddingApiKey))
+        dispatch(updateAIModeTempModel(model))
+        dispatch(updateAIModeTempEmbeddingModel(embeddingModel))
+        dispatch(updateAIModeTempEmbeddingQPS(embeddingQPS.toString()))
+        dispatch(updateAIModeTempTopk(topk.toString()))
+        // 导航回之前的页面
+        dispatch(selectAllArticles())
+    }
+    
+    return (
+        <AIConfig
+            display={true}
+            tempChatApiEndpoint={aiMode.tempChatApiEndpoint}
+            tempChatApiKey={aiMode.tempChatApiKey}
+            tempEmbeddingApiEndpoint={aiMode.tempEmbeddingApiEndpoint}
+            tempEmbeddingApiKey={aiMode.tempEmbeddingApiKey}
+            tempModel={aiMode.tempModel}
+            tempEmbeddingModel={aiMode.tempEmbeddingModel}
+            tempEmbeddingQPS={aiMode.tempEmbeddingQPS}
+            tempTopk={aiMode.tempTopk}
+            chatApiEndpoint={aiMode.chatApiEndpoint}
+            chatApiKey={aiMode.chatApiKey}
+            embeddingApiEndpoint={aiMode.embeddingApiEndpoint}
+            embeddingApiKey={aiMode.embeddingApiKey}
+            model={aiMode.model}
+            embeddingModel={aiMode.embeddingModel}
+            embeddingQPS={aiMode.embeddingQPS}
+            topk={aiMode.topk}
+            onChatApiEndpointChange={(event, newValue) => dispatch(updateAIModeTempChatApiEndpoint(newValue || ""))}
+            onChatApiKeyChange={(event, newValue) => dispatch(updateAIModeTempChatApiKey(newValue || ""))}
+            onEmbeddingApiEndpointChange={(event, newValue) => dispatch(updateAIModeTempEmbeddingApiEndpoint(newValue || ""))}
+            onEmbeddingApiKeyChange={(event, newValue) => dispatch(updateAIModeTempEmbeddingApiKey(newValue || ""))}
+            onModelChange={(event, newValue) => dispatch(updateAIModeTempModel(newValue || ""))}
+            onEmbeddingModelChange={(event, newValue) => dispatch(updateAIModeTempEmbeddingModel(newValue || ""))}
+            onEmbeddingQPSChange={(event, newValue) => dispatch(updateAIModeTempEmbeddingQPS(newValue || ""))}
+            onTopkChange={(event, newValue) => dispatch(updateAIModeTempTopk(newValue || ""))}
+            onClearEmbeddings={async () => {
+                await clearArticleEmbeddings()
+            }}
+            onConfirm={handleConfirm}
+            onCancel={() => handleCancel(aiMode.chatApiEndpoint, aiMode.chatApiKey, aiMode.embeddingApiEndpoint, aiMode.embeddingApiKey, aiMode.model, aiMode.embeddingModel, aiMode.embeddingQPS, aiMode.topk)}
+        />
+    )
+}
+
+const mapStateToPropsForAIConfig = (state: RootState) => ({
+    aiMode: state.aiMode,
+})
+
+const mapDispatchToPropsForAIConfig = (dispatch: AppDispatch) => ({
+    dispatch: dispatch,
+})
+
+const AIConfigPageWrapper = connect(mapStateToPropsForAIConfig, mapDispatchToPropsForAIConfig)(AIConfigPageWrapperComponent)
 
 export default Page

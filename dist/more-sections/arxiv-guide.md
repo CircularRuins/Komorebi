@@ -9,6 +9,8 @@
 ### 为你的rss设定适当的search query，例如，我关注agent memory的研究论文，那么可以这样设置：
 ![](images/arxiv1.png)
 
+### 建议多摸索一下，尝试不同的search query，以获得最佳的检索效果
+
 ### 设置好后，点击Generate RSS URL，网站会生成一个RSS Feed URL
 ![](images/arxiv2.png)
 

@@ -46,11 +46,12 @@
         "settings": "選項",
         "minimize": "最小化",
         "maximize": "最大化",
-        "aiMode": "AI模式"
+        "aiMode": "AI功能"
     },
     "menu": {
         "close": "關閉選單",
-        "subscriptions": "訂閱源"
+        "subscriptions": "訂閱源",
+        "aiFeature": "AI功能"
     },
     "article": {
         "error": "文章載入失敗",

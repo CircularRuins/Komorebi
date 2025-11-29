@@ -51,11 +51,12 @@
         "settings": "选项",
         "minimize": "最小化",
         "maximize": "最大化",
-        "aiMode": "AI模式"
+        "aiMode": "AI功能"
     },
     "menu": {
         "close": "关闭菜单",
-        "subscriptions": "订阅源"
+        "subscriptions": "订阅源",
+        "aiFeature": "AI功能"
     },
     "article": {
         "error": "文章加载失败",
@@ -161,7 +162,7 @@
                 "embeddingQPSInvalid": "Embedding QPS必须是大于0的正整数"
             },
             "menu": {
-                "loading": "AI模式菜单加载中...",
+                "loading": "AI功能菜单加载中...",
                 "timeRange": "时间范围（必选）",
                 "timeRangeHint": "根据文章发布时间筛选。",
                 "timeRangeOptions": {

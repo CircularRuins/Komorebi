@@ -16,7 +16,6 @@ import { SourceActionTypes, DELETE_SOURCE, updateSourceDone, RSSSource } from ".
 import * as db from "../db"
 import { toggleMenu } from "./app"
 import { ViewType, ViewConfigs } from "../../schema-types"
-import { setAIModeShowConfigPanel } from "./ai-mode"
 
 export const SELECT_PAGE = "SELECT_PAGE"
 export const SWITCH_VIEW = "SWITCH_VIEW"
@@ -36,6 +35,8 @@ export enum PageType {
     Page,
     AIMode,
     AlphaXiv,
+    AppPreferences,
+    AIConfig,
 }
 
 interface SelectPageAction {
@@ -153,7 +154,7 @@ export function selectAIMode(): AppThunk {
     return (dispatch, getState) => {
         const aiModeState = getState().aiMode
         
-        // 检查所有必需的AI配置项是否已填写
+        // 检查所有必需的AI功能配置项是否已填写
         const chatApiEndpoint = (aiModeState.chatApiEndpoint || '').trim()
         const chatApiKey = (aiModeState.chatApiKey || '').trim()
         const model = (aiModeState.model || '').trim()
@@ -161,13 +162,13 @@ export function selectAIMode(): AppThunk {
         const embeddingApiKey = (aiModeState.embeddingApiKey || '').trim()
         const embeddingModel = (aiModeState.embeddingModel || '').trim()
         
-        // 如果任何必需项未填写，打开配置面板并阻止进入AI模式
+        // 如果任何必需项未填写，导航到AI配置页面
         if (!chatApiEndpoint || !chatApiKey || !model || !embeddingApiEndpoint || !embeddingApiKey || !embeddingModel) {
-            dispatch(setAIModeShowConfigPanel(true))
+            dispatch(selectAIConfig())
             return
         }
         
-        // 配置完整，正常进入AI模式
+        // 配置完整，正常进入AI功能
         dispatch({
             type: SELECT_PAGE,
             pageType: PageType.AIMode,
@@ -202,6 +203,30 @@ export function selectAlphaXiv(init = false): AppThunk {
     }
 }
 
+export function selectAppPreferences(init = false): AppThunk {
+    return (dispatch, getState) => {
+        dispatch({
+            type: SELECT_PAGE,
+            keepMenu: getWindowBreakpoint(),
+            filter: getState().page.filter,
+            pageType: PageType.AppPreferences,
+            init: init,
+        } as PageActionTypes)
+    }
+}
+
+export function selectAIConfig(init = false): AppThunk {
+    return (dispatch, getState) => {
+        dispatch({
+            type: SELECT_PAGE,
+            keepMenu: getWindowBreakpoint(),
+            filter: getState().page.filter,
+            pageType: PageType.AIConfig,
+            init: init,
+        } as PageActionTypes)
+    }
+}
+
 export function switchView(viewType: ViewType): AppThunk {
     return (dispatch, getState) => {
         dispatch({
@@ -227,7 +252,7 @@ export function showItem(feedId: string, item: RSSItem): AppThunk<Promise<void>>
         let hasItem = state.items.hasOwnProperty(item._id)
         let hasSource = state.sources.hasOwnProperty(item.source)
         
-        // 如果是AI模式且source不在store中，从数据库加载
+        // 如果是AI功能且source不在store中，从数据库加载
         if (feedId === "ai-mode" && !hasSource) {
             try {
                 // 等待数据库初始化
@@ -272,7 +297,7 @@ export function showItem(feedId: string, item: RSSItem): AppThunk<Promise<void>>
             }
         }
         
-        // 如果是AI模式且item不在store中，临时添加到store
+        // 如果是AI功能且item不在store中，临时添加到store
         if (feedId === "ai-mode" && !hasItem && hasSource) {
             // 使用fetchItemsSuccess来添加item到store
             dispatch(fetchItemsSuccess([item], { ...state.items, [item._id]: item }))
@@ -481,6 +506,18 @@ export function pageReducer(
                 case PageType.AlphaXiv:
                     // 不改变 feedId，保持当前的主内容区域
                     return state
+                case PageType.AppPreferences:
+                    return {
+                        ...state,
+                        feedId: "app-preferences",
+                        itemId: null,
+                    }
+                case PageType.AIConfig:
+                    return {
+                        ...state,
+                        feedId: "ai-config",
+                        itemId: null,
+                    }
                 default:
                     return state
             }

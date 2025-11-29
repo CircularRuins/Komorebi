@@ -51,11 +51,12 @@
         "settings": "Settings",
         "minimize": "Minimize",
         "maximize": "Maximize",
-        "aiMode": "AI Mode"
+        "aiMode": "AI Features"
     },
     "menu": {
         "close": "Close menu",
-        "subscriptions": "Subscriptions"
+        "subscriptions": "Subscriptions",
+        "aiFeature": "AI Features"
     },
     "article": {
         "error": "Failed to load article.",

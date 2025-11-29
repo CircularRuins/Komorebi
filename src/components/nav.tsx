@@ -64,6 +64,7 @@ type NavProps = {
     aiConfigDisplay: boolean
     settingsDisplay: boolean
     isRefreshing: boolean
+    openAIConfig: () => void
 }
 
 type NavState = {
@@ -263,7 +264,7 @@ class Nav extends React.Component<NavProps, NavState> {
             return
         }
         
-        // 如果点击的是AI模式开关，不关闭菜单
+        // 如果点击的是AI功能开关，不关闭菜单
         if (target.closest('.ai-mode-switch')) {
             return
         }
@@ -281,9 +282,7 @@ class Nav extends React.Component<NavProps, NavState> {
 
     handleAIConfig = () => {
         this.closeSettingsMenu()
-        if (typeof window !== 'undefined' && (window as any).openAIConfigPanel) {
-            (window as any).openAIConfigPanel()
-        }
+        this.props.openAIConfig()
     }
 
     getSettingsMenuItems = (): IContextualMenuItem[] => {
@@ -363,29 +362,6 @@ class Nav extends React.Component<NavProps, NavState> {
         return (
             <nav className={this.getClassNames()} onClick={this.handleNavClick}>
                 <span className="title" style={{ pointerEvents: 'none' }}>{this.props.state.title}</span>
-                {/* AI模式开关 - 居中显示，只保留图标 */}
-                {!this.props.settingsDisplay && !this.props.itemShown && !this.props.isRefreshing && (
-                <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'inline-block' }}>
-                    <TooltipHost 
-                        content={intl.get("nav.aiMode")} 
-                        delay={TooltipDelay.zero}
-                        calloutProps={{
-                            directionalHint: DirectionalHint.bottomCenter
-                        }}>
-                        <div 
-                            className={`ai-mode-switch ${this.props.isAIModeEnabled ? 'ai-mode-enabled' : ''}`}
-                            style={{ position: 'relative', left: 'auto', transform: 'none' }}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                this.props.toggleAIMode(!this.props.isAIModeEnabled);
-                            }}
-                        >
-                            <Icon iconName="AIMode" className="ai-mode-icon" />
-                        </div>
-                    </TooltipHost>
-                </div>
-                )}
                 <div className="btn-group" style={{ float: "right" }}>
                     {!this.props.isRefreshing && (
                     <a

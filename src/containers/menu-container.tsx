@@ -17,6 +17,7 @@ import {
     selectTodayArticles,
     selectAlphaXiv,
     selectSources,
+    selectAIMode,
     toggleSourcesPage,
 } from "../scripts/models/page"
 import { ViewType } from "../schema-types"
@@ -134,6 +135,13 @@ const mapDispatchToProps = dispatch => ({
     reorderSourceGroups: (groups: SourceGroup[]) => dispatch(reorderSourceGroups(groups)),
     clearSourceIcon: (source: RSSSource) => {
         dispatch(updateSource({ ...source, iconurl: "" }))
+    },
+    toggleAIMode: (enabled: boolean) => {
+        if (enabled) {
+            dispatch(selectAIMode())
+        } else {
+            dispatch(selectAllArticles())
+        }
     },
 })
 

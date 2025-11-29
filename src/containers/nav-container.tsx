@@ -7,7 +7,7 @@ import {
     toggleLogMenu,
     openSettingsTab,
 } from "../scripts/models/app"
-import { toggleSearch, selectAIMode, selectAllArticles } from "../scripts/models/page"
+import { toggleSearch, selectAIMode, selectAllArticles, selectAppPreferences, selectAIConfig } from "../scripts/models/page"
 import { ViewType } from "../schema-types"
 import Nav from "../components/nav"
 
@@ -40,7 +40,7 @@ const mapDispatchToProps = dispatch => ({
     logs: () => dispatch(toggleLogMenu()),
     openSourcesSettings: () => dispatch(openSettingsTab("sources")),
     openGroupingSettings: () => dispatch(openSettingsTab("grouping")),
-    openAppSettings: () => dispatch(openSettingsTab("app")),
+    openAppSettings: () => dispatch(selectAppPreferences()),
     search: () => dispatch(toggleSearch()),
     toggleAIMode: (enabled: boolean) => {
         if (enabled) {
@@ -49,6 +49,7 @@ const mapDispatchToProps = dispatch => ({
             dispatch(selectAllArticles())
         }
     },
+    openAIConfig: () => dispatch(selectAIConfig()),
 })
 
 const NavContainer = connect(mapStateToProps, mapDispatchToProps)(Nav)

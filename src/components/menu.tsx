@@ -17,6 +17,7 @@ export type MenuProps = {
     groups: SourceGroup[]
     itemOn: boolean
     isAIMode: boolean
+    toggleAIMode: (enabled: boolean) => void
     todayUnreadCount: number
     allArticles: (init?: boolean) => void
     allArticlesTotal: (init?: boolean) => void
@@ -56,50 +57,60 @@ export class Menu extends React.Component<MenuProps, MenuState> {
             .map(s => s.unreadCount)
             .reduce((a, b) => a + b, 0)
         
+        const fixedLinks: INavLink[] = [
+            {
+                name: intl.get("menu.aiFeature"),
+                ariaLabel: intl.get("menu.aiFeature"),
+                key: "ai-feature",
+                icon: "AIMode",
+                onClick: () => this.props.toggleAIMode(!this.props.isAIMode),
+                url: null,
+            },
+            {
+                name: intl.get("alphaxiv"),
+                ariaLabel: intl.get("alphaxiv"),
+                key: "alphaxiv",
+                icon: "Globe",
+                onClick: () =>
+                    this.props.selectAlphaxiv(this.props.selected !== "alphaxiv"),
+                url: null,
+            },
+            {
+                name: intl.get("todayArticles"),
+                ariaLabel:
+                    intl.get("todayArticles") +
+                    this.countOverflow(this.props.todayUnreadCount),
+                key: ALL_TODAY,
+                icon: "Calendar",
+                onClick: () =>
+                    this.props.todayArticles(this.props.selected !== ALL_TODAY),
+                url: null,
+            },
+            {
+                name: intl.get("allArticles"),
+                ariaLabel:
+                    intl.get("allArticles") +
+                    this.countOverflow(unreadCount),
+                key: ALL,
+                icon: "TextDocument",
+                onClick: () =>
+                    this.props.allArticles(this.props.selected !== ALL),
+                url: null,
+            },
+            {
+                name: intl.get("starred"),
+                ariaLabel: intl.get("starred"), // 已收藏不显示数量
+                key: ALL_TOTAL,
+                icon: "FavoriteStarFill",
+                onClick: () =>
+                    this.props.allArticlesTotal(this.props.selected !== ALL_TOTAL),
+                url: null,
+            },
+        ]
+        
         return [
             {
-                links: [
-                    {
-                        name: intl.get("alphaxiv"),
-                        ariaLabel: intl.get("alphaxiv"),
-                        key: "alphaxiv",
-                        icon: "Globe",
-                        onClick: () =>
-                            this.props.selectAlphaxiv(this.props.selected !== "alphaxiv"),
-                        url: null,
-                    },
-                    {
-                        name: intl.get("todayArticles"),
-                        ariaLabel:
-                            intl.get("todayArticles") +
-                            this.countOverflow(this.props.todayUnreadCount),
-                        key: ALL_TODAY,
-                        icon: "Calendar",
-                        onClick: () =>
-                            this.props.todayArticles(this.props.selected !== ALL_TODAY),
-                        url: null,
-                    },
-                    {
-                        name: intl.get("allArticles"),
-                        ariaLabel:
-                            intl.get("allArticles") +
-                            this.countOverflow(unreadCount),
-                        key: ALL,
-                        icon: "TextDocument",
-                        onClick: () =>
-                            this.props.allArticles(this.props.selected !== ALL),
-                        url: null,
-                    },
-                    {
-                        name: intl.get("starred"),
-                        ariaLabel: intl.get("starred"), // 已收藏不显示数量
-                        key: ALL_TOTAL,
-                        icon: "FavoriteStarFill",
-                        onClick: () =>
-                            this.props.allArticlesTotal(this.props.selected !== ALL_TOTAL),
-                        url: null,
-                    },
-                ],
+                links: fixedLinks,
             },
             {
                 name: intl.get("menu.subscriptions"),
@@ -257,7 +268,7 @@ export class Menu extends React.Component<MenuProps, MenuState> {
     }
 
     render() {
-        // 如果是AI模式，渲染AI模式的菜单（通过全局状态访问）
+        // 如果是AI功能模式，渲染AI功能菜单（通过全局状态访问）
         if (this.props.isAIMode) {
             return (
                 this.props.status && (
@@ -271,6 +282,23 @@ export class Menu extends React.Component<MenuProps, MenuState> {
                                 overflow: 'hidden'
                             }}
                         >
+                            {/* 顶部：AI功能入口（退出按钮） */}
+                            <div
+                                className="ai-feature-entry"
+                                style={{
+                                    padding: '8px 12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    cursor: 'pointer',
+                                    flexShrink: 0
+                                }}
+                                onClick={() => this.props.toggleAIMode(false)}
+                            >
+                                <Icon iconName="AIMode" style={{ marginRight: 6 }} />
+                                <span style={{ fontWeight: 500 }}>
+                                    {intl.get("menu.aiFeature")}
+                                </span>
+                            </div>
                             <AIModeMenu />
                         </div>
                     </div>
@@ -280,7 +308,7 @@ export class Menu extends React.Component<MenuProps, MenuState> {
 
         // 普通模式的菜单
         const linkGroups = this.getLinkGroups()
-        const fixedGroup = linkGroups[0]  // 今日文章等
+        const fixedGroup = linkGroups[0]  // 今日文章等（包含AI功能入口）
         const subscriptionsGroup = linkGroups[1]  // 订阅源
         
         // 创建只包含链接的订阅源分组（不包含标题）
@@ -354,7 +382,7 @@ export class Menu extends React.Component<MenuProps, MenuState> {
     }
 }
 
-// AI模式的菜单组件
+// AI功能的菜单组件
 class AIModeMenu extends React.Component {
     render() {
         return (
