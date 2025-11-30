@@ -96,4 +96,15 @@ export type SchemaTypes = {
     serviceConfigs: ServiceConfigs
     filterType: number
     listViewConfigs: ViewConfigs
+    aiChatApiEndpoint: string
+    aiChatApiKey: string
+    aiEmbeddingApiEndpoint: string
+    aiEmbeddingApiKey: string
+    aiModel: string
+    aiEmbeddingModel: string
+    aiEmbeddingQPS: number
+    aiTopk: number
+    aiTranslationApiEndpoint: string
+    aiTranslationApiKey: string
+    aiTranslationModel: string
 }

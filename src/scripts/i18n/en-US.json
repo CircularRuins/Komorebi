@@ -82,7 +82,11 @@
         "Vertical": "Vertical",
         "font": "Font",
         "prevItem": "Previous article",
-        "nextItem": "Next article"
+        "nextItem": "Next article",
+        "translate": "Translate",
+        "translating": "Translating...",
+        "showOriginal": "Show original",
+        "showTranslated": "Show translated"
     },
     "context": {
         "share": "Share",
@@ -124,6 +128,7 @@
         "exit": "Exit settings",
         "sources": "Sources",
         "ai": "AI Config",
+        "translation": "Translation Config",
         "grouping": "Groups",
         "rules": "Rules",
         "service": "Service",
@@ -430,5 +435,26 @@
         "pacHint": "For Socks proxies, it is recommended for PAC to return \"SOCKS5\" for proxy-side DNS. Turning off proxy requires restart.",
         "fetchInterval": "Automatic fetch interval",
         "never": "Never"
+    },
+    "translation": {
+        "config": {
+            "title": "Translation API Configuration",
+            "apiEndpoint": "Translation API Endpoint",
+            "apiEndpointHint": "OpenAI-compatible Chat API endpoint address. Must be a complete URL including protocol (https://) and full path (e.g., /v1/chat/completions)",
+            "apiKey": "Translation API Key",
+            "apiKeyHint": "API key for translation",
+            "model": "Translation Model Name",
+            "modelPlaceholder": "Enter model name",
+            "modelHint": "The translation model name to use, e.g., gpt-3.5-turbo, gpt-4, claude-3-opus, etc.",
+            "cancel": "Cancel",
+            "confirm": "Confirm"
+        },
+        "error": {
+            "configIncomplete": "Translation configuration is incomplete, please configure translation API first",
+            "configNotSet": "Translation configuration not set",
+            "translationFailed": "Translation failed",
+            "emptyContent": "Article content is empty, cannot translate",
+            "openConfig": "Open Config"
+        }
     }
 }

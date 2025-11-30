@@ -796,10 +796,6 @@
             {
                 "name": "字节跳动Seed",
                 "url": "https://wechat2rss.bestblogs.dev/feed/6efd40bb335d2037f365d284cb5e00f0843e737e.xml"
-            },
-            {
-                "name": "MiniMax 稀宇科技",
-                "url": "https://wechat2rss.bestblogs.dev/feed/00306b171f754d463b28cf83f3ba086ad009b430.xml"
             }
         ]
     },
@@ -812,7 +808,11 @@
             },
             {
                 "name": "Every",
-                "url": "https://kill-the-newsletter.com/feeds/484dq9i75tzvsjie5bfi.xml"
+                "url": "https://every.to/feeds/b7066b7c4bade231e0ef.xml"
+            },
+            {
+                "name": "BestBlogs",
+                "url": "https://www.bestblogs.dev/zh/feeds/rss/newsletter"
             }
         ]
     },

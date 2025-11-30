@@ -79,6 +79,12 @@ export class AIModeState {
     tempEmbeddingModel: string = ''
     tempEmbeddingQPS: string = '30'
     tempTopk: string = '100'
+    translationApiEndpoint: string = ''
+    translationApiKey: string = ''
+    translationModel: string = ''
+    tempTranslationApiEndpoint: string = ''
+    tempTranslationApiKey: string = ''
+    tempTranslationModel: string = ''
     showErrorDialog: boolean = false
     errorDialogMessage: string = ''
     articleCount: number = 0
@@ -125,6 +131,12 @@ export const UPDATE_AI_MODE_TEMP_CHAT_API_ENDPOINT = "UPDATE_AI_MODE_TEMP_CHAT_A
 export const UPDATE_AI_MODE_TEMP_CHAT_API_KEY = "UPDATE_AI_MODE_TEMP_CHAT_API_KEY"
 export const UPDATE_AI_MODE_TEMP_EMBEDDING_API_ENDPOINT = "UPDATE_AI_MODE_TEMP_EMBEDDING_API_ENDPOINT"
 export const UPDATE_AI_MODE_TEMP_EMBEDDING_API_KEY = "UPDATE_AI_MODE_TEMP_EMBEDDING_API_KEY"
+export const UPDATE_AI_MODE_TRANSLATION_API_ENDPOINT = "UPDATE_AI_MODE_TRANSLATION_API_ENDPOINT"
+export const UPDATE_AI_MODE_TRANSLATION_API_KEY = "UPDATE_AI_MODE_TRANSLATION_API_KEY"
+export const UPDATE_AI_MODE_TRANSLATION_MODEL = "UPDATE_AI_MODE_TRANSLATION_MODEL"
+export const UPDATE_AI_MODE_TEMP_TRANSLATION_API_ENDPOINT = "UPDATE_AI_MODE_TEMP_TRANSLATION_API_ENDPOINT"
+export const UPDATE_AI_MODE_TEMP_TRANSLATION_API_KEY = "UPDATE_AI_MODE_TEMP_TRANSLATION_API_KEY"
+export const UPDATE_AI_MODE_TEMP_TRANSLATION_MODEL = "UPDATE_AI_MODE_TEMP_TRANSLATION_MODEL"
 export const SET_AI_MODE_SHOW_ERROR_DIALOG = "SET_AI_MODE_SHOW_ERROR_DIALOG"
 export const SET_AI_MODE_ERROR_DIALOG_MESSAGE = "SET_AI_MODE_ERROR_DIALOG_MESSAGE"
 export const SET_AI_MODE_ARTICLE_COUNT = "SET_AI_MODE_ARTICLE_COUNT"
@@ -304,6 +316,36 @@ export interface UpdateAIModeTempEmbeddingApiKeyAction {
     tempEmbeddingApiKey: string
 }
 
+export interface UpdateAIModeTranslationApiEndpointAction {
+    type: typeof UPDATE_AI_MODE_TRANSLATION_API_ENDPOINT
+    translationApiEndpoint: string
+}
+
+export interface UpdateAIModeTranslationApiKeyAction {
+    type: typeof UPDATE_AI_MODE_TRANSLATION_API_KEY
+    translationApiKey: string
+}
+
+export interface UpdateAIModeTranslationModelAction {
+    type: typeof UPDATE_AI_MODE_TRANSLATION_MODEL
+    translationModel: string
+}
+
+export interface UpdateAIModeTempTranslationApiEndpointAction {
+    type: typeof UPDATE_AI_MODE_TEMP_TRANSLATION_API_ENDPOINT
+    tempTranslationApiEndpoint: string
+}
+
+export interface UpdateAIModeTempTranslationApiKeyAction {
+    type: typeof UPDATE_AI_MODE_TEMP_TRANSLATION_API_KEY
+    tempTranslationApiKey: string
+}
+
+export interface UpdateAIModeTempTranslationModelAction {
+    type: typeof UPDATE_AI_MODE_TEMP_TRANSLATION_MODEL
+    tempTranslationModel: string
+}
+
 export interface SetAIModeShowErrorDialogAction {
     type: typeof SET_AI_MODE_SHOW_ERROR_DIALOG
     showErrorDialog: boolean
@@ -395,6 +437,12 @@ export type AIModeActionTypes =
     | UpdateAIModeTempChatApiKeyAction
     | UpdateAIModeTempEmbeddingApiEndpointAction
     | UpdateAIModeTempEmbeddingApiKeyAction
+    | UpdateAIModeTranslationApiEndpointAction
+    | UpdateAIModeTranslationApiKeyAction
+    | UpdateAIModeTranslationModelAction
+    | UpdateAIModeTempTranslationApiEndpointAction
+    | UpdateAIModeTempTranslationApiKeyAction
+    | UpdateAIModeTempTranslationModelAction
     | SetAIModeShowErrorDialogAction
     | SetAIModeErrorDialogMessageAction
     | SetAIModeArticleCountAction
@@ -640,6 +688,48 @@ export function updateAIModeTempEmbeddingApiKey(tempEmbeddingApiKey: string): AI
     }
 }
 
+export function updateAIModeTranslationApiEndpoint(translationApiEndpoint: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_TRANSLATION_API_ENDPOINT,
+        translationApiEndpoint
+    }
+}
+
+export function updateAIModeTranslationApiKey(translationApiKey: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_TRANSLATION_API_KEY,
+        translationApiKey
+    }
+}
+
+export function updateAIModeTranslationModel(translationModel: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_TRANSLATION_MODEL,
+        translationModel
+    }
+}
+
+export function updateAIModeTempTranslationApiEndpoint(tempTranslationApiEndpoint: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_TEMP_TRANSLATION_API_ENDPOINT,
+        tempTranslationApiEndpoint
+    }
+}
+
+export function updateAIModeTempTranslationApiKey(tempTranslationApiKey: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_TEMP_TRANSLATION_API_KEY,
+        tempTranslationApiKey
+    }
+}
+
+export function updateAIModeTempTranslationModel(tempTranslationModel: string): AIModeActionTypes {
+    return {
+        type: UPDATE_AI_MODE_TEMP_TRANSLATION_MODEL,
+        tempTranslationModel
+    }
+}
+
 export function setAIModeShowErrorDialog(showErrorDialog: boolean): AIModeActionTypes {
     return {
         type: SET_AI_MODE_SHOW_ERROR_DIALOG,
@@ -720,46 +810,38 @@ export function setAIModeTokenStatistics(tokenStatistics: TokenStatistics | null
 
 // ==================== Reducer ====================
 
-// 初始化状态：从 localStorage 读取配置
+// 初始化状态：从 electron-store 读取配置（与 localStorage 向后兼容）
 function getInitialState(): AIModeState {
-    // 向后兼容：检查新字段是否存在，如果不存在则从旧字段迁移
-    const savedChatEndpoint = localStorage.getItem('ai-chat-api-endpoint')
-    const savedChatKey = localStorage.getItem('ai-chat-api-key')
-    const savedEmbeddingEndpoint = localStorage.getItem('ai-embedding-api-endpoint')
-    const savedEmbeddingKey = localStorage.getItem('ai-embedding-api-key')
+    // 优先从 electron-store 读取（持久化存储）
+    let chatApiEndpoint = window.settings.getAIChatApiEndpoint()
+    let chatApiKey = window.settings.getAIChatApiKey()
+    let embeddingApiEndpoint = window.settings.getAIEmbeddingApiEndpoint()
+    let embeddingApiKey = window.settings.getAIEmbeddingApiKey()
+    let model = window.settings.getAIModel()
+    let embeddingModel = window.settings.getAIEmbeddingModel()
+    let embeddingQPS = window.settings.getAIEmbeddingQPS()
+    let topk = window.settings.getAITopk()
+    let translationApiEndpoint = window.settings.getAITranslationApiEndpoint()
+    let translationApiKey = window.settings.getAITranslationApiKey()
+    let translationModel = window.settings.getAITranslationModel()
     
-    // 如果新字段不存在，尝试从旧字段迁移
-    const oldEndpoint = localStorage.getItem('ai-api-endpoint') || 'https://api.openai.com/v1/chat/completions'
-    const oldKey = localStorage.getItem('ai-api-key') || ''
+    // 不再从 localStorage 迁移，直接使用 electron-store 的值
     
-    const chatApiEndpoint = savedChatEndpoint || oldEndpoint
-    const chatApiKey = savedChatKey || oldKey
-    const embeddingApiEndpoint = savedEmbeddingEndpoint || oldEndpoint
-    const embeddingApiKey = savedEmbeddingKey || oldKey
-    
-    // 如果从旧字段迁移，保存到新字段
-    if (!savedChatEndpoint && oldEndpoint) {
-        localStorage.setItem('ai-chat-api-endpoint', chatApiEndpoint)
-    }
-    if (!savedChatKey && oldKey) {
-        localStorage.setItem('ai-chat-api-key', chatApiKey)
-    }
-    if (!savedEmbeddingEndpoint && oldEndpoint) {
-        localStorage.setItem('ai-embedding-api-endpoint', embeddingApiEndpoint)
-    }
-    if (!savedEmbeddingKey && oldKey) {
-        localStorage.setItem('ai-embedding-api-key', embeddingApiKey)
-    }
-    
-    const savedModel = localStorage.getItem('ai-model') || ''
-    const savedEmbeddingModel = localStorage.getItem('ai-embedding-model') || 'text-embedding-ada-002'
-    const savedEmbeddingQPS = parseInt(localStorage.getItem('ai-embedding-qps') || '30', 10)
-    const savedTopk = parseInt(localStorage.getItem('ai-topk') || '100', 10)
+    // 从 localStorage 读取其他配置（recent topics 等）
     const savedRecentTopics = localStorage.getItem('ai-recent-topics')
     const recentTopics = savedRecentTopics ? JSON.parse(savedRecentTopics) : []
     const savedRecentClassificationStandards = localStorage.getItem('ai-recent-classification-standards')
     const recentClassificationStandards = savedRecentClassificationStandards ? JSON.parse(savedRecentClassificationStandards) : []
+    
+    // 不设置默认值，保持为空字符串
+    // 只对数字字段设置默认值（如果未设置）
+    if (embeddingQPS === undefined || embeddingQPS === null || embeddingQPS === 0) embeddingQPS = 30
+    if (topk === undefined || topk === null || topk === 0) topk = 100
 
+    // 向后兼容：保留旧字段
+    const oldEndpoint = chatApiEndpoint
+    const oldKey = chatApiKey
+    
     const state = new AIModeState()
     // 保留旧字段用于向后兼容
     state.apiEndpoint = oldEndpoint
@@ -769,10 +851,10 @@ function getInitialState(): AIModeState {
     state.chatApiKey = chatApiKey
     state.embeddingApiEndpoint = embeddingApiEndpoint
     state.embeddingApiKey = embeddingApiKey
-    state.model = savedModel
-    state.embeddingModel = savedEmbeddingModel
-    state.embeddingQPS = savedEmbeddingQPS
-    state.topk = savedTopk
+    state.model = model
+    state.embeddingModel = embeddingModel
+    state.embeddingQPS = embeddingQPS
+    state.topk = topk
     state.recentTopics = recentTopics
     state.recentClassificationStandards = recentClassificationStandards
     // 临时字段
@@ -782,10 +864,17 @@ function getInitialState(): AIModeState {
     state.tempChatApiKey = chatApiKey
     state.tempEmbeddingApiEndpoint = embeddingApiEndpoint
     state.tempEmbeddingApiKey = embeddingApiKey
-    state.tempModel = savedModel
-    state.tempEmbeddingModel = savedEmbeddingModel
-    state.tempEmbeddingQPS = savedEmbeddingQPS.toString()
-    state.tempTopk = savedTopk.toString()
+    state.tempModel = model
+    state.tempEmbeddingModel = embeddingModel
+    state.tempEmbeddingQPS = embeddingQPS.toString()
+    state.tempTopk = topk.toString()
+    // 翻译配置不再存储在 aiMode state 中，已独立到 translation state
+    state.translationApiEndpoint = ''
+    state.translationApiKey = ''
+    state.translationModel = ''
+    state.tempTranslationApiEndpoint = ''
+    state.tempTranslationApiKey = ''
+    state.tempTranslationModel = ''
     return state
 }
 
@@ -845,23 +934,43 @@ export function aiModeReducer(
             return { ...state, apiKey: action.apiKey }
 
         case UPDATE_AI_MODE_MODEL:
-            // 同步到 localStorage
-            localStorage.setItem('ai-model', action.model)
+            // 同步到 electron-store（持久化存储）
+            try {
+                window.settings.setAIModel(action.model)
+                console.log('已保存 model 到 electron-store:', action.model || '空')
+            } catch (error) {
+                console.error('保存 model 失败:', error)
+            }
             return { ...state, model: action.model }
 
         case UPDATE_AI_MODE_EMBEDDING_MODEL:
-            // 同步到 localStorage
-            localStorage.setItem('ai-embedding-model', action.embeddingModel)
+            // 同步到 electron-store（持久化存储）
+            try {
+                window.settings.setAIEmbeddingModel(action.embeddingModel)
+                console.log('已保存 embeddingModel 到 electron-store:', action.embeddingModel || '空')
+            } catch (error) {
+                console.error('保存 embeddingModel 失败:', error)
+            }
             return { ...state, embeddingModel: action.embeddingModel }
 
         case UPDATE_AI_MODE_EMBEDDING_QPS:
-            // 同步到 localStorage
-            localStorage.setItem('ai-embedding-qps', action.embeddingQPS.toString())
+            // 同步到 electron-store（持久化存储）
+            try {
+                window.settings.setAIEmbeddingQPS(action.embeddingQPS)
+                console.log('已保存 embeddingQPS 到 electron-store:', action.embeddingQPS)
+            } catch (error) {
+                console.error('保存 embeddingQPS 失败:', error)
+            }
             return { ...state, embeddingQPS: action.embeddingQPS }
 
         case UPDATE_AI_MODE_TOPK:
-            // 同步到 localStorage
-            localStorage.setItem('ai-topk', action.topk.toString())
+            // 同步到 electron-store（持久化存储）
+            try {
+                window.settings.setAITopk(action.topk)
+                console.log('已保存 topk 到 electron-store:', action.topk)
+            } catch (error) {
+                console.error('保存 topk 失败:', error)
+            }
             return { ...state, topk: action.topk }
 
         case SET_AI_MODE_SHOW_CONFIG_PANEL:
@@ -886,23 +995,43 @@ export function aiModeReducer(
             return { ...state, tempTopk: action.tempTopk }
 
         case UPDATE_AI_MODE_CHAT_API_ENDPOINT:
-            // 同步到 localStorage
-            localStorage.setItem('ai-chat-api-endpoint', action.chatApiEndpoint)
+            // 同步到 electron-store（持久化存储）
+            try {
+                window.settings.setAIChatApiEndpoint(action.chatApiEndpoint)
+                console.log('已保存 chatApiEndpoint 到 electron-store:', action.chatApiEndpoint ? '已设置' : '空')
+            } catch (error) {
+                console.error('保存 chatApiEndpoint 失败:', error)
+            }
             return { ...state, chatApiEndpoint: action.chatApiEndpoint }
 
         case UPDATE_AI_MODE_CHAT_API_KEY:
-            // 同步到 localStorage
-            localStorage.setItem('ai-chat-api-key', action.chatApiKey)
+            // 同步到 electron-store（持久化存储）
+            try {
+                window.settings.setAIChatApiKey(action.chatApiKey)
+                console.log('已保存 chatApiKey 到 electron-store:', action.chatApiKey ? '已设置' : '空')
+            } catch (error) {
+                console.error('保存 chatApiKey 失败:', error)
+            }
             return { ...state, chatApiKey: action.chatApiKey }
 
         case UPDATE_AI_MODE_EMBEDDING_API_ENDPOINT:
-            // 同步到 localStorage
-            localStorage.setItem('ai-embedding-api-endpoint', action.embeddingApiEndpoint)
+            // 同步到 electron-store（持久化存储）
+            try {
+                window.settings.setAIEmbeddingApiEndpoint(action.embeddingApiEndpoint)
+                console.log('已保存 embeddingApiEndpoint 到 electron-store:', action.embeddingApiEndpoint ? '已设置' : '空')
+            } catch (error) {
+                console.error('保存 embeddingApiEndpoint 失败:', error)
+            }
             return { ...state, embeddingApiEndpoint: action.embeddingApiEndpoint }
 
         case UPDATE_AI_MODE_EMBEDDING_API_KEY:
-            // 同步到 localStorage
-            localStorage.setItem('ai-embedding-api-key', action.embeddingApiKey)
+            // 同步到 electron-store（持久化存储）
+            try {
+                window.settings.setAIEmbeddingApiKey(action.embeddingApiKey)
+                console.log('已保存 embeddingApiKey 到 electron-store:', action.embeddingApiKey ? '已设置' : '空')
+            } catch (error) {
+                console.error('保存 embeddingApiKey 失败:', error)
+            }
             return { ...state, embeddingApiKey: action.embeddingApiKey }
 
         case UPDATE_AI_MODE_TEMP_CHAT_API_ENDPOINT:
@@ -916,6 +1045,45 @@ export function aiModeReducer(
 
         case UPDATE_AI_MODE_TEMP_EMBEDDING_API_KEY:
             return { ...state, tempEmbeddingApiKey: action.tempEmbeddingApiKey }
+
+        case UPDATE_AI_MODE_TRANSLATION_API_ENDPOINT:
+            // 同步到 electron-store（持久化存储）
+            try {
+                window.settings.setAITranslationApiEndpoint(action.translationApiEndpoint)
+                console.log('已保存 translationApiEndpoint 到 electron-store:', action.translationApiEndpoint || '空')
+            } catch (error) {
+                console.error('保存 translationApiEndpoint 失败:', error)
+            }
+            return { ...state, translationApiEndpoint: action.translationApiEndpoint }
+
+        case UPDATE_AI_MODE_TRANSLATION_API_KEY:
+            // 同步到 electron-store（持久化存储）
+            try {
+                window.settings.setAITranslationApiKey(action.translationApiKey)
+                console.log('已保存 translationApiKey 到 electron-store:', action.translationApiKey ? '已设置' : '空')
+            } catch (error) {
+                console.error('保存 translationApiKey 失败:', error)
+            }
+            return { ...state, translationApiKey: action.translationApiKey }
+
+        case UPDATE_AI_MODE_TRANSLATION_MODEL:
+            // 同步到 electron-store（持久化存储）
+            try {
+                window.settings.setAITranslationModel(action.translationModel)
+                console.log('已保存 translationModel 到 electron-store:', action.translationModel || '空')
+            } catch (error) {
+                console.error('保存 translationModel 失败:', error)
+            }
+            return { ...state, translationModel: action.translationModel }
+
+        case UPDATE_AI_MODE_TEMP_TRANSLATION_API_ENDPOINT:
+            return { ...state, tempTranslationApiEndpoint: action.tempTranslationApiEndpoint }
+
+        case UPDATE_AI_MODE_TEMP_TRANSLATION_API_KEY:
+            return { ...state, tempTranslationApiKey: action.tempTranslationApiKey }
+
+        case UPDATE_AI_MODE_TEMP_TRANSLATION_MODEL:
+            return { ...state, tempTranslationModel: action.tempTranslationModel }
 
         case SET_AI_MODE_SHOW_ERROR_DIALOG:
             return { ...state, showErrorDialog: action.showErrorDialog }

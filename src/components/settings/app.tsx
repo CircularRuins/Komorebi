@@ -208,7 +208,6 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
                 </Stack.Item>
             </Stack>
 
-
             <Label>{intl.get("app.fetchInterval")}</Label>
             <Stack horizontal>
                 <Stack.Item>

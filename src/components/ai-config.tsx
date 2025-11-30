@@ -3,7 +3,7 @@ import intl from "react-intl-universal"
 import { Stack } from "@fluentui/react"
 import { Label } from "@fluentui/react/lib/Label"
 import { TextField } from "@fluentui/react/lib/TextField"
-import { PrimaryButton, DefaultButton } from "@fluentui/react/lib/Button"
+import { PrimaryButton } from "@fluentui/react/lib/Button"
 
 type AIConfigProps = {
     display: boolean
@@ -15,6 +15,9 @@ type AIConfigProps = {
     tempEmbeddingModel: string
     tempEmbeddingQPS: string
     tempTopk: string
+    tempTranslationApiEndpoint: string
+    tempTranslationApiKey: string
+    tempTranslationModel: string
     chatApiEndpoint: string
     chatApiKey: string
     embeddingApiEndpoint: string
@@ -23,6 +26,9 @@ type AIConfigProps = {
     embeddingModel: string
     embeddingQPS: number
     topk: number
+    translationApiEndpoint: string
+    translationApiKey: string
+    translationModel: string
     onChatApiEndpointChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onChatApiKeyChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onEmbeddingApiEndpointChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
@@ -31,9 +37,10 @@ type AIConfigProps = {
     onEmbeddingModelChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onEmbeddingQPSChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onTopkChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
+    onTranslationApiEndpointChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
+    onTranslationApiKeyChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
+    onTranslationModelChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onClearEmbeddings: () => Promise<void>
-    onConfirm: (tempChatApiEndpoint: string, tempChatApiKey: string, tempEmbeddingApiEndpoint: string, tempEmbeddingApiKey: string, tempModel: string, tempEmbeddingModel: string, tempEmbeddingQPS: string, tempTopk: string) => void
-    onCancel: (chatApiEndpoint: string, chatApiKey: string, embeddingApiEndpoint: string, embeddingApiKey: string, model: string, embeddingModel: string, embeddingQPS: number, topk: number) => void
 }
 
 class AIConfig extends React.Component<AIConfigProps> {
@@ -45,7 +52,7 @@ class AIConfig extends React.Component<AIConfigProps> {
 
     render = () =>
         this.props.display && (
-            <div className="tab-body">
+            <div className="tab-body" style={{ paddingBottom: '20px' }}>
                 {/* Chat 模型配置区域 */}
                 <div style={{
                     padding: '20px',
@@ -240,21 +247,61 @@ class AIConfig extends React.Component<AIConfigProps> {
                     </Stack>
                 </div>
 
-                {/* 操作按钮区域 */}
-                <Stack horizontal>
-                                <Stack.Item>
-                                    <DefaultButton
-                                        text={intl.get("settings.aiMode.config.cancel")}
-                                        onClick={() => this.props.onCancel(this.props.chatApiEndpoint, this.props.chatApiKey, this.props.embeddingApiEndpoint, this.props.embeddingApiKey, this.props.model, this.props.embeddingModel, this.props.embeddingQPS, this.props.topk)}
-                                    />
-                                </Stack.Item>
-                                <Stack.Item>
-                                    <PrimaryButton
-                                        text={intl.get("settings.aiMode.config.confirm")}
-                                        onClick={() => this.props.onConfirm(this.props.tempChatApiEndpoint, this.props.tempChatApiKey, this.props.tempEmbeddingApiEndpoint, this.props.tempEmbeddingApiKey, this.props.tempModel, this.props.tempEmbeddingModel, this.props.tempEmbeddingQPS, this.props.tempTopk)}
-                                    />
-                                </Stack.Item>
-                            </Stack>
+                {/* Translation 模型配置区域 */}
+                <div style={{
+                    padding: '20px',
+                    marginBottom: '24px',
+                    backgroundColor: 'var(--neutralLighterAlt)',
+                    borderRadius: '4px',
+                    border: '1px solid var(--neutralLight)'
+                }}>
+                    <Label style={{ fontSize: '14px', fontWeight: 600, marginTop: '0', marginBottom: '12px' }}>{intl.get("translation.config.title")}</Label>
+                    <Label style={{ fontSize: '12px' }}>{intl.get("translation.config.apiEndpoint")}</Label>
+                    <Stack horizontal>
+                        <Stack.Item grow>
+                            <TextField
+                                value={this.props.tempTranslationApiEndpoint}
+                                onChange={this.props.onTranslationApiEndpointChange}
+                                placeholder="https://api.openai.com/v1/chat/completions"
+                                styles={{ field: { fontSize: '12px' } }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+                    <span className="settings-hint up" style={{ fontSize: '11px' }}>
+                        {intl.get("translation.config.apiEndpointHint")}
+                    </span>
+
+                    <Label style={{ fontSize: '12px' }}>{intl.get("translation.config.apiKey")}</Label>
+                    <Stack horizontal>
+                        <Stack.Item grow>
+                            <TextField
+                                type="password"
+                                value={this.props.tempTranslationApiKey}
+                                onChange={this.props.onTranslationApiKeyChange}
+                                placeholder="sk-..."
+                                styles={{ field: { fontSize: '12px' } }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+                    <span className="settings-hint up" style={{ fontSize: '11px' }}>
+                        {intl.get("translation.config.apiKeyHint")}
+                    </span>
+
+                    <Label style={{ fontSize: '12px' }}>{intl.get("translation.config.model")}</Label>
+                    <Stack horizontal>
+                        <Stack.Item grow>
+                            <TextField
+                                value={this.props.tempTranslationModel}
+                                onChange={this.props.onTranslationModelChange}
+                                placeholder={intl.get("translation.config.modelPlaceholder")}
+                                styles={{ field: { fontSize: '12px' } }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+                    <span className="settings-hint up" style={{ fontSize: '11px' }}>
+                        {intl.get("translation.config.modelHint")}
+                    </span>
+                </div>
             </div>
         )
 }

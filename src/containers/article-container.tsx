@@ -23,6 +23,7 @@ import {
     updateSource,
     updateSourceDone,
 } from "../scripts/models/source"
+import { selectAIConfig } from "../scripts/models/page"
 import * as db from "../scripts/db"
 
 type ArticleContainerProps = {
@@ -46,11 +47,12 @@ const getSource = (state: RootState, props: ArticleContainerProps) => {
     return source
 }
 const getLocale = (state: RootState) => state.app.locale
+const getTranslation = (state: RootState) => state.translation
 
 const makeMapStateToProps = () => {
     return createSelector(
-        [getItem, getSource, getLocale],
-        (item, source, locale) => {
+        [getItem, getSource, getLocale, getTranslation],
+        (item, source, locale, translation) => {
             // 调试日志
             if (!item || !source) {
                 console.warn('ArticleContainer mapStateToProps: 缺少数据', {
@@ -60,10 +62,16 @@ const makeMapStateToProps = () => {
                     sourceId: source?.sid
                 })
             }
+            const translationConfig = {
+                apiEndpoint: translation.translationApiEndpoint,
+                apiKey: translation.translationApiKey,
+                model: translation.translationModel,
+            }
             return {
                 item: item,
                 source: source,
                 locale: locale,
+                translationConfig: translationConfig,
             }
         }
     )
@@ -96,6 +104,7 @@ const mapDispatchToProps = (dispatch: AppDispatch) => {
                 updateSource({ ...source, iconurl: "" } as RSSSource)
             )
         },
+        openTranslationConfig: () => dispatch(selectAIConfig()),
         loadSourceFromDB: async (sourceId: number) => {
             try {
                 // 等待数据库初始化
@@ -152,6 +161,8 @@ type ArticleContainerWrapperProps = {
     updateSourceTextDirection: (source: RSSSource, direction: SourceTextDirection) => void
     clearSourceIcon: (source: RSSSource) => void
     loadSourceFromDB: (sourceId: number) => Promise<RSSSource | null>
+    translationConfig: { apiEndpoint: string; apiKey: string; model: string }
+    openTranslationConfig: () => void
 }
 
 class ArticleContainerWrapper extends React.Component<ArticleContainerWrapperProps, { sourceLoaded: boolean }> {

@@ -28,8 +28,6 @@ const markdownFiles: { [key: string]: string } = {
     "arxiv-guide.md": arxivGuideMd,
 }
 
-console.log("Markdown files loaded:", Object.keys(markdownFiles))
-console.log("wechatGuideMd content length:", wechatGuideMd ? wechatGuideMd.length : 0)
 
 export interface MoreSection {
     id: string
@@ -180,11 +178,8 @@ async function loadMarkdownFile(filePath: string): Promise<string> {
     try {
         // 首先尝试从构建时导入的文件中获取
         if (markdownFiles[filePath]) {
-            console.log(`Loaded markdown from build-time import: ${filePath}`)
             return markdownFiles[filePath]
         }
-        
-        console.warn(`Markdown file not found in build-time imports: ${filePath}, trying fetch...`)
         
         // 如果构建时导入不存在，尝试fetch（用于开发环境）
         const response = await fetch(filePath)
@@ -192,10 +187,8 @@ async function loadMarkdownFile(filePath: string): Promise<string> {
             throw new Error(`Failed to load markdown file: ${response.statusText}`)
         }
         const content = await response.text()
-        console.log(`Loaded markdown from fetch: ${filePath}`)
         return content
     } catch (error) {
-        console.error(`Error loading markdown file ${filePath}:`, error)
         return ''
     }
 }
@@ -208,19 +201,16 @@ export async function loadMoreSections(): Promise<MoreSection[]> {
     try {
         // 确保 moreSectionsConfig 存在且是数组
         if (!moreSectionsConfig) {
-            console.warn("moreSectionsConfig is undefined")
             return []
         }
         
         if (!Array.isArray(moreSectionsConfig)) {
-            console.warn("moreSectionsConfig is not an array:", typeof moreSectionsConfig)
             return []
         }
         
         const sections = moreSectionsConfig as MoreSection[]
         
         if (sections.length === 0) {
-            console.warn("moreSectionsConfig is an empty array")
             return []
         }
         
@@ -229,21 +219,16 @@ export async function loadMoreSections(): Promise<MoreSection[]> {
             sections.map(async (section) => {
                 if (section.markdownFile) {
                     try {
-                        console.log(`Loading markdown for section ${section.id}, file: ${section.markdownFile}`)
                         const markdownContent = await loadMarkdownFile(section.markdownFile)
-                        console.log(`Markdown content length for ${section.id}:`, markdownContent ? markdownContent.length : 0)
                         if (markdownContent && markdownContent.trim()) {
                             const htmlContent = markdownToHtml(markdownContent)
-                            console.log(`HTML content length for ${section.id}:`, htmlContent ? htmlContent.length : 0)
                             return {
                                 ...section,
                                 content: htmlContent,
                             }
-                        } else {
-                            console.warn(`Empty markdown content for section ${section.id}`)
                         }
                     } catch (error) {
-                        console.error(`Error loading markdown for section ${section.id}:`, error)
+                        // 静默处理错误
                     }
                 }
                 // 即使 markdown 加载失败，也返回 section（可能没有 content）
@@ -252,10 +237,8 @@ export async function loadMoreSections(): Promise<MoreSection[]> {
         )
         
         // Promise.all 保证返回相同数量的元素，所以直接返回 sectionsWithContent
-        console.log(`Loaded ${sectionsWithContent.length} sections`)
         return sectionsWithContent
     } catch (error) {
-        console.error("Error loading more sections:", error)
         // 如果配置加载失败，返回空数组
         return []
     }

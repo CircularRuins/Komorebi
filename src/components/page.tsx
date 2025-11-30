@@ -31,9 +31,15 @@ import {
     updateAIModeEmbeddingModel,
     updateAIModeEmbeddingQPS,
     updateAIModeTopk,
-    setAIModeShowErrorDialog,
-    setAIModeErrorDialogMessage,
 } from "../scripts/models/ai-mode"
+import {
+    updateTranslationTempApiEndpoint,
+    updateTranslationTempApiKey,
+    updateTranslationTempModel,
+    updateTranslationApiEndpoint,
+    updateTranslationApiKey,
+    updateTranslationModel,
+} from "../scripts/models/translation"
 import { selectAllArticles } from "../scripts/models/page"
 import { AppDispatch } from "../scripts/utils"
 
@@ -67,7 +73,6 @@ class Page extends React.Component<PageProps> {
         const isAlphaXiv = this.props.feeds.includes("alphaxiv")
         const isAppPreferences = this.props.feeds.includes("app-preferences")
         const isAIConfig = this.props.feeds.includes("ai-config")
-        
         // 检查是否为订阅源设置页面（优先级最高，因为它是覆盖性的设置页面）
         if (this.props.showSourcesPage) {
             return (
@@ -312,6 +317,8 @@ class Page extends React.Component<PageProps> {
                         height: "100%",
                         overflow: "auto",
                         padding: "20px",
+                        paddingBottom: "20px",
+                        boxSizing: "border-box",
                     }}>
                     <div style={{ marginBottom: "20px" }}>
                         <a
@@ -501,51 +508,8 @@ class Page extends React.Component<PageProps> {
 // AI配置页面包装器组件，用于在页面模式下显示AI配置
 const AIConfigPageWrapperComponent = (props: any) => {
     const aiMode = props.aiMode
+    const translation = props.translation
     const dispatch = props.dispatch
-    
-    const handleConfirm = (tempChatApiEndpoint: string, tempChatApiKey: string, tempEmbeddingApiEndpoint: string, tempEmbeddingApiKey: string, tempModel: string, tempEmbeddingModel: string, tempEmbeddingQPS: string, tempTopk: string) => {
-        // 验证topk
-        const topk = parseInt(tempTopk, 10)
-        if (isNaN(topk) || topk < 1 || !Number.isInteger(topk)) {
-            dispatch(setAIModeShowErrorDialog(true))
-            dispatch(setAIModeErrorDialogMessage(intl.get("settings.aiMode.errors.topkInvalid")))
-            return
-        }
-        
-        // 验证embeddingQPS
-        const embeddingQPS = parseInt(tempEmbeddingQPS, 10)
-        if (isNaN(embeddingQPS) || embeddingQPS < 1 || !Number.isInteger(embeddingQPS)) {
-            dispatch(setAIModeShowErrorDialog(true))
-            dispatch(setAIModeErrorDialogMessage(intl.get("settings.aiMode.errors.embeddingQPSInvalid")))
-            return
-        }
-        
-        // 保存到 Redux
-        dispatch(updateAIModeChatApiEndpoint(tempChatApiEndpoint))
-        dispatch(updateAIModeChatApiKey(tempChatApiKey))
-        dispatch(updateAIModeEmbeddingApiEndpoint(tempEmbeddingApiEndpoint))
-        dispatch(updateAIModeEmbeddingApiKey(tempEmbeddingApiKey))
-        dispatch(updateAIModeModel(tempModel))
-        dispatch(updateAIModeEmbeddingModel(tempEmbeddingModel))
-        dispatch(updateAIModeEmbeddingQPS(embeddingQPS))
-        dispatch(updateAIModeTopk(topk))
-        // 导航回之前的页面
-        dispatch(selectAllArticles())
-    }
-    
-    const handleCancel = (chatApiEndpoint: string, chatApiKey: string, embeddingApiEndpoint: string, embeddingApiKey: string, model: string, embeddingModel: string, embeddingQPS: number, topk: number) => {
-        // 恢复临时状态为已保存的值
-        dispatch(updateAIModeTempChatApiEndpoint(chatApiEndpoint))
-        dispatch(updateAIModeTempChatApiKey(chatApiKey))
-        dispatch(updateAIModeTempEmbeddingApiEndpoint(embeddingApiEndpoint))
-        dispatch(updateAIModeTempEmbeddingApiKey(embeddingApiKey))
-        dispatch(updateAIModeTempModel(model))
-        dispatch(updateAIModeTempEmbeddingModel(embeddingModel))
-        dispatch(updateAIModeTempEmbeddingQPS(embeddingQPS.toString()))
-        dispatch(updateAIModeTempTopk(topk.toString()))
-        // 导航回之前的页面
-        dispatch(selectAllArticles())
-    }
     
     return (
         <AIConfig
@@ -558,6 +522,9 @@ const AIConfigPageWrapperComponent = (props: any) => {
             tempEmbeddingModel={aiMode.tempEmbeddingModel}
             tempEmbeddingQPS={aiMode.tempEmbeddingQPS}
             tempTopk={aiMode.tempTopk}
+            tempTranslationApiEndpoint={translation.tempTranslationApiEndpoint}
+            tempTranslationApiKey={translation.tempTranslationApiKey}
+            tempTranslationModel={translation.tempTranslationModel}
             chatApiEndpoint={aiMode.chatApiEndpoint}
             chatApiKey={aiMode.chatApiKey}
             embeddingApiEndpoint={aiMode.embeddingApiEndpoint}
@@ -566,25 +533,91 @@ const AIConfigPageWrapperComponent = (props: any) => {
             embeddingModel={aiMode.embeddingModel}
             embeddingQPS={aiMode.embeddingQPS}
             topk={aiMode.topk}
-            onChatApiEndpointChange={(event, newValue) => dispatch(updateAIModeTempChatApiEndpoint(newValue || ""))}
-            onChatApiKeyChange={(event, newValue) => dispatch(updateAIModeTempChatApiKey(newValue || ""))}
-            onEmbeddingApiEndpointChange={(event, newValue) => dispatch(updateAIModeTempEmbeddingApiEndpoint(newValue || ""))}
-            onEmbeddingApiKeyChange={(event, newValue) => dispatch(updateAIModeTempEmbeddingApiKey(newValue || ""))}
-            onModelChange={(event, newValue) => dispatch(updateAIModeTempModel(newValue || ""))}
-            onEmbeddingModelChange={(event, newValue) => dispatch(updateAIModeTempEmbeddingModel(newValue || ""))}
-            onEmbeddingQPSChange={(event, newValue) => dispatch(updateAIModeTempEmbeddingQPS(newValue || ""))}
-            onTopkChange={(event, newValue) => dispatch(updateAIModeTempTopk(newValue || ""))}
+            translationApiEndpoint={translation.translationApiEndpoint}
+            translationApiKey={translation.translationApiKey}
+            translationModel={translation.translationModel}
+            onChatApiEndpointChange={(event, newValue) => {
+                const value = newValue || ""
+                dispatch(updateAIModeTempChatApiEndpoint(value))
+                // 实时保存到 electron-store
+                dispatch(updateAIModeChatApiEndpoint(value))
+            }}
+            onChatApiKeyChange={(event, newValue) => {
+                const value = newValue || ""
+                dispatch(updateAIModeTempChatApiKey(value))
+                // 实时保存到 electron-store
+                dispatch(updateAIModeChatApiKey(value))
+            }}
+            onEmbeddingApiEndpointChange={(event, newValue) => {
+                const value = newValue || ""
+                dispatch(updateAIModeTempEmbeddingApiEndpoint(value))
+                // 实时保存到 electron-store
+                dispatch(updateAIModeEmbeddingApiEndpoint(value))
+            }}
+            onEmbeddingApiKeyChange={(event, newValue) => {
+                const value = newValue || ""
+                dispatch(updateAIModeTempEmbeddingApiKey(value))
+                // 实时保存到 electron-store
+                dispatch(updateAIModeEmbeddingApiKey(value))
+            }}
+            onModelChange={(event, newValue) => {
+                const value = newValue || ""
+                dispatch(updateAIModeTempModel(value))
+                // 实时保存到 electron-store
+                dispatch(updateAIModeModel(value))
+            }}
+            onEmbeddingModelChange={(event, newValue) => {
+                const value = newValue || ""
+                dispatch(updateAIModeTempEmbeddingModel(value))
+                // 实时保存到 electron-store
+                dispatch(updateAIModeEmbeddingModel(value))
+            }}
+            onEmbeddingQPSChange={(event, newValue) => {
+                const value = newValue || ""
+                dispatch(updateAIModeTempEmbeddingQPS(value))
+                // 实时保存到 electron-store（验证后）
+                const qps = parseInt(value, 10)
+                if (!isNaN(qps) && qps > 0 && Number.isInteger(qps)) {
+                    dispatch(updateAIModeEmbeddingQPS(qps))
+                }
+            }}
+            onTopkChange={(event, newValue) => {
+                const value = newValue || ""
+                dispatch(updateAIModeTempTopk(value))
+                // 实时保存到 electron-store（验证后）
+                const topk = parseInt(value, 10)
+                if (!isNaN(topk) && topk > 0 && Number.isInteger(topk)) {
+                    dispatch(updateAIModeTopk(topk))
+                }
+            }}
+            onTranslationApiEndpointChange={(event, newValue) => {
+                const value = newValue || ""
+                dispatch(updateTranslationTempApiEndpoint(value))
+                // 实时保存到 electron-store
+                dispatch(updateTranslationApiEndpoint(value))
+            }}
+            onTranslationApiKeyChange={(event, newValue) => {
+                const value = newValue || ""
+                dispatch(updateTranslationTempApiKey(value))
+                // 实时保存到 electron-store
+                dispatch(updateTranslationApiKey(value))
+            }}
+            onTranslationModelChange={(event, newValue) => {
+                const value = newValue || ""
+                dispatch(updateTranslationTempModel(value))
+                // 实时保存到 electron-store
+                dispatch(updateTranslationModel(value))
+            }}
             onClearEmbeddings={async () => {
                 await clearArticleEmbeddings()
             }}
-            onConfirm={handleConfirm}
-            onCancel={() => handleCancel(aiMode.chatApiEndpoint, aiMode.chatApiKey, aiMode.embeddingApiEndpoint, aiMode.embeddingApiKey, aiMode.model, aiMode.embeddingModel, aiMode.embeddingQPS, aiMode.topk)}
         />
     )
 }
 
 const mapStateToPropsForAIConfig = (state: RootState) => ({
     aiMode: state.aiMode,
+    translation: state.translation,
 })
 
 const mapDispatchToPropsForAIConfig = (dispatch: AppDispatch) => ({

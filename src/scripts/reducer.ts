@@ -9,6 +9,7 @@ import { groupReducer } from "./models/group"
 import { pageReducer } from "./models/page"
 import { serviceReducer } from "./models/service"
 import { aiModeReducer } from "./models/ai-mode"
+import { translationReducer } from "./models/translation"
 import { AppDispatch } from "./utils"
 import {
     TypedUseSelectorHook,
@@ -26,6 +27,7 @@ export const rootReducer = combineReducers({
     service: serviceReducer,
     app: appReducer,
     aiMode: aiModeReducer,
+    translation: translationReducer,
 })
 
 export const rootStore = createStore(

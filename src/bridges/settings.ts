@@ -124,6 +124,74 @@ const settingsBridge = {
     setAll: configs => {
         ipcRenderer.invoke("import-all-settings", configs)
     },
+
+    // AI 配置
+    getAIChatApiEndpoint: (): string => {
+        return ipcRenderer.sendSync("get-ai-chat-api-endpoint")
+    },
+    setAIChatApiEndpoint: (endpoint: string) => {
+        ipcRenderer.invoke("set-ai-chat-api-endpoint", endpoint)
+    },
+    getAIChatApiKey: (): string => {
+        return ipcRenderer.sendSync("get-ai-chat-api-key")
+    },
+    setAIChatApiKey: (key: string) => {
+        ipcRenderer.invoke("set-ai-chat-api-key", key)
+    },
+    getAIEmbeddingApiEndpoint: (): string => {
+        return ipcRenderer.sendSync("get-ai-embedding-api-endpoint")
+    },
+    setAIEmbeddingApiEndpoint: (endpoint: string) => {
+        ipcRenderer.invoke("set-ai-embedding-api-endpoint", endpoint)
+    },
+    getAIEmbeddingApiKey: (): string => {
+        return ipcRenderer.sendSync("get-ai-embedding-api-key")
+    },
+    setAIEmbeddingApiKey: (key: string) => {
+        ipcRenderer.invoke("set-ai-embedding-api-key", key)
+    },
+    getAIModel: (): string => {
+        return ipcRenderer.sendSync("get-ai-model")
+    },
+    setAIModel: (model: string) => {
+        ipcRenderer.invoke("set-ai-model", model)
+    },
+    getAIEmbeddingModel: (): string => {
+        return ipcRenderer.sendSync("get-ai-embedding-model")
+    },
+    setAIEmbeddingModel: (model: string) => {
+        ipcRenderer.invoke("set-ai-embedding-model", model)
+    },
+    getAIEmbeddingQPS: (): number => {
+        return ipcRenderer.sendSync("get-ai-embedding-qps")
+    },
+    setAIEmbeddingQPS: (qps: number) => {
+        ipcRenderer.invoke("set-ai-embedding-qps", qps)
+    },
+    getAITopk: (): number => {
+        return ipcRenderer.sendSync("get-ai-topk")
+    },
+    setAITopk: (topk: number) => {
+        ipcRenderer.invoke("set-ai-topk", topk)
+    },
+    getAITranslationApiEndpoint: (): string => {
+        return ipcRenderer.sendSync("get-ai-translation-api-endpoint")
+    },
+    setAITranslationApiEndpoint: (endpoint: string) => {
+        ipcRenderer.invoke("set-ai-translation-api-endpoint", endpoint)
+    },
+    getAITranslationApiKey: (): string => {
+        return ipcRenderer.sendSync("get-ai-translation-api-key")
+    },
+    setAITranslationApiKey: (key: string) => {
+        ipcRenderer.invoke("set-ai-translation-api-key", key)
+    },
+    getAITranslationModel: (): string => {
+        return ipcRenderer.sendSync("get-ai-translation-model")
+    },
+    setAITranslationModel: (model: string) => {
+        ipcRenderer.invoke("set-ai-translation-model", model)
+    },
 }
 
 declare global {

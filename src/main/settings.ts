@@ -198,3 +198,95 @@ ipcMain.handle(
         }
     }
 )
+
+// AI 配置存储
+const AI_CHAT_API_ENDPOINT_KEY = "aiChatApiEndpoint"
+const AI_CHAT_API_KEY_KEY = "aiChatApiKey"
+const AI_EMBEDDING_API_ENDPOINT_KEY = "aiEmbeddingApiEndpoint"
+const AI_EMBEDDING_API_KEY_KEY = "aiEmbeddingApiKey"
+const AI_MODEL_KEY = "aiModel"
+const AI_EMBEDDING_MODEL_KEY = "aiEmbeddingModel"
+const AI_EMBEDDING_QPS_KEY = "aiEmbeddingQPS"
+const AI_TOPK_KEY = "aiTopk"
+const AI_TRANSLATION_API_ENDPOINT_KEY = "aiTranslationApiEndpoint"
+const AI_TRANSLATION_API_KEY_KEY = "aiTranslationApiKey"
+const AI_TRANSLATION_MODEL_KEY = "aiTranslationModel"
+
+ipcMain.on("get-ai-chat-api-endpoint", event => {
+    event.returnValue = store.get(AI_CHAT_API_ENDPOINT_KEY, "")
+})
+ipcMain.handle("set-ai-chat-api-endpoint", (_, endpoint: string) => {
+    store.set(AI_CHAT_API_ENDPOINT_KEY, endpoint)
+    console.log('[Main] 保存 aiChatApiEndpoint 到 electron-store:', endpoint ? '已设置' : '空')
+})
+
+ipcMain.on("get-ai-chat-api-key", event => {
+    event.returnValue = store.get(AI_CHAT_API_KEY_KEY, "")
+})
+ipcMain.handle("set-ai-chat-api-key", (_, key: string) => {
+    store.set(AI_CHAT_API_KEY_KEY, key)
+    console.log('[Main] 保存 aiChatApiKey 到 electron-store:', key ? '已设置' : '空')
+})
+
+ipcMain.on("get-ai-embedding-api-endpoint", event => {
+    event.returnValue = store.get(AI_EMBEDDING_API_ENDPOINT_KEY, "")
+})
+ipcMain.handle("set-ai-embedding-api-endpoint", (_, endpoint: string) => {
+    store.set(AI_EMBEDDING_API_ENDPOINT_KEY, endpoint)
+})
+
+ipcMain.on("get-ai-embedding-api-key", event => {
+    event.returnValue = store.get(AI_EMBEDDING_API_KEY_KEY, "")
+})
+ipcMain.handle("set-ai-embedding-api-key", (_, key: string) => {
+    store.set(AI_EMBEDDING_API_KEY_KEY, key)
+})
+
+ipcMain.on("get-ai-model", event => {
+    event.returnValue = store.get(AI_MODEL_KEY, "")
+})
+ipcMain.handle("set-ai-model", (_, model: string) => {
+    store.set(AI_MODEL_KEY, model)
+})
+
+ipcMain.on("get-ai-embedding-model", event => {
+    event.returnValue = store.get(AI_EMBEDDING_MODEL_KEY, "")
+})
+ipcMain.handle("set-ai-embedding-model", (_, model: string) => {
+    store.set(AI_EMBEDDING_MODEL_KEY, model)
+})
+
+ipcMain.on("get-ai-embedding-qps", event => {
+    event.returnValue = store.get(AI_EMBEDDING_QPS_KEY, 30)
+})
+ipcMain.handle("set-ai-embedding-qps", (_, qps: number) => {
+    store.set(AI_EMBEDDING_QPS_KEY, qps)
+})
+
+ipcMain.on("get-ai-topk", event => {
+    event.returnValue = store.get(AI_TOPK_KEY, 100)
+})
+ipcMain.handle("set-ai-topk", (_, topk: number) => {
+    store.set(AI_TOPK_KEY, topk)
+})
+
+ipcMain.on("get-ai-translation-api-endpoint", event => {
+    event.returnValue = store.get(AI_TRANSLATION_API_ENDPOINT_KEY, "")
+})
+ipcMain.handle("set-ai-translation-api-endpoint", (_, endpoint: string) => {
+    store.set(AI_TRANSLATION_API_ENDPOINT_KEY, endpoint)
+})
+
+ipcMain.on("get-ai-translation-api-key", event => {
+    event.returnValue = store.get(AI_TRANSLATION_API_KEY_KEY, "")
+})
+ipcMain.handle("set-ai-translation-api-key", (_, key: string) => {
+    store.set(AI_TRANSLATION_API_KEY_KEY, key)
+})
+
+ipcMain.on("get-ai-translation-model", event => {
+    event.returnValue = store.get(AI_TRANSLATION_MODEL_KEY, "")
+})
+ipcMain.handle("set-ai-translation-model", (_, model: string) => {
+    store.set(AI_TRANSLATION_MODEL_KEY, model)
+})

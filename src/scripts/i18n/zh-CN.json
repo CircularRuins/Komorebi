@@ -86,7 +86,11 @@
         "Vertical": "纵书",
         "font": "字体",
         "prevItem": "上一篇文章",
-        "nextItem": "下一篇文章"
+        "nextItem": "下一篇文章",
+        "translate": "翻译",
+        "translating": "翻译中...",
+        "showOriginal": "显示原文",
+        "showTranslated": "显示译文"
     },
     "context": {
         "share": "分享",
@@ -126,6 +130,7 @@
         "exit": "退出",
         "sources": "订阅源",
         "ai": "AI配置",
+        "translation": "翻译配置",
         "grouping": "分组与排序",
         "rules": "规则",
         "service": "服务",
@@ -432,5 +437,26 @@
         "pacHint": "对于Socks代理建议PAC返回“SOCKS5”以启用代理端解析。关闭代理需重启应用后生效。",
         "fetchInterval": "自动抓取频率",
         "never": "从不"
+    },
+    "translation": {
+        "config": {
+            "title": "翻译API配置",
+            "apiEndpoint": "Translation API Endpoint",
+            "apiEndpointHint": "OpenAI兼容的Chat API端点地址。必须是完整的URL，包含协议(https://)和完整路径(如/v1/chat/completions)",
+            "apiKey": "Translation API Key",
+            "apiKeyHint": "用于翻译的API密钥",
+            "model": "翻译模型名称",
+            "modelPlaceholder": "请输入模型名称",
+            "modelHint": "要使用的翻译模型名称，例如：gpt-3.5-turbo, gpt-4, claude-3-opus 等",
+            "cancel": "取消",
+            "confirm": "确认"
+        },
+        "error": {
+            "configIncomplete": "翻译配置不完整，请先设置翻译API配置",
+            "configNotSet": "翻译配置未设置",
+            "translationFailed": "翻译失败",
+            "emptyContent": "文章内容为空，无法翻译",
+            "openConfig": "打开配置"
+        }
     }
 }

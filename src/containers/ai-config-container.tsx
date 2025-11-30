@@ -5,7 +5,6 @@ import { RootState } from "../scripts/reducer"
 import AIConfig from "../components/ai-config"
 import { clearArticleEmbeddings } from "../scripts/consolidate"
 import {
-    setAIModeShowConfigPanel,
     updateAIModeTempChatApiEndpoint,
     updateAIModeTempChatApiKey,
     updateAIModeTempEmbeddingApiEndpoint,
@@ -22,13 +21,20 @@ import {
     updateAIModeEmbeddingModel,
     updateAIModeEmbeddingQPS,
     updateAIModeTopk,
-    setAIModeShowErrorDialog,
-    setAIModeErrorDialogMessage,
 } from "../scripts/models/ai-mode"
+import {
+    updateTranslationTempApiEndpoint,
+    updateTranslationTempApiKey,
+    updateTranslationTempModel,
+    updateTranslationApiEndpoint,
+    updateTranslationApiKey,
+    updateTranslationModel,
+} from "../scripts/models/translation"
 
 const getAIMode = (state: RootState) => state.aiMode
+const getTranslation = (state: RootState) => state.translation
 
-const mapStateToProps = createSelector([getAIMode], aiMode => ({
+const mapStateToProps = createSelector([getAIMode, getTranslation], (aiMode, translation) => ({
     display: aiMode.showConfigPanel,
     tempChatApiEndpoint: aiMode.tempChatApiEndpoint,
     tempChatApiKey: aiMode.tempChatApiKey,
@@ -38,6 +44,10 @@ const mapStateToProps = createSelector([getAIMode], aiMode => ({
     tempEmbeddingModel: aiMode.tempEmbeddingModel,
     tempEmbeddingQPS: aiMode.tempEmbeddingQPS,
     tempTopk: aiMode.tempTopk,
+    // 翻译配置从独立的 translation state 读取
+    tempTranslationApiEndpoint: translation.tempTranslationApiEndpoint,
+    tempTranslationApiKey: translation.tempTranslationApiKey,
+    tempTranslationModel: translation.tempTranslationModel,
     // 需要保存的值，用于取消时恢复
     chatApiEndpoint: aiMode.chatApiEndpoint,
     chatApiKey: aiMode.chatApiKey,
@@ -47,76 +57,87 @@ const mapStateToProps = createSelector([getAIMode], aiMode => ({
     embeddingModel: aiMode.embeddingModel,
     embeddingQPS: aiMode.embeddingQPS,
     topk: aiMode.topk,
+    translationApiEndpoint: translation.translationApiEndpoint,
+    translationApiKey: translation.translationApiKey,
+    translationModel: translation.translationModel,
 }))
 
 const mapDispatchToProps = dispatch => {
     return {
         onChatApiEndpointChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-            dispatch(updateAIModeTempChatApiEndpoint(newValue || ""))
+            const value = newValue || ""
+            dispatch(updateAIModeTempChatApiEndpoint(value))
+            // 实时保存到 electron-store（像应用偏好那样）
+            dispatch(updateAIModeChatApiEndpoint(value))
         },
         onChatApiKeyChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-            dispatch(updateAIModeTempChatApiKey(newValue || ""))
+            const value = newValue || ""
+            dispatch(updateAIModeTempChatApiKey(value))
+            // 实时保存到 electron-store（像应用偏好那样）
+            dispatch(updateAIModeChatApiKey(value))
         },
         onEmbeddingApiEndpointChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-            dispatch(updateAIModeTempEmbeddingApiEndpoint(newValue || ""))
+            const value = newValue || ""
+            dispatch(updateAIModeTempEmbeddingApiEndpoint(value))
+            // 实时保存到 electron-store（像应用偏好那样）
+            dispatch(updateAIModeEmbeddingApiEndpoint(value))
         },
         onEmbeddingApiKeyChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-            dispatch(updateAIModeTempEmbeddingApiKey(newValue || ""))
+            const value = newValue || ""
+            dispatch(updateAIModeTempEmbeddingApiKey(value))
+            // 实时保存到 electron-store（像应用偏好那样）
+            dispatch(updateAIModeEmbeddingApiKey(value))
         },
         onModelChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-            dispatch(updateAIModeTempModel(newValue || ""))
+            const value = newValue || ""
+            dispatch(updateAIModeTempModel(value))
+            // 实时保存到 electron-store（像应用偏好那样）
+            dispatch(updateAIModeModel(value))
         },
         onEmbeddingModelChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-            dispatch(updateAIModeTempEmbeddingModel(newValue || ""))
+            const value = newValue || ""
+            dispatch(updateAIModeTempEmbeddingModel(value))
+            // 实时保存到 electron-store（像应用偏好那样）
+            dispatch(updateAIModeEmbeddingModel(value))
         },
         onEmbeddingQPSChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-            dispatch(updateAIModeTempEmbeddingQPS(newValue || ""))
+            const value = newValue || ""
+            dispatch(updateAIModeTempEmbeddingQPS(value))
+            // 实时保存到 electron-store（像应用偏好那样）
+            const qps = parseInt(value, 10)
+            if (!isNaN(qps) && qps > 0 && Number.isInteger(qps)) {
+                dispatch(updateAIModeEmbeddingQPS(qps))
+            }
         },
         onTopkChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-            dispatch(updateAIModeTempTopk(newValue || ""))
+            const value = newValue || ""
+            dispatch(updateAIModeTempTopk(value))
+            // 实时保存到 electron-store（像应用偏好那样）
+            const topk = parseInt(value, 10)
+            if (!isNaN(topk) && topk > 0 && Number.isInteger(topk)) {
+                dispatch(updateAIModeTopk(topk))
+            }
+        },
+        onTranslationApiEndpointChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+            const value = newValue || ""
+            dispatch(updateTranslationTempApiEndpoint(value))
+            // 实时保存到 electron-store（像应用偏好那样）
+            dispatch(updateTranslationApiEndpoint(value))
+        },
+        onTranslationApiKeyChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+            const value = newValue || ""
+            dispatch(updateTranslationTempApiKey(value))
+            // 实时保存到 electron-store（像应用偏好那样）
+            dispatch(updateTranslationApiKey(value))
+        },
+        onTranslationModelChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+            const value = newValue || ""
+            dispatch(updateTranslationTempModel(value))
+            // 实时保存到 electron-store（像应用偏好那样）
+            dispatch(updateTranslationModel(value))
         },
         onClearEmbeddings: async () => {
             await clearArticleEmbeddings()
-        },
-        onConfirm: (tempChatApiEndpoint: string, tempChatApiKey: string, tempEmbeddingApiEndpoint: string, tempEmbeddingApiKey: string, tempModel: string, tempEmbeddingModel: string, tempEmbeddingQPS: string, tempTopk: string) => {
-            // 验证topk
-            const topk = parseInt(tempTopk, 10)
-            if (isNaN(topk) || topk < 1 || !Number.isInteger(topk)) {
-                dispatch(setAIModeShowErrorDialog(true))
-                dispatch(setAIModeErrorDialogMessage(intl.get("settings.aiMode.errors.topkInvalid")))
-                return
-            }
-            
-            // 验证embeddingQPS
-            const embeddingQPS = parseInt(tempEmbeddingQPS, 10)
-            if (isNaN(embeddingQPS) || embeddingQPS < 1 || !Number.isInteger(embeddingQPS)) {
-                dispatch(setAIModeShowErrorDialog(true))
-                dispatch(setAIModeErrorDialogMessage(intl.get("settings.aiMode.errors.embeddingQPSInvalid")))
-                return
-            }
-            
-            // 保存到 Redux（localStorage 同步在 reducer 中处理）
-            dispatch(updateAIModeChatApiEndpoint(tempChatApiEndpoint))
-            dispatch(updateAIModeChatApiKey(tempChatApiKey))
-            dispatch(updateAIModeEmbeddingApiEndpoint(tempEmbeddingApiEndpoint))
-            dispatch(updateAIModeEmbeddingApiKey(tempEmbeddingApiKey))
-            dispatch(updateAIModeModel(tempModel))
-            dispatch(updateAIModeEmbeddingModel(tempEmbeddingModel))
-            dispatch(updateAIModeEmbeddingQPS(embeddingQPS))
-            dispatch(updateAIModeTopk(topk))
-            dispatch(setAIModeShowConfigPanel(false))
-        },
-        onCancel: (chatApiEndpoint: string, chatApiKey: string, embeddingApiEndpoint: string, embeddingApiKey: string, model: string, embeddingModel: string, embeddingQPS: number, topk: number) => {
-            // 恢复临时状态为已保存的值
-            dispatch(updateAIModeTempChatApiEndpoint(chatApiEndpoint))
-            dispatch(updateAIModeTempChatApiKey(chatApiKey))
-            dispatch(updateAIModeTempEmbeddingApiEndpoint(embeddingApiEndpoint))
-            dispatch(updateAIModeTempEmbeddingApiKey(embeddingApiKey))
-            dispatch(updateAIModeTempModel(model))
-            dispatch(updateAIModeTempEmbeddingModel(embeddingModel))
-            dispatch(updateAIModeTempEmbeddingQPS(embeddingQPS.toString()))
-            dispatch(updateAIModeTempTopk(topk.toString()))
-            dispatch(setAIModeShowConfigPanel(false))
         },
     }
 }

@@ -21,6 +21,8 @@ import {
 } from "../scripts/models/source"
 import { shareSubmenu } from "./context-menu"
 import { platformCtrl, decodeFetchResponse } from "../scripts/utils"
+import { translateArticle, translateArticleWithTitle, TranslationConfig } from "../scripts/translation"
+import { selectAIConfig } from "../scripts/models/page"
 
 const FONT_SIZE_OPTIONS = [12, 13, 14, 15, 16, 17, 18, 19, 20]
 
@@ -41,6 +43,8 @@ type ArticleProps = {
         direction: SourceTextDirection
     ) => void
     clearSourceIcon: (source: RSSSource) => void
+    translationConfig: TranslationConfig
+    openTranslationConfig: () => void
 }
 
 type ArticleState = {
@@ -53,6 +57,11 @@ type ArticleState = {
     error: boolean
     errorDescription: string
     showCopySuccess: boolean
+    translatedContent: string | null
+    translatedTitle: string | null
+    isTranslating: boolean
+    translationError: string | null
+    showTranslated: boolean
 }
 
 class Article extends React.Component<ArticleProps, ArticleState> {
@@ -79,6 +88,11 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 error: false,
                 errorDescription: "",
                 showCopySuccess: false,
+                translatedContent: null,
+                translatedTitle: null,
+                isTranslating: false,
+                translationError: null,
+                showTranslated: false,
             }
             return
         } else {
@@ -94,6 +108,11 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             error: false,
             errorDescription: "",
             showCopySuccess: false,
+            translatedContent: null,
+            translatedTitle: null,
+            isTranslating: false,
+            translationError: null,
+            showTranslated: false,
         }
         window.utils.addWebviewContextListener(this.contextMenuHandler)
         window.utils.addWebviewKeydownListener(this.keyDownHandler)
@@ -283,6 +302,10 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 loadFull:
                     this.props.source.openTarget ===
                     SourceOpenTarget.FullContent,
+                translatedContent: null,
+                translatedTitle: null,
+                showTranslated: false,
+                translationError: null,
             })
             if (this.props.source.openTarget === SourceOpenTarget.FullContent)
                 this.loadFull()
@@ -340,16 +363,105 @@ class Article extends React.Component<ArticleProps, ArticleState> {
         }
     }
 
+    handleTranslate = async () => {
+        // 检查配置是否完整
+        if (!this.props.translationConfig.apiEndpoint || 
+            !this.props.translationConfig.apiKey || 
+            !this.props.translationConfig.model) {
+            this.setState({
+                translationError: intl.get("translation.error.configIncomplete"),
+            })
+            // 显示错误提示并提供打开配置的选项
+            if (window.utils && window.utils.showMessageBox) {
+                const openConfig = await window.utils.showMessageBox(
+                    intl.get("translation.error.configNotSet"),
+                    intl.get("translation.error.configIncomplete"),
+                    intl.get("translation.error.openConfig"),
+                    intl.get("cancel"),
+                    false,
+                    "warning"
+                )
+                if (openConfig) {
+                    this.props.openTranslationConfig()
+                }
+            }
+            return
+        }
+
+        // 如果已经有翻译内容，直接切换显示
+        if (this.state.translatedContent) {
+            this.setState({ showTranslated: !this.state.showTranslated })
+            return
+        }
+
+        // 提取文章内容
+        const content = this.state.loadFull ? this.state.fullContent : this.props.item.content
+        
+        if (!content || content.trim().length === 0) {
+            this.setState({
+                translationError: intl.get("translation.error.emptyContent"),
+            })
+            return
+        }
+
+        this.setState({ 
+            isTranslating: true, 
+            translationError: null 
+        })
+
+        try {
+            const result = await translateArticleWithTitle(
+                this.props.item.title,
+                content,
+                this.props.translationConfig
+            )
+            this.setState({
+                translatedContent: result.content,
+                translatedTitle: result.title,
+                isTranslating: false,
+                showTranslated: true,
+                translationError: null,
+            })
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            this.setState({
+                isTranslating: false,
+                translationError: errorMessage,
+            })
+            // 显示错误提示
+            if (window.utils && window.utils.showErrorBox) {
+                window.utils.showErrorBox(
+                    intl.get("translation.error.translationFailed"),
+                    errorMessage
+                )
+            }
+        }
+    }
+
+    toggleTranslation = () => {
+        this.setState({ showTranslated: !this.state.showTranslated })
+    }
+
     articleView = () => {
-        const a = encodeURIComponent(
-            this.state.loadFull
+        // 根据showTranslated状态决定使用原文还是译文
+        let contentToShow: string
+        if (this.state.showTranslated && this.state.translatedContent) {
+            contentToShow = this.state.translatedContent
+        } else {
+            contentToShow = this.state.loadFull
                 ? this.state.fullContent
                 : this.props.item.content
-        )
+        }
+        
+        const a = encodeURIComponent(contentToShow)
+        // 根据showTranslated状态决定使用原文还是翻译后的标题
+        const titleToShow = this.state.showTranslated && this.state.translatedTitle
+            ? this.state.translatedTitle
+            : this.props.item.title
         const h = encodeURIComponent(
             renderToString(
                 <>
-                    <p className="title">{this.props.item.title}</p>
+                    <p className="title">{titleToShow}</p>
                     <p className="date">
                         {this.props.item.date.toLocaleString(
                             this.props.locale,
@@ -500,6 +612,39 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                                 },
                                 icon: {
                                     fontSize: 16,
+                                },
+                            }}
+                        />
+                    </TooltipHost>
+                    <TooltipHost
+                        content={
+                            this.state.showTranslated
+                                ? intl.get("article.showOriginal")
+                                : this.state.isTranslating
+                                ? intl.get("article.translating")
+                                : intl.get("article.translate")
+                        }
+                        delay={TooltipDelay.zero}>
+                        <CommandBarButton
+                            iconProps={{
+                                iconName: this.state.isTranslating ? "Sync" : "Translate",
+                                style: { 
+                                    fontSize: 16,
+                                },
+                            }}
+                            onClick={this.handleTranslate}
+                            disabled={this.state.isTranslating || this.state.loadWebpage}
+                            styles={{
+                                root: {
+                                    minWidth: 40,
+                                    height: 32,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                },
+                                icon: {
+                                    fontSize: 16,
+                                    animation: this.state.isTranslating ? "rotating 1.5s linear infinite" : "none",
                                 },
                             }}
                         />

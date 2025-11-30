@@ -247,7 +247,10 @@ async function unreadCount(sources: SourceState): Promise<SourceState> {
         .groupBy(db.items.source)
         .exec()
     for (let row of rows) {
-        sources[row["source"]].unreadCount = row["COUNT(_id)"]
+        const sourceId = row["source"]
+        if (sources[sourceId]) {
+            sources[sourceId].unreadCount = row["COUNT(_id)"]
+        }
     }
     return sources
 }
@@ -595,6 +598,9 @@ export function sourceReducer(
         }
         case MARK_UNREAD:
         case MARK_READ:
+            if (!state[action.item.source]) {
+                return state
+            }
             return {
                 ...state,
                 [action.item.source]: {
