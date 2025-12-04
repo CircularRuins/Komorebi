@@ -2,25 +2,14 @@
     {
         "groupName": "Twitter",
         "feeds": [
-            {
-                "name": "OpenAI",
-                "url": "https://api.xgo.ing/rss/user/0c0856a69f9f49cf961018c32a0b0049"
-            },
+            
             {
                 "name": "OpenAI Developers",
                 "url": "https://api.xgo.ing/rss/user/971dc1fc90da449bac23e5fad8a33d55"
             },
             {
-                "name": "ChatGPT",
-                "url": "https://api.xgo.ing/rss/user/f7992687b8d74b14bf2341eb3a0a5ec4"
-            },
-            {
                 "name": "Sam Altman",
                 "url": "https://api.xgo.ing/rss/user/e30d4cd223f44bed9d404807105c8927"
-            },
-            {
-                "name": "Anthropic",
-                "url": "https://api.xgo.ing/rss/user/fc28a211471b496682feff329ec616e5"
             },
             {
                 "name": "Dario Amodei",
@@ -43,14 +32,6 @@
                 "url": "https://api.xgo.ing/rss/user/3ca3c7698fd04611a0e7d14fae93c84c"
             },
             {
-                "name": "Marc Andreessen 🇺🇸",
-                "url": "https://api.xgo.ing/rss/user/63316630d94543f5a6480f230f483008"
-            },
-            {
-                "name": "Microsoft Research",
-                "url": "https://api.xgo.ing/rss/user/61f4b78554fb4b8fa5653ec5d924d15a"
-            },
-            {
                 "name": "Andrej Karpathy",
                 "url": "https://api.xgo.ing/rss/user/edf707b5c0b248579085f66d7a3c5524"
             },
@@ -67,10 +48,6 @@
                 "url": "https://api.xgo.ing/rss/user/5f13b32b124a41cfb659f903a84032b1"
             },
             {
-                "name": "Lovable",
-                "url": "https://api.xgo.ing/rss/user/639cd13d44284e10ac89fbd1c5399767"
-            },
-            {
                 "name": "Fei-Fei Li",
                 "url": "https://api.xgo.ing/rss/user/a4bfe44bfc0d4c949da21ebd3f5f42a5"
             },
@@ -79,16 +56,8 @@
                 "url": "https://api.xgo.ing/rss/user/5fb1814c610c4af2911caa98c5c5ef82"
             },
             {
-                "name": "Replit ⠕",
-                "url": "https://api.xgo.ing/rss/user/613f859e4bc440c5a28f40732840f5cf"
-            },
-            {
                 "name": "clem 😃",
                 "url": "https://api.xgo.ing/rss/user/5dbd038a8f5140938d0877511571797b"
-            },
-            {
-                "name": "Hugging Face",
-                "url": "https://api.xgo.ing/rss/user/fc16750ce50741f1b1f05ea1fb29436f"
             },
             {
                 "name": "Andrew Ng",
@@ -107,20 +76,12 @@
                 "url": "https://api.xgo.ing/rss/user/4f63d960de644aeebd0aa97e4994dafe"
             },
             {
-                "name": "Lex Fridman",
-                "url": "https://api.xgo.ing/rss/user/adf65931519340f795e2336910b4cd15"
-            },
-            {
                 "name": "Rowan Cheung",
                 "url": "https://api.xgo.ing/rss/user/a636de3cbda0495daabd15b9fd298614"
             },
             {
                 "name": "Demis Hassabis",
                 "url": "https://api.xgo.ing/rss/user/4a884d5e2f3740c5a26c9c093de6388a"
-            },
-            {
-                "name": "bolt.new",
-                "url": "https://api.xgo.ing/rss/user/760ab7cd9708452c9ce1f9144b92a430"
             },
             {
                 "name": "Mustafa Suleyman",
@@ -135,28 +96,8 @@
                 "url": "https://api.xgo.ing/rss/user/082097117b4543e9a741cd2580f936d3"
             },
             {
-                "name": "Qwen",
-                "url": "https://api.xgo.ing/rss/user/80032d016d654eb4afe741ff34b7643d"
-            },
-            {
-                "name": "Binyuan Hui",
-                "url": "https://api.xgo.ing/rss/user/f54b2b40185943ce8f48a880110b7bc2"
-            },
-            {
-                "name": "Google DeepMind",
-                "url": "https://api.xgo.ing/rss/user/a99538443a484fcc846bdcc8f50745ec"
-            },
-            {
-                "name": "NVIDIA AI",
-                "url": "https://api.xgo.ing/rss/user/05f1492e43514dc3862a076d3697c390"
-            },
-            {
                 "name": "Ian Goodfellow",
                 "url": "https://api.xgo.ing/rss/user/57831559d22440debbfb2f2528e4ba84"
-            },
-            {
-                "name": "Groq Inc",
-                "url": "https://api.xgo.ing/rss/user/771b32075fe54a83bdb6966de9647b4f"
             },
             {
                 "name": "Berkeley AI Research",
@@ -167,28 +108,12 @@
                 "url": "https://api.xgo.ing/rss/user/b1013166769c49f8aa3fbdc222867054"
             },
             {
-                "name": "Justine Moore",
-                "url": "https://api.xgo.ing/rss/user/c61046471f174d86bc0eb76cb44a21c3"
-            },
-            {
                 "name": "Scott Wu",
                 "url": "https://api.xgo.ing/rss/user/5fca8ccd87344d388bc863304ed6fd86"
             },
             {
                 "name": "Cognition",
                 "url": "https://api.xgo.ing/rss/user/4cc14cbd15c74e189d537c415369e1a7"
-            },
-            {
-                "name": "Weaviate • vector database",
-                "url": "https://api.xgo.ing/rss/user/2f1035ec6b28475987af06b600e1d04c"
-            },
-            {
-                "name": "Runway",
-                "url": "https://api.xgo.ing/rss/user/e6bb4f612dd24db5bc1a6811e6dd5820"
-            },
-            {
-                "name": "AI at Meta",
-                "url": "https://api.xgo.ing/rss/user/ef7c70f9568d45f4915169fef4ce90b4"
             },
             {
                 "name": "Stanford AI Lab",
@@ -207,84 +132,20 @@
                 "url": "https://api.xgo.ing/rss/user/ce352bbf72e44033985bc756db2ee0e2"
             },
             {
-                "name": "Milvus",
-                "url": "https://api.xgo.ing/rss/user/424e67b19eed4500b7a440976bbd2ade"
-            },
-            {
                 "name": "Jina AI",
                 "url": "https://api.xgo.ing/rss/user/f510f6e7eecf456ca7e2895a46752888"
-            },
-            {
-                "name": "Justin Welsh",
-                "url": "https://api.xgo.ing/rss/user/58894bf2934a426ca833c682da2bc810"
-            },
-            {
-                "name": "Midjourney",
-                "url": "https://api.xgo.ing/rss/user/72dd496bfd9d44c5a5761a974630376d"
-            },
-            {
-                "name": "cohere",
-                "url": "https://api.xgo.ing/rss/user/462aa134ed914f98b3491680ad9b36ed"
-            },
-            {
-                "name": "Qdrant",
-                "url": "https://api.xgo.ing/rss/user/a55f6e33dd224235aabaabaaf9d58a06"
-            },
-            {
-                "name": "AI Engineer",
-                "url": "https://api.xgo.ing/rss/user/7d19a619a1cc4a9896129211269d2c85"
-            },
-            {
-                "name": "Latent.Space",
-                "url": "https://api.xgo.ing/rss/user/a7be8b61a1264ea7984abfaea3eff686"
-            },
-            {
-                "name": "Character.AI",
-                "url": "https://api.xgo.ing/rss/user/3877c31cdb554cffb750b3b683c98c4d"
-            },
-            {
-                "name": "ElevenLabs",
-                "url": "https://api.xgo.ing/rss/user/1897eed387064dfab443764d6da50bc6"
-            },
-            {
-                "name": "Taranjeet",
-                "url": "https://api.xgo.ing/rss/user/2de92402f4a24c90bb27e7580b93a878"
-            },
-            {
-                "name": "mem0",
-                "url": "https://api.xgo.ing/rss/user/94bb691baeff461686326af619beb116"
-            },
-            {
-                "name": "HeyGen",
-                "url": "https://api.xgo.ing/rss/user/a9aff6b016c143ed8728dd86eb70d7db"
             },
             {
                 "name": "Paul Couvert",
                 "url": "https://api.xgo.ing/rss/user/b9912ac9a29042cf8c834419dc44cb1f"
             },
             {
-                "name": "LangChain",
-                "url": "https://api.xgo.ing/rss/user/862fee50a745423c87e2633b274caf1d"
-            },
-            {
                 "name": "Harrison Chase",
                 "url": "https://api.xgo.ing/rss/user/f299207df53745bca04a03db8d11c5aa"
             },
             {
-                "name": "Recraft",
-                "url": "https://api.xgo.ing/rss/user/acc648327c614d9b985b9fc3d737165b"
-            },
-            {
-                "name": "Perplexity",
-                "url": "https://api.xgo.ing/rss/user/fdd601ea751949e7bec9e4cdad7c8e6c"
-            },
-            {
                 "name": "Aravind Srinivas",
                 "url": "https://api.xgo.ing/rss/user/59e6b63ae9684d11be0ae13d9e7420f2"
-            },
-            {
-                "name": "LlamaIndex 🦙",
-                "url": "https://api.xgo.ing/rss/user/67e259bd5be544ce84bbc867eace54c2"
             },
             {
                 "name": "Jerry Liu",
@@ -295,76 +156,12 @@
                 "url": "https://api.xgo.ing/rss/user/44d9fa384087448a94d3c8595f8d535e"
             },
             {
-                "name": "ollama",
-                "url": "https://api.xgo.ing/rss/user/6326c63a2dfa445bbde88bea0c3112c2"
-            },
-            {
-                "name": "FlowiseAI",
-                "url": "https://api.xgo.ing/rss/user/be74da51698d4cefb12b39830d6cd201"
-            },
-            {
-                "name": "Pika",
-                "url": "https://api.xgo.ing/rss/user/3306d8b253ec4e03aca3c2e9967e7119"
-            },
-            {
                 "name": "xAI",
                 "url": "https://api.xgo.ing/rss/user/3953aa71e87a422eb9d7bf6ff1c7c43e"
             },
             {
-                "name": "Ideogram",
-                "url": "https://api.xgo.ing/rss/user/a719880fe66e4156a111187f50dae91b"
-            },
-            {
-                "name": "Mistral AI",
-                "url": "https://api.xgo.ing/rss/user/8d2d03aea8af49818096da4ea00409d1"
-            },
-            {
-                "name": "OpenRouter",
-                "url": "https://api.xgo.ing/rss/user/e503a90c035c4b1d8f8dd34907d15bf4"
-            },
-            {
-                "name": "v0",
-                "url": "https://api.xgo.ing/rss/user/dbf37973e6fc4eae91d4be9669a78fc7"
-            },
-            {
-                "name": "AI SDK",
-                "url": "https://api.xgo.ing/rss/user/22af005b21ec45b1a4503acca777b7f0"
-            },
-            {
-                "name": "Fish Audio",
-                "url": "https://api.xgo.ing/rss/user/4900b3dcd592424687582ff9e0f148ea"
-            },
-            {
-                "name": "Hailuo AI (MiniMax)",
-                "url": "https://api.xgo.ing/rss/user/e65b5e59fcb544918c1ba17f5758f0f8"
-            },
-            {
-                "name": "Windsurf",
-                "url": "https://api.xgo.ing/rss/user/4a8273800ed34a069eecdb6c5c1b9ccf"
-            },
-            {
                 "name": "Varun Mohan",
                 "url": "https://api.xgo.ing/rss/user/7794c4268a504019a94af1778857a703"
-            },
-            {
-                "name": "ManusAI",
-                "url": "https://api.xgo.ing/rss/user/320181c4651a41a08015946b55f704ab"
-            },
-            {
-                "name": "AK",
-                "url": "https://api.xgo.ing/rss/user/341f7b9f8d9b477e8bb200caa7f32c6e"
-            },
-            {
-                "name": "LovartAI",
-                "url": "https://api.xgo.ing/rss/user/db648e4d4eae4822aa0d34f0faef7ad2"
-            },
-            {
-                "name": "Figma",
-                "url": "https://api.xgo.ing/rss/user/f8a106a09a7d404fb8de7eb0c5ddd2a2"
-            },
-            {
-                "name": "Cursor",
-                "url": "https://api.xgo.ing/rss/user/5287b4e0e13a4ab7ab7b1d56f9d88960"
             },
             {
                 "name": "Aman Sanger",
@@ -379,136 +176,32 @@
                 "url": "https://api.xgo.ing/rss/user/baa68dbd9a9e461a96fd9b2e3f35dcbf"
             },
             {
-                "name": "Genspark",
-                "url": "https://api.xgo.ing/rss/user/71ffd342cb5d478185ef7d55bdfca011"
-            },
-            {
-                "name": "orange.ai",
-                "url": "https://api.xgo.ing/rss/user/0277b0bbefd54df7bc6b7880122da8f7"
-            },
-            {
-                "name": "Barsee 🐶",
-                "url": "https://api.xgo.ing/rss/user/244eb9fa77ce4fa3b7fa5ceba80027a4"
-            },
-            {
-                "name": "Hunyuan",
-                "url": "https://api.xgo.ing/rss/user/6e8e7b42cb434818810f87bcf77d86fb"
-            },
-            {
-                "name": "NotebookLM",
-                "url": "https://api.xgo.ing/rss/user/221a88341acb475db221a12fed8208d0"
-            },
-            {
-                "name": "Google AI Developers",
-                "url": "https://api.xgo.ing/rss/user/69d925d4a8d44221b03eecbe07bd0f74"
-            },
-            {
                 "name": "Sundar Pichai",
                 "url": "https://api.xgo.ing/rss/user/8324d65a63dc42c584a8c08cc8323c9f"
-            },
-            {
-                "name": "Google Gemini App",
-                "url": "https://api.xgo.ing/rss/user/6fb337feeec44ca38b79491b971d868d"
             },
             {
                 "name": "Eric Jing",
                 "url": "https://api.xgo.ing/rss/user/ddfdcdd4e390495c942f0b5da62af0fb"
             },
             {
-                "name": "Lenny Rachitsky",
-                "url": "https://api.xgo.ing/rss/user/77d5ce4736854b0ebae603e4b54d3095"
-            },
-            {
                 "name": "Jim Fan",
                 "url": "https://api.xgo.ing/rss/user/c6cfe7c0d6b74849997073233fdea840"
-            },
-            {
-                "name": "Notion",
-                "url": "https://api.xgo.ing/rss/user/f97a26863aec4425b021720d4f8e4ede"
             },
             {
                 "name": "Akshay Kothari",
                 "url": "https://api.xgo.ing/rss/user/3434c0d56ee0446f991fb6af42bfac4b"
             },
             {
-                "name": "AI Breakfast",
-                "url": "https://api.xgo.ing/rss/user/0e3ebaf288014c45b0d24b71fe37312b"
-            },
-            {
-                "name": "DeepSeek",
-                "url": "https://api.xgo.ing/rss/user/68b610deb24b47ae9a236811563cda86"
-            },
-            {
-                "name": "Dia",
-                "url": "https://api.xgo.ing/rss/user/6384ee3c656c48fea5e8b3cdacece4d0"
-            },
-            {
-                "name": "Skywork",
-                "url": "https://api.xgo.ing/rss/user/6d7d398dd80b48d79669c92745d32cf6"
-            },
-            {
-                "name": "Naval",
-                "url": "https://api.xgo.ing/rss/user/b43bc203409e4c5a9c3ae86fe1ac00c9"
-            },
-            {
-                "name": "Aadit Sheth",
-                "url": "https://api.xgo.ing/rss/user/179bcc4b8e5d4274b6e9e935f9fd4434"
-            },
-            {
                 "name": "cat",
                 "url": "https://api.xgo.ing/rss/user/66a6b39ddcfa42e39621e0ab293c1bdd"
-            },
-            {
-                "name": "Augment Code",
-                "url": "https://api.xgo.ing/rss/user/e153fdd077df458b8298d975c060dcc3"
-            },
-            {
-                "name": "Fellou",
-                "url": "https://api.xgo.ing/rss/user/326763c2f6154826babcfd71c5ab0f70"
-            },
-            {
-                "name": "Kling AI",
-                "url": "https://api.xgo.ing/rss/user/564237c3de274d58a04f064920817888"
-            },
-            {
-                "name": "Firecrawl",
-                "url": "https://api.xgo.ing/rss/user/c04abb206bbf4f91b22795024d6c0614"
-            },
-            {
-                "name": "Poe",
-                "url": "https://api.xgo.ing/rss/user/17687b1051204b2dbaed4ea4c9178f28"
-            },
-            {
-                "name": "lmarena.ai",
-                "url": "https://api.xgo.ing/rss/user/f01b088d5a39473e854b07143df77ec5"
-            },
-            {
-                "name": "Replicate",
-                "url": "https://api.xgo.ing/rss/user/12eba9c3db4940c5ab2a72bd00f9ff2c"
-            },
-            {
-                "name": "a16z",
-                "url": "https://api.xgo.ing/rss/user/f3fedf817599470dbf8d8d11f0872475"
-            },
-            {
-                "name": "Y Combinator",
-                "url": "https://api.xgo.ing/rss/user/b1ab109f6afd42ab8ea32e17a19a3a3e"
             },
             {
                 "name": "Lilian Weng",
                 "url": "https://api.xgo.ing/rss/user/a8f7e2238039461cbc8bf55f5f194498"
             },
             {
-                "name": "Paul Graham",
-                "url": "https://api.xgo.ing/rss/user/900549ddadf04e839d3f7a17ebaba3fc"
-            },
-            {
                 "name": "Guillermo Rauch",
                 "url": "https://api.xgo.ing/rss/user/e8750659b8154dbfa0489f451e044af1"
-            },
-            {
-                "name": "andrew chen",
-                "url": "https://api.xgo.ing/rss/user/a3eb6beb2d894da3a9b7ab6d2e46790e"
             },
             {
                 "name": "Arthur Mensch",
@@ -519,40 +212,12 @@
                 "url": "https://api.xgo.ing/rss/user/30ad80be93c84e44acc37d5ddf31db57"
             },
             {
-                "name": "Browser Use",
-                "url": "https://api.xgo.ing/rss/user/b8d7530f0b294405825013bbc1cc198f"
-            },
-            {
-                "name": "AI Will",
-                "url": "https://api.xgo.ing/rss/user/aa74321087f9405a872fd9a76b743bf8"
-            },
-            {
-                "name": "Ray Dalio",
-                "url": "https://api.xgo.ing/rss/user/4838204097ed422eac24ad48e68dc3ff"
-            },
-            {
-                "name": "Sahil Lavingia",
-                "url": "https://api.xgo.ing/rss/user/baad3713defe4182844d2756b4c2c9ed"
-            },
-            {
                 "name": "elvis",
                 "url": "https://api.xgo.ing/rss/user/931d6e88e067496cac6bf23f69d60f33"
             },
             {
-                "name": "The Rundown AI",
-                "url": "https://api.xgo.ing/rss/user/83b1ea38940b4a1d81ea57d1ffb12ad7"
-            },
-            {
                 "name": "Nick St. Pierre",
                 "url": "https://api.xgo.ing/rss/user/6ebdf0d91eef4c149acd0ef110635866"
-            },
-            {
-                "name": "Monica_IM",
-                "url": "https://api.xgo.ing/rss/user/5d749cc613ec4069bb2a47334739e1b6"
-            },
-            {
-                "name": "Fireworks AI",
-                "url": "https://api.xgo.ing/rss/user/9f35c76341554bd78c2b9e63dc4fa5d8"
             },
             {
                 "name": "Jan Leike",
@@ -563,52 +228,8 @@
                 "url": "https://api.xgo.ing/rss/user/4d2d4165a7524217a08d3f57f27fa190"
             },
             {
-                "name": "Gary Marcus",
-                "url": "https://api.xgo.ing/rss/user/35a38c5646d946fb894d8c30c1d9629e"
-            },
-            {
                 "name": "Adam D'Angelo",
                 "url": "https://api.xgo.ing/rss/user/3042b6f912b24f64982cc23f7bd59681"
-            },
-            {
-                "name": "Suhail",
-                "url": "https://api.xgo.ing/rss/user/c961547e08df4396b3ab69367a07a1cd"
-            },
-            {
-                "name": "GitHub",
-                "url": "https://api.xgo.ing/rss/user/fa5b15f68a2e4df1ab301e26a4ab9190"
-            },
-            {
-                "name": "idoubi",
-                "url": "https://api.xgo.ing/rss/user/3d72acd51d21414ea39871fc01982a65"
-            },
-            {
-                "name": "Claude",
-                "url": "https://api.xgo.ing/rss/user/01f60d63a61b44d692cc35c7feb0b4a4"
-            },
-            {
-                "name": "Martin Fowler",
-                "url": "https://api.xgo.ing/rss/user/55d2d3f3eaaf4357b3230e0b01a464d7"
-            },
-            {
-                "name": "Viking",
-                "url": "https://api.xgo.ing/rss/user/aab44cb2665a49258cd81f63b0b55192"
-            },
-            {
-                "name": "Geek",
-                "url": "https://api.xgo.ing/rss/user/9cb3b60e689e4445a7fbdfd0be144126"
-            },
-            {
-                "name": "Tw93",
-                "url": "https://api.xgo.ing/rss/user/665fc88440fd4436acbc2e630d824926"
-            },
-            {
-                "name": "Yangyi",
-                "url": "https://api.xgo.ing/rss/user/66c40de71a9842fda4853b7d9d1d20da"
-            },
-            {
-                "name": "hidecloud",
-                "url": "https://api.xgo.ing/rss/user/23d41992b29340788aa3d09d8364c5f5"
             }
         ]
     },
@@ -636,132 +257,28 @@
                 "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCP7jMXSY2xbc3KCAE0MHQ-A"
             },
             {
-                "name": "leerob",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCZMli3czZnd1uoc1ShTouQw"
+                "name": "NVIDIA",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCHuiy8bXnmK5nisYHUd1J5g"
             },
             {
-                "name": "Y Combinator",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCcefcZRL2oaA_uBNeo5UOWg"
+                "name": "AI at Meta",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC5qxlwEKM7-5YZudb24l0bg"
             },
             {
-                "name": "Lenny's Podcast",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6t1O76G0jYXOAoYCm153dA"
-            },
-            {
-                "name": "Sequoia Capital",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCWrF0oN6unbXrWsTN7RctTw"
-            },
-            {
-                "name": "Stripe",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCM1guA1E-RHLO2OyfQPOkEQ"
-            },
-            {
-                "name": "Fireship",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA"
-            },
-            {
-                "name": "Dwarkesh Patel",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCXl4i9dYBrFOabk0xGmbkRA"
-            },
-            {
-                "name": "Lex Fridman",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSHZKyawb77ixDdsGog4iWA"
-            },
-            {
-                "name": "Hung-yi Lee",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC2ggjtuuWvxrHHHiaDH1dlQ"
+                "name": "Cursor",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6YYHJzM6PhZ2Yey9BQiUaw"
             },
             {
                 "name": "a16z",
                 "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC9cn0TuPq4dnbTY-CBsm8XA"
             },
             {
-                "name": "AI Master",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC0yHbz4OxdQFwmVX2BBQqLg"
-            },
-            {
-                "name": "Matt Wolfe",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UChpleBmo18P08aKCIgti38g"
-            },
-            {
-                "name": "AICodeKing",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC0m81bQuthaQZmFbXEY9QSw"
-            },
-            {
-                "name": "Liam Ottley",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCui4jxDaMb53Gdh-AZUTPAg"
-            },
-            {
-                "name": "Wes Roth",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCqcbQf6yw5KzRoDDcZ_wBSw"
-            },
-            {
-                "name": "Andrej Karpathy",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCXUPKJO5MZQN11PqgIvyuvQ"
-            },
-            {
-                "name": "Jason West",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCQ-rZd0NpjXYTpB3y5BNxPw"
-            },
-            {
-                "name": "Greg Isenberg",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCPjNBjflYl0-HQtUvOx0Ibw"
-            },
-            {
-                "name": "My First Million",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCyaN6mg5u8Cjy2ZI4ikWaug"
-            },
-            {
-                "name": "Riley Brown",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCMcoud_ZW7cfxeIugBflSBw"
-            },
-            {
-                "name": "Tina Huang",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC2UXDak6o7rBm23k3Vv5dww"
-            },
-            {
                 "name": "Last Week in AI",
                 "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCKARTq-t5SPMzwtft8FWwnA"
             },
             {
-                "name": "All-In Podcast",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCESLZhusAkFfsNsApnjF_Cg"
-            },
-            {
                 "name": "AI Explained",
                 "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCNJ1Ymd5yFuUPtn21xtRbbw"
-            },
-            {
-                "name": "Two Minute Papers",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg"
-            },
-            {
-                "name": "Matthew Berman",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCawZsQWqfGSbCI5yjkdVkTA"
-            },
-            {
-                "name": "freeCodeCamp.org",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC8butISFwT-Wl7EV0hUK0BQ"
-            },
-            {
-                "name": "ByteByteGo",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCZgt6AzoyjslHTC9dz0UoTw"
-            },
-            {
-                "name": "Product School",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6hlQ0x6kPbAGjYkoz53cvA"
-            },
-            {
-                "name": "yobi321",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCB_DbqNN9w30tnyWJSrIwyA"
-            },
-            {
-                "name": "LangChain",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCC-lyoTfSrcJzA1ab3APAgw"
-            },
-            {
-                "name": "Siraj Raval",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCWN3xxRkmTPmbKwht9FuE5A"
             }
         ]
     },
@@ -807,12 +324,21 @@
                 "url": "https://kill-the-newsletter.com/feeds/q5hapxprd7q94se8dsdk.xml"
             },
             {
-                "name": "Every",
-                "url": "https://every.to/feeds/b7066b7c4bade231e0ef.xml"
+                "name": "The Rundown AI",
+                "url": "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml"
             },
             {
                 "name": "BestBlogs",
                 "url": "https://www.bestblogs.dev/zh/feeds/rss/newsletter"
+            }
+        ]
+    },
+    {
+        "groupName": "Podcasts",
+        "feeds": [
+            {
+                "name": "Latent.Space",
+                "url": "https://rss.flightcast.com/vgnxzgiwwzwke85ym53fjnzu.xml"
             }
         ]
     },
