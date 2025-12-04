@@ -69,31 +69,27 @@ export class RSSItem {
             item.snippet = htmlDecode(parsed.fullContent)
         } else {
             // Priority for content: media:content > parsed.content
-            // Check if mediaContent has text content (not just image URLs)
-            if (parsed.mediaContent && Array.isArray(parsed.mediaContent)) {
-                // Find media:content that is not an image
-                const nonImageContent = parsed.mediaContent.find(
-                    c => !c.$ || c.$.medium !== "image"
-                )
-                if (nonImageContent && nonImageContent._) {
-                    item.content = nonImageContent._
-                } else if (nonImageContent && nonImageContent.$ && nonImageContent.$.url) {
-                    // If it's a YouTube video URL, create embed code
-                    const url = nonImageContent.$.url
-                    const videoIdMatch = url.match(/[?&]v=([^&]+)/) || 
-                                        url.match(/youtu\.be\/([^?&]+)/) ||
-                                        url.match(/embed\/([^?&]+)/)
-                    if (videoIdMatch) {
-                        const videoId = videoIdMatch[1]
-                        item.content = `<iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
+            // Note: parseRSS() may have already set item.content from media:content,
+            // so we only process if content is not already set
+            if (!item.content || item.content.trim() === "") {
+                // Check if mediaContent has text content (not just image URLs)
+                if (parsed.mediaContent && Array.isArray(parsed.mediaContent)) {
+                    // Find media:content that is not an image
+                    const nonImageContent = parsed.mediaContent.find(
+                        c => !c.$ || c.$.medium !== "image"
+                    )
+                    if (nonImageContent && nonImageContent._) {
+                        item.content = nonImageContent._
+                    } else if (nonImageContent && nonImageContent.$ && nonImageContent.$.url) {
+                        // Store the URL as a link, embed code will be generated when rendering
+                        const url = nonImageContent.$.url
+                        item.content = `<a href="${url}">${url}</a>`
                     } else {
                         item.content = parsed.content || ""
                     }
                 } else {
                     item.content = parsed.content || ""
                 }
-            } else {
-                item.content = parsed.content || ""
             }
             
             // Priority: contentSnippet > media:description > extracted text from content
@@ -105,9 +101,6 @@ export class RSSItem {
                 item.snippet = htmlDecode(item.content || "")
             }
         }
-        
-        // Check if this is a YouTube item
-        const isYouTube = item.link && (/youtube\.com/.test(item.link) || /youtu\.be/.test(item.link))
         
         if (parsed.thumb) {
             item.thumb = parsed.thumb
@@ -196,37 +189,6 @@ export class RSSItem {
             dom.head.append(baseEl)
             let img = dom.querySelector("img")
             if (img && img.src) item.thumb = img.src
-        }
-        // Fallback for YouTube: extract video ID from link and construct thumbnail URL
-        if (!item.thumb && isYouTube) {
-            try {
-                // Extract video ID from YouTube URL
-                // Formats: https://www.youtube.com/watch?v=VIDEO_ID
-                //          https://youtu.be/VIDEO_ID
-                //          https://www.youtube.com/embed/VIDEO_ID
-                let videoId: string | null = null
-                const watchMatch = item.link.match(/[?&]v=([^&]+)/)
-                if (watchMatch) {
-                    videoId = watchMatch[1]
-                } else {
-                    const shortMatch = item.link.match(/youtu\.be\/([^?&]+)/)
-                    if (shortMatch) {
-                        videoId = shortMatch[1]
-                    } else {
-                        const embedMatch = item.link.match(/youtube\.com\/embed\/([^?&]+)/)
-                        if (embedMatch) {
-                            videoId = embedMatch[1]
-                        }
-                    }
-                }
-                
-                if (videoId) {
-                    // Construct YouTube thumbnail URL
-                    item.thumb = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
-                }
-            } catch (e) {
-                console.warn("Failed to extract YouTube video ID:", e)
-            }
         }
         
         if (

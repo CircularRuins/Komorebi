@@ -56,7 +56,6 @@ type ArticleState = {
     loaded: boolean
     error: boolean
     errorDescription: string
-    showCopySuccess: boolean
     translatedContent: string | null
     translatedTitle: string | null
     isTranslating: boolean
@@ -87,7 +86,6 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 loaded: false,
                 error: false,
                 errorDescription: "",
-                showCopySuccess: false,
                 translatedContent: null,
                 translatedTitle: null,
                 isTranslating: false,
@@ -107,7 +105,6 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             loaded: false,
             error: false,
             errorDescription: "",
-            showCopySuccess: false,
             translatedContent: null,
             translatedTitle: null,
             isTranslating: false,
@@ -588,35 +585,6 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                         />
                     </TooltipHost>
                     <TooltipHost
-                        content={intl.get("context.copyURL")}
-                        delay={TooltipDelay.zero}>
-                        <CommandBarButton
-                            iconProps={{
-                                iconName: "Link",
-                                style: { fontSize: 16 },
-                            }}
-                            onClick={() => {
-                                window.utils.writeClipboard(this.props.item.link)
-                                this.setState({ showCopySuccess: true })
-                                setTimeout(() => {
-                                    this.setState({ showCopySuccess: false })
-                                }, 1200)
-                            }}
-                            styles={{
-                                root: {
-                                    minWidth: 40,
-                                    height: 32,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                },
-                                icon: {
-                                    fontSize: 16,
-                                },
-                            }}
-                        />
-                    </TooltipHost>
-                    <TooltipHost
                         content={
                             this.state.showTranslated
                                 ? intl.get("article.showOriginal")
@@ -740,31 +708,6 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                     </span>
                 </Stack>
             )}
-            <Stack
-                style={{
-                    position: "fixed",
-                    top: "60px",
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    zIndex: 10000,
-                    backgroundColor: "var(--neutralDark)",
-                    color: "var(--white)",
-                    padding: "8px 16px",
-                    borderRadius: "4px",
-                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
-                    opacity: this.state.showCopySuccess ? 1 : 0,
-                    pointerEvents: this.state.showCopySuccess ? "auto" : "none",
-                    transition: "opacity 0.2s ease-out",
-                }}
-                horizontal
-                tokens={{ childrenGap: 8 }}
-                verticalAlign="center"
-                horizontalAlign="center">
-                <Icon iconName="CheckMark" style={{ fontSize: 16 }} />
-                <span style={{ fontSize: 13 }}>
-                    {intl.get("context.copyURL")} 已复制
-                </span>
-            </Stack>
         </FocusZone>
         )
     }

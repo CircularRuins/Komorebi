@@ -201,24 +201,14 @@ export async function parseRSS(url: string) {
                                 const contentUrl = mediaContent.getAttribute("url") || ""
                                 
                                 // For YouTube, media:content might contain video embed code or URL
-                                // If there's text content, use it; otherwise construct embed from URL
-                                if (contentText) {
+                                // If there's text content, use it; otherwise construct link from URL
+                                if (contentText && contentText.trim() !== "") {
                                     if (!item.content || item.content.trim() === "") {
                                         item.content = contentText
                                     }
                                 } else if (contentUrl) {
-                                    // If it's a YouTube video URL, create embed code
-                                    const videoIdMatch = contentUrl.match(/[?&]v=([^&]+)/) || 
-                                                        contentUrl.match(/youtu\.be\/([^?&]+)/) ||
-                                                        contentUrl.match(/embed\/([^?&]+)/)
-                                    if (videoIdMatch) {
-                                        const videoId = videoIdMatch[1]
-                                        const embedHtml = `<iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
-                                        if (!item.content || item.content.trim() === "") {
-                                            item.content = embedHtml
-                                        }
-                                    } else if (!item.content || item.content.trim() === "") {
-                                        // For other media content, use the URL as a link
+                                    // Store the URL as a link, embed code will be generated when rendering
+                                    if (!item.content || item.content.trim() === "") {
                                         item.content = `<a href="${contentUrl}">${contentUrl}</a>`
                                     }
                                 }
@@ -298,16 +288,8 @@ export async function parseRSS(url: string) {
                                 if (contentText && (!item.content || item.content.trim() === "")) {
                                     item.content = contentText
                                 } else if (contentUrl && (!item.content || item.content.trim() === "")) {
-                                    const videoIdMatch = contentUrl.match(/[?&]v=([^&]+)/) || 
-                                                        contentUrl.match(/youtu\.be\/([^?&]+)/) ||
-                                                        contentUrl.match(/embed\/([^?&]+)/)
-                                    if (videoIdMatch) {
-                                        const videoId = videoIdMatch[1]
-                                        const embedHtml = `<iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
-                                        item.content = embedHtml
-                                    } else {
-                                        item.content = `<a href="${contentUrl}">${contentUrl}</a>`
-                                    }
+                                    // Store the URL as a link, embed code will be generated when rendering
+                                    item.content = `<a href="${contentUrl}">${contentUrl}</a>`
                                 }
                             }
                         }
@@ -550,6 +532,24 @@ export async function getFeedIcon(url: string, force: boolean = false): Promise<
 export function htmlDecode(input: string) {
     var doc = domParser.parseFromString(input, "text/html")
     return doc.documentElement.textContent
+}
+
+/**
+ * 从 YouTube URL 中提取视频ID
+ * 支持多种 YouTube URL 格式：
+ * - https://www.youtube.com/watch?v=VIDEO_ID
+ * - https://youtube.com/watch?v=VIDEO_ID
+ * - https://www.youtube.com/v/VIDEO_ID
+ * - https://www.youtube.com/embed/VIDEO_ID
+ * - https://youtu.be/VIDEO_ID
+ * - https://www.youtube.com/channel/CHANNEL_ID/videos?view=0&v=VIDEO_ID
+ * @param url YouTube URL
+ * @returns 视频ID，如果无法提取则返回 null
+ */
+export function extractVideoId(url: string): string | null {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
 }
 
 export const urlTest = (s: string) =>
