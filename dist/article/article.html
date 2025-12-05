@@ -2,15 +2,16 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; script-src-elem 'sha256-sLDWrq1tUAO8IyyqmUckFqxbXYfZ2/3TEUmtxH8Unf0=' 'sha256-P8kpcPMZ+NoRaXoqwY8rjYyJEqPp03vRPwcoVKY5OCU='; img-src http: https: data:; style-src 'self' 'unsafe-inline'; frame-src http: https:; media-src http: https:; connect-src https: http:">
+        content="default-src 'none'; script-src-elem 'sha256-sLDWrq1tUAO8IyyqmUckFqxbXYfZ2/3TEUmtxH8Unf0=' 'sha256-TCJ06+lbhaCLnXLnUgNU4A4cgrl7X0QtSY/JsCpPErE=' https://www.youtube.com; script-src 'unsafe-inline' https://www.youtube.com; img-src http: https: data:; style-src 'self' 'unsafe-inline'; frame-src http: https:; media-src http: https:; connect-src https: http:">
     <title>Article</title>
     <link rel="stylesheet" href="article.css" />
     <script integrity="sha256-sLDWrq1tUAO8IyyqmUckFqxbXYfZ2/3TEUmtxH8Unf0=" src="mercury.web.js"></script>
 </head>
 <body>
     <div id="main"></div>
-    <script integrity="sha256-P8kpcPMZ+NoRaXoqwY8rjYyJEqPp03vRPwcoVKY5OCU=" src="article.js"></script>
+    <script integrity="sha256-TCJ06+lbhaCLnXLnUgNU4A4cgrl7X0QtSY/JsCpPErE=" src="article.js"></script>
     <!-- Run "cat article.js | openssl dgst -sha256 -binary | openssl enc -base64 -A" for hash -->
 </body>
 </html>

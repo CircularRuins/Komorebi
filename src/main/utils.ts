@@ -152,6 +152,74 @@ export function setUtilsListeners(manager: WindowManager) {
 
     app.on("web-contents-created", (_, contents) => {
         if (contents.getType() === "webview") {
+            // Set up request interceptor to add Referer header for YouTube requests
+            try {
+                const ses = contents.session
+                if (!ses) return
+                
+                ses.webRequest.onBeforeSendHeaders(
+                    {
+                        urls: ["https://www.youtube.com/*", "https://*.youtube.com/*"],
+                    },
+                    (details, callback) => {
+                        // Check if contents is still valid before accessing
+                        if (contents.isDestroyed()) {
+                            callback({ requestHeaders: details.requestHeaders })
+                            return
+                        }
+                        
+                        // Try to get the article URL from the webview's URL
+                        let webviewUrl = ""
+                        try {
+                            webviewUrl = contents.getURL()
+                        } catch (e) {
+                            // Contents may have been destroyed
+                            callback({ requestHeaders: details.requestHeaders })
+                            return
+                        }
+                        
+                        let referer = ""
+                        
+                        // Extract article URL from webview URL if it's article.html
+                        if (webviewUrl && webviewUrl.includes("article.html")) {
+                            try {
+                                // Handle both file:// and http:// URLs
+                                if (webviewUrl.startsWith("file://")) {
+                                    // For file:// URLs, manually parse the query string
+                                    const queryMatch = webviewUrl.match(/[?&]u=([^&]*)/)
+                                    if (queryMatch && queryMatch[1]) {
+                                        referer = decodeURIComponent(queryMatch[1])
+                                    }
+                                } else {
+                                    const url = new URL(webviewUrl)
+                                    const articleUrl = url.searchParams.get("u")
+                                    if (articleUrl) {
+                                        referer = articleUrl
+                                    }
+                                }
+                                
+                                // Validate that referer is a valid HTTP/HTTPS URL
+                                if (referer && !referer.startsWith("http://") && !referer.startsWith("https://")) {
+                                    referer = ""
+                                }
+                            } catch (e) {
+                                // Ignore parsing errors
+                                referer = ""
+                            }
+                        }
+                        
+                        // Add Referer header - use a fixed domain like TLDW uses its own domain
+                        // YouTube doesn't accept its own domain as referer, so use a fixed allowed domain
+                        details.requestHeaders["Referer"] = "https://komorebi.app"
+                        
+                        callback({ requestHeaders: details.requestHeaders })
+                    }
+                )
+            } catch (e) {
+                // Ignore errors if session or contents is destroyed
+                console.error("Error setting up YouTube referer interceptor:", e)
+            }
+            
             contents.on(
                 "did-fail-load",
                 (event, code, desc, validated, isMainFrame) => {

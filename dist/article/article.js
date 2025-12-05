@@ -22,9 +22,12 @@ function extractVideoId(url) {
 }
 
 /**
- * Convert YouTube links to embed iframes in HTML content
- * Simple string replacement approach
+ * Convert YouTube links to embed divs for YouTube iframe API
+ * Uses YouTube iframe API to avoid error 153
  */
+let youtubePlayerCounter = 0
+const youtubePlayers = new Map()
+
 function convertYouTubeLinks(html) {
     if (!html || typeof html !== 'string') return html || ''
     
@@ -38,9 +41,110 @@ function convertYouTubeLinks(html) {
         const href = hrefMatch[1]
         const videoId = extractVideoId(href)
         if (videoId) {
-            return `<iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="max-width: 100%; height: auto; aspect-ratio: 16 / 9; display: block; margin: 16px 0;"></iframe>`
+            const playerId = `youtube-player-${youtubePlayerCounter++}`
+            youtubePlayers.set(playerId, videoId)
+            return `<div id="${playerId}" style="position: relative; width: 100%; max-width: 560px; padding-bottom: 56.25%; height: 0; overflow: hidden; background-color: #000; margin: 16px auto; display: block;">
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+            </div>`
         }
         return match
+    })
+}
+
+/**
+ * Initialize YouTube players using iframe API
+ */
+function initializeYouTubePlayers() {
+    if (youtubePlayers.size === 0) return
+    
+    // Check if YouTube API is already loaded
+    if (window.YT && window.YT.Player) {
+        createYouTubePlayers()
+    } else {
+        // Load YouTube iframe API if not already loaded
+        if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+            const tag = document.createElement('script')
+            tag.src = 'https://www.youtube.com/iframe_api'
+            document.body.appendChild(tag)
+        }
+        
+        // Set up callback
+        const existingCallback = window.onYouTubeIframeAPIReady
+        window.onYouTubeIframeAPIReady = () => {
+            if (existingCallback) existingCallback()
+            createYouTubePlayers()
+        }
+    }
+}
+
+/**
+ * Create YouTube player instances
+ */
+function createYouTubePlayers() {
+    // Get the article URL to use as origin
+    const articleUrl = get("u") || ""
+    let origin = ""
+    try {
+        if (articleUrl && (articleUrl.startsWith("http://") || articleUrl.startsWith("https://"))) {
+            const urlObj = new URL(articleUrl)
+            origin = urlObj.origin
+        }
+    } catch (e) {
+        // If URL parsing fails, try to extract origin from articleUrl string
+        const match = articleUrl.match(/^(https?:\/\/[^\/]+)/)
+        if (match) {
+            origin = match[1]
+        }
+    }
+    
+    youtubePlayers.forEach((videoId, playerId) => {
+        const container = document.getElementById(playerId)
+        if (!container) return
+        
+        const playerDiv = container.querySelector('div')
+        if (!playerDiv) return
+        
+        try {
+            const playerConfig = {
+                videoId: videoId,
+                playerVars: {
+                    autoplay: 0,
+                    controls: 1,
+                    modestbranding: 1,
+                    rel: 0,
+                },
+                events: {
+                    onReady: () => {
+                        // Set referrer policy and modify iframe src to include origin
+                        const iframe = playerDiv.querySelector('iframe')
+                        if (iframe) {
+                            iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin')
+                            
+                            // Modify iframe src to include origin parameter if available
+                            if (origin) {
+                                try {
+                                    const currentSrc = iframe.src
+                                    const url = new URL(currentSrc)
+                                    url.searchParams.set('origin', origin)
+                                    iframe.src = url.toString()
+                                } catch (e) {
+                                    console.error('Error modifying iframe src:', e)
+                                }
+                            }
+                        }
+                    },
+                },
+            }
+            
+            // Add origin parameter if available (for Electron webview compatibility)
+            if (origin) {
+                playerConfig.origin = origin
+            }
+            
+            const player = new window.YT.Player(playerDiv, playerConfig)
+        } catch (e) {
+            console.error('Error creating YouTube player:', e)
+        }
     })
 }
 
@@ -57,6 +161,10 @@ let font = get("f")
 if (font) document.body.style.fontFamily = `"${font}"`
 let url = get("u")
 getArticle(url).then(article => {
+    // Reset YouTube player counter for new article
+    youtubePlayerCounter = 0
+    youtubePlayers.clear()
+    
     // Convert YouTube links to embeds before inserting
     if (article) {
         article = convertYouTubeLinks(article)
@@ -80,4 +188,10 @@ getArticle(url).then(article => {
     let main = document.getElementById("main")
     main.innerHTML = dom.body.innerHTML
     main.classList.add("show")
+    
+    // Initialize YouTube players after DOM is updated
+    // Use setTimeout to ensure DOM is fully rendered
+    setTimeout(() => {
+        initializeYouTubePlayers()
+    }, 0)
 })
