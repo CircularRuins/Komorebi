@@ -10,3 +10,4 @@ bin/*
 .vscode/*
 .npmrc
 tmp
+tmp2

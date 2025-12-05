@@ -42,10 +42,12 @@ function convertYouTubeLinks(html) {
         const videoId = extractVideoId(href)
         if (videoId) {
             const playerId = `youtube-player-${youtubePlayerCounter++}`
+            const transcriptId = `youtube-transcript-${youtubePlayerCounter - 1}`
             youtubePlayers.set(playerId, videoId)
             return `<div id="${playerId}" style="position: relative; width: 604.44px; height: 340px; max-width: 100%; overflow: hidden; background-color: #000; margin: 16px auto; display: block;">
                 <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
-            </div>`
+            </div>
+            <div id="${transcriptId}" class="youtube-transcript-container"></div>`
         }
         return match
     })
@@ -78,6 +80,115 @@ function initializeYouTubePlayers() {
 }
 
 /**
+ * Format time in seconds to MM:SS format
+ */
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+/**
+ * Generate mock transcript data for testing
+ */
+function generateMockTranscript() {
+    return [
+        { text: "Hello, welcome to this video. Today we're going to discuss some interesting topics.", start: 0, duration: 5 },
+        { text: "First, let's talk about the basics. Understanding the fundamentals is crucial.", start: 5, duration: 6 },
+        { text: "Now, let's dive deeper into the subject matter. This is where it gets really interesting.", start: 11, duration: 7 },
+        { text: "As you can see, there are several important points to consider here.", start: 18, duration: 5 },
+        { text: "Let me explain this concept in more detail. It's actually quite fascinating.", start: 23, duration: 6 },
+        { text: "So to summarize what we've learned so far, these are the key takeaways.", start: 29, duration: 6 },
+        { text: "In the next section, we'll explore some advanced techniques and strategies.", start: 35, duration: 7 },
+        { text: "This is really important, so make sure you pay close attention to this part.", start: 42, duration: 6 },
+        { text: "Now let's look at some practical examples that demonstrate these concepts.", start: 48, duration: 7 },
+        { text: "I hope this has been helpful. Thank you for watching, and see you next time!", start: 55, duration: 5 }
+    ]
+}
+
+/**
+ * Render transcript component
+ */
+function renderTranscript(containerId, videoId) {
+    const container = document.getElementById(containerId)
+    if (!container) return
+    
+    // Get mock transcript data
+    const transcript = generateMockTranscript()
+    
+    // Create transcript HTML
+    let transcriptHTML = '<div class="youtube-transcript">'
+    transcriptHTML += '<div class="youtube-transcript-header">'
+    transcriptHTML += '<h3 class="youtube-transcript-title">Transcript</h3>'
+    transcriptHTML += '</div>'
+    transcriptHTML += '<div class="youtube-transcript-content">'
+    
+    transcript.forEach((segment, index) => {
+        const timeStr = formatTime(segment.start)
+        transcriptHTML += `<div class="youtube-transcript-segment" data-start="${segment.start}" data-video-id="${videoId}">`
+        transcriptHTML += `<span class="youtube-transcript-timestamp" data-start="${segment.start}">${timeStr}</span>`
+        transcriptHTML += `<span class="youtube-transcript-text">${segment.text}</span>`
+        transcriptHTML += '</div>'
+    })
+    
+    transcriptHTML += '</div>'
+    transcriptHTML += '</div>'
+    
+    container.innerHTML = transcriptHTML
+    
+    // Add click handlers for timestamps
+    const timestampElements = container.querySelectorAll('.youtube-transcript-timestamp')
+    timestampElements.forEach(timestamp => {
+        timestamp.style.cursor = 'pointer'
+        timestamp.addEventListener('click', (e) => {
+            e.preventDefault()
+            const startTime = parseFloat(timestamp.getAttribute('data-start'))
+            const segment = timestamp.closest('.youtube-transcript-segment')
+            const videoId = segment ? segment.getAttribute('data-video-id') : null
+            
+            if (!videoId) return
+            
+            // Find the corresponding YouTube player
+            youtubePlayers.forEach((playerVideoId, playerId) => {
+                if (playerVideoId === videoId) {
+                    const playerContainer = document.getElementById(playerId)
+                    if (playerContainer) {
+                        const playerDiv = playerContainer.querySelector('div')
+                        if (playerDiv) {
+                            // Try to get player instance
+                            let playerInstance = null
+                            try {
+                                // Try to get from stored reference first
+                                if (playerDiv.player) {
+                                    playerInstance = playerDiv.player
+                                } else if (playerDiv.id && window.YT && window.YT.get) {
+                                    // Try to get from YT API using the div ID
+                                    playerInstance = window.YT.get(playerDiv.id)
+                                }
+                                
+                                if (playerInstance && typeof playerInstance.seekTo === 'function') {
+                                    playerInstance.seekTo(startTime, true)
+                                    if (typeof playerInstance.playVideo === 'function') {
+                                        playerInstance.playVideo()
+                                    }
+                                } else {
+                                    console.log('Player instance not available for seeking')
+                                }
+                            } catch (err) {
+                                console.log('Could not seek to time:', startTime, err)
+                            }
+                        }
+                    }
+                }
+            })
+            
+            // Log for debugging
+            console.log('Seek to:', startTime, 'for video:', videoId)
+        })
+    })
+}
+
+/**
  * Create YouTube player instances
  */
 function createYouTubePlayers() {
@@ -104,6 +215,10 @@ function createYouTubePlayers() {
         const playerDiv = container.querySelector('div')
         if (!playerDiv) return
         
+        // Set an ID for the player div so we can access it via YT.get()
+        const playerDivId = `${playerId}-inner`
+        playerDiv.id = playerDivId
+        
         try {
             const playerConfig = {
                 videoId: videoId,
@@ -114,7 +229,7 @@ function createYouTubePlayers() {
                     rel: 0,
                 },
                 events: {
-                    onReady: () => {
+                    onReady: (event) => {
                         // Set referrer policy and modify iframe src to include origin
                         const iframe = playerDiv.querySelector('iframe')
                         if (iframe) {
@@ -132,6 +247,17 @@ function createYouTubePlayers() {
                                 }
                             }
                         }
+                        
+                        // Store player reference for transcript seeking
+                        // event.target is the player instance
+                        playerDiv.player = event.target
+                        
+                        // Render transcript after player is ready
+                        const playerIndex = playerId.replace('youtube-player-', '')
+                        const transcriptId = `youtube-transcript-${playerIndex}`
+                        setTimeout(() => {
+                            renderTranscript(transcriptId, videoId)
+                        }, 500)
                     },
                 },
             }
@@ -141,6 +267,7 @@ function createYouTubePlayers() {
                 playerConfig.origin = origin
             }
             
+            // Create player instance
             const player = new window.YT.Player(playerDiv, playerConfig)
         } catch (e) {
             console.error('Error creating YouTube player:', e)
