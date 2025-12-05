@@ -43,7 +43,7 @@ function convertYouTubeLinks(html) {
         if (videoId) {
             const playerId = `youtube-player-${youtubePlayerCounter++}`
             youtubePlayers.set(playerId, videoId)
-            return `<div id="${playerId}" style="position: relative; width: 100%; max-width: 560px; padding-bottom: 56.25%; height: 0; overflow: hidden; background-color: #000; margin: 16px auto; display: block;">
+            return `<div id="${playerId}" style="position: relative; width: 604.44px; height: 340px; max-width: 100%; overflow: hidden; background-color: #000; margin: 16px auto; display: block;">
                 <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
             </div>`
         }

@@ -444,28 +444,6 @@ class Page extends React.Component<PageProps> {
                                         <ArticleContainer itemId={this.props.itemId} />
                                     )}
                                 </div>
-                                {this.props.itemFromFeed && this.props.itemId !== -1 && (
-                                    <>
-                                        <div className="btn-group prev">
-                                            <TooltipHost
-                                                content={intl.get("article.prevItem")}
-                                                delay={TooltipDelay.zero}>
-                                                <a className="btn" onClick={this.prevItem}>
-                                                    <Icon iconName="Back" />
-                                                </a>
-                                            </TooltipHost>
-                                        </div>
-                                        <div className="btn-group next">
-                                            <TooltipHost
-                                                content={intl.get("article.nextItem")}
-                                                delay={TooltipDelay.zero}>
-                                                <a className="btn" onClick={this.nextItem}>
-                                                    <Icon iconName="Forward" />
-                                                </a>
-                                            </TooltipHost>
-                                        </div>
-                                    </>
-                                )}
                             </FocusTrapZone>
                         )}
                     </>

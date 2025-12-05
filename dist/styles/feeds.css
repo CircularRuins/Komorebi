@@ -7,30 +7,16 @@
     }
 }
 .article-wrapper {
-    margin: 32px auto;
+    margin: 16px auto;
     width: 860px;
     max-width: calc(100% - 64px);
-    height: calc(100% - 64px);
-    max-height: calc(100vh - var(--navHeight) - 64px);
+    height: calc(100% - 32px);
+    max-height: calc(100vh - var(--navHeight) - 32px);
     background-color: var(--neutralLighterAlt);
     box-shadow: 0 6.4px 14.4px 0 rgba(0, 0, 0, 0.132),
         0 1.2px 3.6px 0 rgba(0, 0, 0, 0.108);
     overflow: hidden;
     animation-name: slideUp20;
-}
-.article-container .btn-group .btn {
-    color: #fff;
-    border-radius: 8px;
-}
-.article-container .btn-group {
-    position: absolute;
-    top: calc(50% - 32px);
-}
-.article-container .btn-group.prev {
-    left: max(32px, calc(50% - 430px));
-}
-.article-container .btn-group.next {
-    right: max(32px, calc(50% - 430px));
 }
 .article {
     height: 100%;
