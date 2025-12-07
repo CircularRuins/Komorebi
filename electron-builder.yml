@@ -5,6 +5,11 @@ files:
     - "./dist/**/*"
     - "!./dist/fontlist"
     - "!**/*.js.map"
+extraResources:
+    - from: "./python-scripts/dist"
+      to: "python-scripts"
+      filter:
+        - "**/*"
 directories:
     output: "./bin/${platform}/${arch}/"
 mac:

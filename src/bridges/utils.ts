@@ -174,6 +174,17 @@ const utilsBridge = {
     initFontList: (): Promise<Array<string>> => {
         return ipcRenderer.invoke("init-font-list")
     },
+
+    getYouTubeTranscript: async (
+        videoId: string,
+        languages?: string[]
+    ): Promise<any> => {
+        return await ipcRenderer.invoke("get-youtube-transcript", videoId, languages)
+    },
+
+    getPreloadPath: (): string => {
+        return ipcRenderer.sendSync("get-preload-path") as string
+    },
 }
 
 declare global {

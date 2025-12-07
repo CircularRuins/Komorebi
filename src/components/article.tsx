@@ -61,6 +61,7 @@ type ArticleState = {
     isTranslating: boolean
     translationError: string | null
     showTranslated: boolean
+    preloadPath: string
 }
 
 class Article extends React.Component<ArticleProps, ArticleState> {
@@ -91,6 +92,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 isTranslating: false,
                 translationError: null,
                 showTranslated: false,
+                preloadPath: window.utils?.getPreloadPath?.() || "../preload.js",
             }
             return
         }
@@ -108,6 +110,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             isTranslating: false,
             translationError: null,
             showTranslated: false,
+            preloadPath: window.utils?.getPreloadPath?.() || "../preload.js",
         }
         window.utils.addWebviewContextListener(this.contextMenuHandler)
         window.utils.addWebviewKeydownListener(this.keyDownHandler)
@@ -681,6 +684,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                     allowpopups={"true" as unknown as boolean}
                     webpreferences="contextIsolation,disableDialogs,autoplayPolicy=document-user-activation-required"
                     partition={this.state.loadWebpage ? "sandbox" : undefined}
+                    preload={this.state.loadWebpage ? undefined : this.state.preloadPath}
                 />
             )}
             {this.state.error && (

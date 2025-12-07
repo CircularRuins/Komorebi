@@ -89,32 +89,51 @@ function formatTime(seconds) {
 }
 
 /**
- * Generate mock transcript data for testing
+ * Fetch transcript from YouTube using Electron API
  */
-function generateMockTranscript() {
-    return [
-        { text: "Hello, welcome to this video. Today we're going to discuss some interesting topics.", start: 0, duration: 5 },
-        { text: "First, let's talk about the basics. Understanding the fundamentals is crucial.", start: 5, duration: 6 },
-        { text: "Now, let's dive deeper into the subject matter. This is where it gets really interesting.", start: 11, duration: 7 },
-        { text: "As you can see, there are several important points to consider here.", start: 18, duration: 5 },
-        { text: "Let me explain this concept in more detail. It's actually quite fascinating.", start: 23, duration: 6 },
-        { text: "So to summarize what we've learned so far, these are the key takeaways.", start: 29, duration: 6 },
-        { text: "In the next section, we'll explore some advanced techniques and strategies.", start: 35, duration: 7 },
-        { text: "This is really important, so make sure you pay close attention to this part.", start: 42, duration: 6 },
-        { text: "Now let's look at some practical examples that demonstrate these concepts.", start: 48, duration: 7 },
-        { text: "I hope this has been helpful. Thank you for watching, and see you next time!", start: 55, duration: 5 }
-    ]
+async function fetchYouTubeTranscript(videoId) {
+    try {
+        // Check if we're in Electron environment
+        if (typeof window !== 'undefined' && window.utils && window.utils.getYouTubeTranscript) {
+            const result = await window.utils.getYouTubeTranscript(videoId)
+            
+            // Check if result has error
+            if (result && result.error) {
+                return null
+            }
+            
+            // Check if result is an array (successful transcript)
+            if (Array.isArray(result)) {
+                return result
+            }
+            
+            return null
+        } else {
+            return null
+        }
+    } catch (error) {
+        return null
+    }
 }
 
 /**
  * Render transcript component
  */
-function renderTranscript(containerId, videoId) {
+async function renderTranscript(containerId, videoId) {
     const container = document.getElementById(containerId)
     if (!container) return
     
-    // Get mock transcript data
-    const transcript = generateMockTranscript()
+    // Show loading state
+    container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-header"><h3 class="youtube-transcript-title">Transcript</h3></div><div class="youtube-transcript-content"><div class="youtube-transcript-loading">Loading transcript...</div></div></div>'
+    
+    // Fetch transcript from YouTube
+    const transcript = await fetchYouTubeTranscript(videoId)
+    
+    // If transcript fetch failed, show error message
+    if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
+        container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-header"><h3 class="youtube-transcript-title">Transcript</h3></div><div class="youtube-transcript-content"><div class="youtube-transcript-error">Transcript not available for this video.</div></div></div>'
+        return
+    }
     
     // Create transcript HTML
     let transcriptHTML = '<div class="youtube-transcript">'
@@ -256,7 +275,9 @@ function createYouTubePlayers() {
                         const playerIndex = playerId.replace('youtube-player-', '')
                         const transcriptId = `youtube-transcript-${playerIndex}`
                         setTimeout(() => {
-                            renderTranscript(transcriptId, videoId)
+                            renderTranscript(transcriptId, videoId).catch(err => {
+                                console.error('Error rendering transcript:', err)
+                            })
                         }, 500)
                     },
                 },
@@ -286,6 +307,7 @@ async function getArticle(url) {
 document.documentElement.style.fontSize = get("s") + "px"
 let font = get("f")
 if (font) document.body.style.fontFamily = `"${font}"`
+
 let url = get("u")
 getArticle(url).then(article => {
     // Reset YouTube player counter for new article

@@ -95,6 +95,16 @@ if (process.platform === "darwin") {
                     },
                 },
                 { label: "Zoom", click: () => winManager.zoom() },
+                { type: "separator" as const },
+                {
+                    label: "Toggle Developer Tools",
+                    accelerator: "Command+Option+I",
+                    click: () => {
+                        if (winManager.hasWindow()) {
+                            winManager.mainWindow.webContents.toggleDevTools()
+                        }
+                    },
+                },
             ],
         },
     ]

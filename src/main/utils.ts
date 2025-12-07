@@ -1,6 +1,8 @@
 import { ipcMain, shell, dialog, app, session, clipboard } from "electron"
 import { WindowManager } from "./window"
 import fs = require("fs")
+import path = require("path")
+import { spawn } from "child_process"
 import { ImageCallbackTypes, TouchBarTexts } from "../schema-types"
 import { initMainTouchBar } from "./touchbar"
 import fontList = require("font-list")
@@ -375,5 +377,230 @@ export function setUtilsListeners(manager: WindowManager) {
         return fontList.getFonts({
             disableQuoting: true,
         })
+    })
+
+    ipcMain.handle("get-youtube-transcript", async (_, videoId: string, languages?: string[]) => {
+        try {
+            // Determine the path to the Python executable
+            const isPackaged = app.isPackaged
+            let pythonExecPath: string
+
+            if (isPackaged) {
+                // In packaged app, Python executable is in resources
+                // On macOS, process.resourcesPath points to app.asar, but extraResources are outside
+                // We need to get the actual Resources directory path
+                let resourcesPath: string
+                const platform = process.platform
+                const arch = process.arch
+                
+                if (platform === "darwin") {
+                    // macOS: Resources are at app.asar/../Resources
+                    // process.resourcesPath is usually the app.asar path
+                    const appPath = app.getAppPath()
+                    if (appPath.includes(".asar")) {
+                        // If app is in asar, go up to Resources directory
+                        resourcesPath = path.resolve(appPath, "..", "..", "Resources")
+                    } else {
+                        // Fallback: try process.resourcesPath or construct from app path
+                        resourcesPath = process.resourcesPath || path.resolve(appPath, "..", "Resources")
+                    }
+                } else {
+                    // Windows/Linux: resources are in process.resourcesPath
+                    resourcesPath = process.resourcesPath || app.getAppPath()
+                }
+
+                if (platform === "win32") {
+                    pythonExecPath = path.join(
+                        resourcesPath,
+                        "python-scripts",
+                        "get_youtube_transcript.exe"
+                    )
+                } else if (platform === "darwin") {
+                    // macOS - check architecture
+                    if (arch === "arm64") {
+                        pythonExecPath = path.join(
+                            resourcesPath,
+                            "python-scripts",
+                            "get_youtube_transcript_macos_arm64"
+                        )
+                    } else {
+                        pythonExecPath = path.join(
+                            resourcesPath,
+                            "python-scripts",
+                            "get_youtube_transcript_macos_x64"
+                        )
+                    }
+                } else {
+                    // Linux
+                    pythonExecPath = path.join(
+                        resourcesPath,
+                        "python-scripts",
+                        "get_youtube_transcript_linux"
+                    )
+                }
+                
+            } else {
+                // In development, use the dist directory
+                // __dirname is dist/ in development (webpack output), so go up one level to project root
+                const projectRoot = path.resolve(__dirname, "..")
+                const pythonDistPath = path.join(projectRoot, "python-scripts", "dist")
+                const platform = process.platform
+                const arch = process.arch
+
+
+                if (platform === "win32") {
+                    pythonExecPath = path.join(pythonDistPath, "get_youtube_transcript.exe")
+                } else if (platform === "darwin") {
+                    if (arch === "arm64") {
+                        pythonExecPath = path.join(pythonDistPath, "get_youtube_transcript_macos_arm64")
+                    } else {
+                        pythonExecPath = path.join(pythonDistPath, "get_youtube_transcript_macos_x64")
+                    }
+                } else {
+                    pythonExecPath = path.join(pythonDistPath, "get_youtube_transcript_linux")
+                }
+            }
+
+            // Check if executable exists
+            console.log("Looking for Python executable at:", pythonExecPath)
+            console.log("isPackaged:", isPackaged)
+            console.log("resourcesPath:", isPackaged ? (process.resourcesPath || app.getAppPath()) : "N/A")
+            
+            if (!fs.existsSync(pythonExecPath)) {
+                const errorMsg = isPackaged
+                    ? `Python executable not found at ${pythonExecPath}. Please ensure the application was packaged correctly.`
+                    : `Python executable not found at ${pythonExecPath}. Please run 'npm run build-python' first to build the Python executable.`
+                console.error(errorMsg)
+                
+                // In packaged app, also check alternative locations
+                if (isPackaged) {
+                    const altPath = path.join(app.getAppPath(), "python-scripts", path.basename(pythonExecPath))
+                    if (fs.existsSync(altPath)) {
+                        pythonExecPath = altPath
+                    } else {
+                        throw new Error(errorMsg)
+                    }
+                } else {
+                    throw new Error(errorMsg)
+                }
+            }
+            
+            // Check file permissions (important for macOS/Linux)
+            try {
+                const stat = fs.statSync(pythonExecPath)
+                const isExecutable = (stat.mode & 0o111) !== 0
+                
+                if (!isExecutable && (process.platform === "darwin" || process.platform === "linux")) {
+                    try {
+                        fs.chmodSync(pythonExecPath, 0o755)
+                    } catch (chmodError) {
+                        throw new Error(`Python executable at ${pythonExecPath} does not have execute permissions and could not be fixed: ${chmodError.message}`)
+                    }
+                }
+            } catch (statError) {
+                // Ignore permission check errors, try to execute anyway
+            }
+
+            // Ensure we use absolute path
+            pythonExecPath = path.resolve(pythonExecPath)
+
+            // Prepare arguments
+            const args = [videoId]
+            if (languages && languages.length > 0) {
+                args.push("--languages", ...languages)
+            }
+
+            // Execute Python script
+            return new Promise((resolve, reject) => {
+                const pythonProcess = spawn(pythonExecPath, args, {
+                    timeout: 30000, // 30 second timeout
+                    // On macOS, ensure we're in the right directory
+                    cwd: path.dirname(pythonExecPath),
+                })
+
+                let stdout = ""
+                let stderr = ""
+
+                pythonProcess.stdout.on("data", (data) => {
+                    stdout += data.toString()
+                })
+
+                pythonProcess.stderr.on("data", (data) => {
+                    stderr += data.toString()
+                })
+
+                pythonProcess.on("close", (code) => {
+                    if (code === 0) {
+                        try {
+                            const result = JSON.parse(stdout)
+                            resolve(result)
+                        } catch (e) {
+                            reject(new Error(`Failed to parse transcript: ${e}`))
+                        }
+                    } else {
+                        reject(
+                            new Error(
+                                `Python script failed with code ${code}: ${stderr || stdout}`
+                            )
+                        )
+                    }
+                })
+
+                pythonProcess.on("error", (error) => {
+                    reject(
+                        new Error(`Failed to spawn Python process: ${error.message}`)
+                    )
+                })
+            })
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            console.error("Error getting YouTube transcript:", errorMessage)
+            console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace")
+            
+            // Return error object instead of throwing, so renderer can handle it
+            return { error: errorMessage }
+        }
+    })
+
+    ipcMain.on("get-preload-path", event => {
+        const isPackaged = app.isPackaged
+        let appPath = app.getAppPath()
+        // In development, if appPath ends with 'dist', we're already in dist, otherwise we need to add dist
+        // In packaged app, appPath is the app.asar path, and preload.js is in app.asar/dist/preload.js
+        let preloadPath: string
+        if (isPackaged) {
+            // In packaged app, appPath is like "/path/to/app.asar", preload.js is in "app.asar/dist/preload.js"
+            // Check if appPath contains "app.asar"
+            if (appPath.includes("app.asar")) {
+                preloadPath = path.join(appPath, "dist", "preload.js")
+            } else {
+                // Fallback: try without dist
+                preloadPath = path.join(appPath, "preload.js")
+            }
+        } else {
+            // Check if appPath already ends with dist
+            if (appPath.endsWith("dist")) {
+                preloadPath = path.join(appPath, "preload.js")
+            } else {
+                preloadPath = path.join(appPath, "dist", "preload.js")
+            }
+        }
+        // Verify the path exists
+        if (!fs.existsSync(preloadPath)) {
+            // Try alternative paths
+            const alternatives = [
+                path.join(appPath, "dist", "preload.js"),
+                path.join(appPath, "preload.js"),
+                path.resolve(appPath, "..", "dist", "preload.js"),
+            ]
+            for (const altPath of alternatives) {
+                if (fs.existsSync(altPath)) {
+                    preloadPath = altPath
+                    break
+                }
+            }
+        }
+        
+        event.returnValue = preloadPath
     })
 }
