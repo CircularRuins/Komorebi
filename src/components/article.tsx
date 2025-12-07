@@ -93,8 +93,6 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 showTranslated: false,
             }
             return
-        } else {
-            console.log('Article组件渲染，itemId:', props.item._id, 'sourceId:', props.source.sid)
         }
         this.state = {
             fontFamily: window.settings.getFont(),
