@@ -7,6 +7,8 @@ import { ImageCallbackTypes, TouchBarTexts } from "../schema-types"
 import { initMainTouchBar } from "./touchbar"
 import fontList = require("font-list")
 import { mergeSegmentsIntoSentences, TranscriptSegment } from "./youtube-transcript"
+import OpenAI from "openai"
+import { store } from "./settings"
 
 export function setUtilsListeners(manager: WindowManager) {
     async function openExternal(url: string, background = false) {
@@ -608,5 +610,151 @@ export function setUtilsListeners(manager: WindowManager) {
         }
         
         event.returnValue = preloadPath
+    })
+
+    // Language code to language name mapping
+    const languageCodeToName: { [key: string]: string } = {
+        "en": "English",
+        "zh-CN": "简体中文",
+        "zh-TW": "繁體中文",
+        "ja": "日本語",
+        "fr-FR": "Français",
+        "de": "Deutsch",
+        "es": "Español",
+        "it": "Italiano",
+        "pt-BR": "Português do Brasil",
+        "pt-PT": "Português de Portugal",
+        "ru": "Русский",
+        "ko": "한국어",
+        "nl": "Nederlands",
+        "sv": "Svenska",
+        "tr": "Türkçe",
+        "uk": "Українська",
+        "cs": "Čeština",
+        "fi-FI": "Suomi",
+    }
+
+    function getTargetLanguageName(languageCode: string): string {
+        if (languageCodeToName[languageCode]) {
+            return languageCodeToName[languageCode]
+        }
+        // Try with just the base language code
+        const baseCode = languageCode.split("-")[0]
+        if (languageCodeToName[baseCode]) {
+            return languageCodeToName[baseCode]
+        }
+        return "English"
+    }
+
+    ipcMain.handle("translate-transcript", async (_, texts: string[], targetLanguageCode: string) => {
+        try {
+            // Get translation config from store
+            const apiEndpoint = store.get("aiTranslationApiEndpoint", "") as string
+            const apiKey = store.get("aiTranslationApiKey", "") as string
+            const model = store.get("aiTranslationModel", "") as string
+
+            if (!apiEndpoint || !apiKey || !model) {
+                throw new Error("翻译配置不完整，请先设置翻译API配置")
+            }
+
+            if (!texts || texts.length === 0) {
+                throw new Error("字幕文本为空，无法翻译")
+            }
+
+            const targetLanguage = getTargetLanguageName(targetLanguageCode)
+
+            // Join texts with separator
+            const textToTranslate = texts.join('\n\n---SEPARATOR---\n\n')
+
+            // Build translation prompt
+            const prompt = `Please translate the following text into ${targetLanguage}. If the text is already in ${targetLanguage}, return it as is. Maintain the order and structure of the text, with each segment separated by "---SEPARATOR---".
+
+${textToTranslate}`
+
+            // Normalize API endpoint
+            let normalizedEndpoint = apiEndpoint.trim()
+            if (!normalizedEndpoint.startsWith("http://") && !normalizedEndpoint.startsWith("https://")) {
+                normalizedEndpoint = "https://" + normalizedEndpoint
+            }
+            if (!normalizedEndpoint.includes("/v1/chat/completions")) {
+                normalizedEndpoint = normalizedEndpoint.replace(/\/$/, "") + "/v1/chat/completions"
+            }
+
+            const openai = new OpenAI({
+                apiKey: apiKey,
+                baseURL: normalizedEndpoint.replace("/v1/chat/completions", ""),
+                dangerouslyAllowBrowser: true
+            })
+
+            const completion = await openai.chat.completions.create({
+                model: model,
+                messages: [
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.3,
+                max_tokens: 8000,
+            })
+
+            if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
+                const translatedText = completion.choices[0].message.content || ''
+                if (!translatedText) {
+                    throw new Error('翻译结果为空')
+                }
+
+                // Split translated text by separator
+                let translatedTexts = translatedText.split('\n\n---SEPARATOR---\n\n')
+
+                // If split count doesn't match, try alternative separators
+                if (translatedTexts.length !== texts.length) {
+                    const altSplit = translatedText.split('---SEPARATOR---')
+                    if (altSplit.length === texts.length) {
+                        translatedTexts = altSplit.map(t => t.trim())
+                    } else if (translatedTexts.length === 1 && texts.length === 1) {
+                        translatedTexts = [translatedText.trim()]
+                    } else {
+                        const cleaned = translatedText.replace(/\n\n---SEPARATOR---\n\n/g, '---SEPARATOR---')
+                        const cleanedSplit = cleaned.split('---SEPARATOR---')
+                        if (cleanedSplit.length === texts.length) {
+                            translatedTexts = cleanedSplit.map(t => t.trim())
+                        }
+                    }
+                }
+
+                // Ensure we have the same number of translations as original texts
+                const minLength = Math.min(texts.length, translatedTexts.length)
+                const result: string[] = []
+                for (let i = 0; i < texts.length; i++) {
+                    if (i < minLength) {
+                        result.push(translatedTexts[i].trim())
+                    } else {
+                        // If translation is shorter, use original text
+                        result.push(texts[i])
+                    }
+                }
+
+                return result
+            } else {
+                throw new Error('API返回格式不正确，未找到choices数组或message内容')
+            }
+        } catch (error: any) {
+            if (error instanceof OpenAI.APIError) {
+                let errorMessage = error.message
+                if (error.status === 404) {
+                    errorMessage = `404错误: 请求的URL不存在\n${error.message}\n\n请检查Translation API Endpoint是否正确`
+                } else if (error.status === 401) {
+                    errorMessage = `401错误: API密钥无效\n${error.message}\n\n请检查Translation API Key是否正确`
+                } else if (error.status === 429) {
+                    errorMessage = `429错误: 请求频率过高\n${error.message}\n\n请稍后再试`
+                }
+                throw new Error(errorMessage)
+            } else if (error instanceof Error) {
+                throw error
+            } else {
+                throw new Error(`翻译失败: ${String(error)}`)
+            }
+        }
     })
 }

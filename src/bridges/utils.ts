@@ -182,6 +182,13 @@ const utilsBridge = {
         return await ipcRenderer.invoke("get-youtube-transcript", videoId, languages)
     },
 
+    translateTranscript: async (
+        texts: string[],
+        targetLanguageCode: string
+    ): Promise<string[]> => {
+        return await ipcRenderer.invoke("translate-transcript", texts, targetLanguageCode)
+    },
+
     getPreloadPath: (): string => {
         return ipcRenderer.sendSync("get-preload-path") as string
     },

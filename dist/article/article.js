@@ -32,6 +32,10 @@ const transcriptData = new Map() // Store transcript segments for each video
 const transcriptIntervals = new Map() // Store interval IDs for time tracking
 const userScrolling = new Map() // Track if user is manually scrolling for each transcript
 const scrollResumeTimers = new Map() // Timers to resume auto-scroll after user stops scrolling
+const transcriptSelectedLanguages = new Map() // Store selected language for each video
+const transcriptMenuOpen = new Map() // Store menu open state for each video
+const transcriptTranslations = new Map() // Store translations: Map<videoId, Map<languageCode, string[]>>
+const transcriptTranslating = new Map() // Store translating state for each video
 
 function convertYouTubeLinks(html) {
     if (!html || typeof html !== 'string') return html || ''
@@ -119,6 +123,372 @@ async function fetchYouTubeTranscript(videoId) {
     } catch (error) {
         return null
     }
+}
+
+/**
+ * Language options for transcript translation (same as article translation)
+ */
+const transcriptLanguageOptions = [
+    { code: 'en', name: 'English', nativeName: 'English' },
+    { code: 'zh-CN', name: 'Simplified Chinese', nativeName: '简体中文' },
+    { code: 'ja', name: 'Japanese', nativeName: '日本語' },
+    { code: 'es', name: 'Spanish', nativeName: 'Español' },
+]
+
+/**
+ * Translate transcript and render with translation
+ */
+async function translateAndRenderTranscript(containerId, videoId, targetLanguageCode) {
+    const container = document.getElementById(containerId)
+    if (!container) return
+    
+    const transcript = transcriptData.get(videoId)
+    if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
+        return
+    }
+    
+    // Check if translation config is available
+    if (typeof window === 'undefined' || !window.settings) {
+        console.error('Translation config not available')
+        return
+    }
+    
+    const apiEndpoint = window.settings.getAITranslationApiEndpoint()
+    const apiKey = window.settings.getAITranslationApiKey()
+    const model = window.settings.getAITranslationModel()
+    
+    if (!apiEndpoint || !apiKey || !model) {
+        if (window.utils && window.utils.showMessageBox) {
+            await window.utils.showMessageBox(
+                'Translation Config Incomplete',
+                'Please configure translation API settings first.',
+                'OK',
+                'Cancel',
+                false,
+                'warning'
+            )
+        }
+        return
+    }
+    
+    // Set translating state
+    transcriptTranslating.set(videoId, true)
+    
+    // Show loading state
+    const transcriptContent = container.querySelector('.youtube-transcript-content')
+    if (transcriptContent) {
+        const loadingDiv = document.createElement('div')
+        loadingDiv.className = 'youtube-transcript-loading'
+        loadingDiv.textContent = 'Translating transcript...'
+        transcriptContent.innerHTML = ''
+        transcriptContent.appendChild(loadingDiv)
+    }
+    
+    try {
+        // Extract text from transcript segments
+        const texts = transcript.map(segment => segment.text)
+        
+        // Call translation API
+        if (!window.utils || !window.utils.translateTranscript) {
+            throw new Error('Translation API not available')
+        }
+        
+        const translatedTexts = await window.utils.translateTranscript(texts, targetLanguageCode)
+        
+        // Store translation
+        if (!transcriptTranslations.has(videoId)) {
+            transcriptTranslations.set(videoId, new Map())
+        }
+        transcriptTranslations.get(videoId).set(targetLanguageCode, translatedTexts)
+        
+        // Render with translation
+        renderTranscriptWithTranslation(containerId, videoId, targetLanguageCode)
+    } catch (error) {
+        console.error('Error translating transcript:', error)
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        
+        // Show error
+        const transcriptContent = container.querySelector('.youtube-transcript-content')
+        if (transcriptContent) {
+            const errorDiv = document.createElement('div')
+            errorDiv.className = 'youtube-transcript-error'
+            errorDiv.textContent = `Translation failed: ${errorMessage}`
+            transcriptContent.innerHTML = ''
+            transcriptContent.appendChild(errorDiv)
+        }
+        
+        if (window.utils && window.utils.showErrorBox) {
+            window.utils.showErrorBox('Translation Failed', errorMessage)
+        }
+    } finally {
+        transcriptTranslating.set(videoId, false)
+    }
+}
+
+/**
+ * Render transcript with translation (bilingual display)
+ */
+function renderTranscriptWithTranslation(containerId, videoId, targetLanguageCode) {
+    const container = document.getElementById(containerId)
+    if (!container) return
+    
+    const transcript = transcriptData.get(videoId)
+    if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
+        return
+    }
+    
+    const transcriptContent = container.querySelector('.youtube-transcript-content')
+    if (!transcriptContent) return
+    
+    // Get translations if available
+    let translations = null
+    if (targetLanguageCode && transcriptTranslations.has(videoId)) {
+        const videoTranslations = transcriptTranslations.get(videoId)
+        if (videoTranslations.has(targetLanguageCode)) {
+            translations = videoTranslations.get(targetLanguageCode)
+        }
+    }
+    
+    // Clear content
+    transcriptContent.innerHTML = ''
+    
+    // Render segments
+    transcript.forEach((segment, index) => {
+        const segmentDiv = document.createElement('div')
+        segmentDiv.className = 'youtube-transcript-segment'
+        segmentDiv.setAttribute('data-start', segment.start)
+        segmentDiv.setAttribute('data-video-id', videoId)
+        
+        const textSpan = document.createElement('span')
+        textSpan.className = 'youtube-transcript-text'
+        
+        // Original text
+        const originalText = document.createElement('div')
+        originalText.className = 'youtube-transcript-original'
+        originalText.textContent = segment.text
+        textSpan.appendChild(originalText)
+        
+        // Translated text (if available)
+        if (translations && translations[index]) {
+            const translatedText = document.createElement('div')
+            translatedText.className = 'youtube-transcript-translated'
+            translatedText.textContent = translations[index]
+            textSpan.appendChild(translatedText)
+        }
+        
+        segmentDiv.appendChild(textSpan)
+        transcriptContent.appendChild(segmentDiv)
+    })
+    
+    // Re-setup click handlers for seeking
+    const segmentElements = transcriptContent.querySelectorAll('.youtube-transcript-segment')
+    segmentElements.forEach(segment => {
+        segment.addEventListener('click', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            const startTime = parseFloat(segment.getAttribute('data-start'))
+            const videoId = segment.getAttribute('data-video-id')
+            
+            if (!videoId || isNaN(startTime)) {
+                return
+            }
+            
+            // Try to get player instance
+            let playerInstance = playerInstances.get(videoId)
+            if (!playerInstance) {
+                youtubePlayers.forEach((playerVideoId, playerId) => {
+                    if (playerVideoId === videoId && !playerInstance) {
+                        const playerContainer = document.getElementById(playerId)
+                        if (playerContainer) {
+                            const playerDiv = playerContainer.querySelector('div')
+                            if (playerDiv && playerDiv.player) {
+                                playerInstance = playerDiv.player
+                                playerInstances.set(videoId, playerInstance)
+                            }
+                        }
+                    }
+                })
+            }
+            
+            if (playerInstance && typeof playerInstance.seekTo === 'function') {
+                try {
+                    playerInstance.seekTo(startTime, true)
+                    if (typeof playerInstance.playVideo === 'function') {
+                        playerInstance.playVideo()
+                    }
+                } catch (err) {
+                    console.error('Error seeking to time:', startTime, err)
+                }
+            }
+        })
+    })
+    
+    // Re-setup scroll detection
+    let scrollTimeout = null
+    const transcriptId = containerId
+    userScrolling.set(transcriptId, false)
+    
+    transcriptContent.addEventListener('scroll', () => {
+        userScrolling.set(transcriptId, true)
+        if (scrollResumeTimers.has(transcriptId)) {
+            clearTimeout(scrollResumeTimers.get(transcriptId))
+        }
+        const timer = setTimeout(() => {
+            userScrolling.set(transcriptId, false)
+            scrollResumeTimers.delete(transcriptId)
+        }, 2000)
+        scrollResumeTimers.set(transcriptId, timer)
+    })
+}
+
+/**
+ * Render transcript language dropdown menu (reusing translation menu styles)
+ */
+function renderTranscriptLanguageMenu(containerId, videoId) {
+    const container = document.getElementById(containerId)
+    if (!container) return null
+    
+    const isOpen = transcriptMenuOpen.get(videoId) || false
+    const existingMenu = document.querySelector(`.youtube-transcript-language-menu[data-video-id="${videoId}"]`)
+    if (existingMenu) existingMenu.remove()
+    
+    if (!isOpen) return null
+    
+    const chevronButton = container.querySelector(`.youtube-transcript-language-chevron[data-video-id="${videoId}"]`)
+    if (!chevronButton) return null
+    
+    const rect = chevronButton.getBoundingClientRect()
+    const selectedLanguage = transcriptSelectedLanguages.get(videoId) || null
+    
+    // Create menu (reusing translation menu styles)
+    const menu = document.createElement('div')
+    menu.className = 'youtube-transcript-language-menu'
+    menu.setAttribute('data-video-id', videoId)
+    Object.assign(menu.style, {
+        position: 'fixed',
+        zIndex: 50,
+        width: '260px',
+        borderRadius: '16px',
+        border: '1px solid rgba(0, 0, 0, 0.1)',
+        backgroundColor: '#ffffff',
+        padding: 0,
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        top: `${rect.bottom + 4}px`,
+        left: `${rect.left - 200}px`,
+        outline: 'none',
+    })
+    
+    const menuContent = document.createElement('div')
+    menuContent.style.cssText = 'max-height: 300px; overflow-y: auto;'
+    
+    // Helper to create menu item (reusing translation menu item styles)
+    const createMenuItem = (text, subtext, isSelected, onClick) => {
+        const item = document.createElement('div')
+        Object.assign(item.style, {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '6px 8px',
+            cursor: 'pointer',
+            fontSize: '12px',
+            transition: 'background-color 0.15s, color 0.15s',
+            borderRadius: '4px',
+            margin: '0 4px',
+            userSelect: 'none',
+            outline: 'none',
+        })
+        item.onmouseenter = (e) => e.currentTarget.style.backgroundColor = '#f5f5f5'
+        item.onmouseleave = (e) => e.currentTarget.style.backgroundColor = 'transparent'
+        item.onclick = onClick
+        
+        const textDiv = document.createElement('div')
+        const mainText = document.createElement('div')
+        Object.assign(mainText.style, { fontWeight: 500, fontSize: '12px', color: '#000', lineHeight: '16px' })
+        mainText.textContent = text
+        textDiv.appendChild(mainText)
+        
+        if (subtext) {
+            const subText = document.createElement('div')
+            Object.assign(subText.style, { fontSize: '10px', color: '#666', lineHeight: '14px', marginTop: '2px' })
+            subText.textContent = subtext
+            textDiv.appendChild(subText)
+        }
+        
+        item.appendChild(textDiv)
+        
+        const icon = document.createElement('div')
+        icon.style.cssText = `font-size: 16px; color: ${isSelected ? '#000' : '#ccc'};`
+        icon.innerHTML = isSelected ? '✓' : '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1" fill="none"/></svg>'
+        item.appendChild(icon)
+        
+        return item
+    }
+    
+    // "Show original" option
+    const showOriginalItem = createMenuItem('Show original transcript', null, !selectedLanguage, () => {
+        transcriptSelectedLanguages.set(videoId, null)
+        transcriptMenuOpen.set(videoId, false)
+        menu.remove()
+        renderTranscriptWithTranslation(container.id, videoId, null)
+    })
+    Object.assign(showOriginalItem.style, {
+        borderBottom: '1px solid #f0f0f0',
+        marginBottom: '4px',
+        paddingBottom: '10px',
+    })
+    menuContent.appendChild(showOriginalItem)
+    
+    // Language options
+    transcriptLanguageOptions.forEach(lang => {
+        const isSelected = lang.code === selectedLanguage
+        const langItem = createMenuItem(lang.nativeName, lang.name, isSelected, () => {
+            const newLanguage = isSelected ? null : lang.code
+            transcriptSelectedLanguages.set(videoId, newLanguage)
+            transcriptMenuOpen.set(videoId, false)
+            menu.remove()
+            if (newLanguage) {
+                translateAndRenderTranscript(container.id, videoId, newLanguage)
+            } else {
+                renderTranscriptWithTranslation(container.id, videoId, null)
+            }
+        })
+        menuContent.appendChild(langItem)
+    })
+    
+    menu.appendChild(menuContent)
+    document.body.appendChild(menu)
+    
+    // Close menu handlers (same as translation menu)
+    const closeMenu = () => {
+        transcriptMenuOpen.set(videoId, false)
+        menu.remove()
+        document.removeEventListener('click', closeHandler)
+    }
+    const closeHandler = (e) => {
+        if (!menu.contains(e.target) && !chevronButton.contains(e.target)) closeMenu()
+    }
+    menu.onmouseleave = () => setTimeout(closeMenu, 100)
+    setTimeout(() => document.addEventListener('click', closeHandler), 0)
+    
+    return menu
+}
+
+/**
+ * Setup transcript language menu functionality
+ */
+function setupTranscriptLanguageMenu(container, videoId) {
+    const chevronButton = container.querySelector(`.youtube-transcript-language-chevron[data-video-id="${videoId}"]`)
+    if (!chevronButton) return
+    
+    chevronButton.onclick = (e) => {
+        e.stopPropagation()
+        const isOpen = transcriptMenuOpen.get(videoId) || false
+        transcriptMenuOpen.set(videoId, !isOpen)
+        renderTranscriptLanguageMenu(container.id, videoId)
+    }
+    
+    // Initial render (will be null if menu is closed)
+    renderTranscriptLanguageMenu(container.id, videoId)
 }
 
 /**
@@ -375,37 +745,30 @@ async function renderTranscript(containerId, videoId) {
     if (!container) return
     
     // Show loading state with tabs
-    container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript">Transcript</button><button class="youtube-transcript-tab" data-tab="chat">Chat</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-loading">Loading transcript...</div></div></div><div class="youtube-transcript-tab-content" data-content="chat" style="display: none;"><div class="youtube-transcript-chat"><div class="youtube-transcript-chat-messages"></div><div class="youtube-transcript-chat-input-area"><input type="text" class="youtube-transcript-chat-input" placeholder="Type your message..."><button class="youtube-transcript-chat-send">Send</button></div></div></div></div>'
+    container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="chat">Chat</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-loading">Loading transcript...</div></div></div><div class="youtube-transcript-tab-content" data-content="chat" style="display: none;"><div class="youtube-transcript-chat"><div class="youtube-transcript-chat-messages"></div><div class="youtube-transcript-chat-input-area"><input type="text" class="youtube-transcript-chat-input" placeholder="Type your message..."><button class="youtube-transcript-chat-send">Send</button></div></div></div></div>'
     
     // Fetch transcript from YouTube
     const transcript = await fetchYouTubeTranscript(videoId)
     
     // If transcript fetch failed, show error message
     if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
-        container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript">Transcript</button><button class="youtube-transcript-tab" data-tab="chat">Chat</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-error">Transcript not available for this video.</div></div></div><div class="youtube-transcript-tab-content" data-content="chat" style="display: none;"><div class="youtube-transcript-chat"><div class="youtube-transcript-chat-messages"></div><div class="youtube-transcript-chat-input-area"><input type="text" class="youtube-transcript-chat-input" placeholder="Type your message..."><button class="youtube-transcript-chat-send">Send</button></div></div></div></div>'
+        container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="chat">Chat</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-error">Transcript not available for this video.</div></div></div><div class="youtube-transcript-tab-content" data-content="chat" style="display: none;"><div class="youtube-transcript-chat"><div class="youtube-transcript-chat-messages"></div><div class="youtube-transcript-chat-input-area"><input type="text" class="youtube-transcript-chat-input" placeholder="Type your message..."><button class="youtube-transcript-chat-send">Send</button></div></div></div></div>'
         setupTabSwitching(container)
+        setupTranscriptLanguageMenu(container, videoId)
         return
     }
     
     // Store transcript data for this video
     transcriptData.set(videoId, transcript)
     
-    // Create transcript HTML with tabs
+    // Create transcript HTML with tabs (content will be rendered by renderTranscriptWithTranslation)
     let transcriptHTML = '<div class="youtube-transcript">'
     transcriptHTML += '<div class="youtube-transcript-tabs">'
-    transcriptHTML += '<button class="youtube-transcript-tab active" data-tab="transcript">Transcript</button>'
+    transcriptHTML += '<button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>'
     transcriptHTML += '<button class="youtube-transcript-tab" data-tab="chat">Chat</button>'
     transcriptHTML += '</div>'
     transcriptHTML += '<div class="youtube-transcript-tab-content" data-content="transcript">'
-    transcriptHTML += '<div class="youtube-transcript-content">'
-    
-    transcript.forEach((segment, index) => {
-        transcriptHTML += `<div class="youtube-transcript-segment" data-start="${segment.start}" data-video-id="${videoId}">`
-        transcriptHTML += `<span class="youtube-transcript-text">${segment.text}</span>`
-        transcriptHTML += '</div>'
-    })
-    
-    transcriptHTML += '</div>'
+    transcriptHTML += '<div class="youtube-transcript-content"></div>'
     transcriptHTML += '</div>'
     transcriptHTML += '<div class="youtube-transcript-tab-content" data-content="chat" style="display: none;">'
     transcriptHTML += '<div class="youtube-transcript-chat">'
@@ -423,127 +786,12 @@ async function renderTranscript(containerId, videoId) {
     // Setup tab switching
     setupTabSwitching(container)
     
-    // Setup scroll detection for manual scrolling
-    const transcriptContent = container.querySelector('.youtube-transcript-content')
-    if (transcriptContent) {
-        let scrollTimeout = null
-        const transcriptId = containerId
-        
-        // Initialize userScrolling state
-        userScrolling.set(transcriptId, false)
-        
-        // Detect when user starts scrolling
-        transcriptContent.addEventListener('scroll', () => {
-            // Mark that user is manually scrolling
-            userScrolling.set(transcriptId, true)
-            
-            // Clear existing timeout
-            if (scrollResumeTimers.has(transcriptId)) {
-                clearTimeout(scrollResumeTimers.get(transcriptId))
-            }
-            
-            // Set timeout to resume auto-scroll after user stops scrolling (2 seconds)
-            const timer = setTimeout(() => {
-                userScrolling.set(transcriptId, false)
-                scrollResumeTimers.delete(transcriptId)
-            }, 2000)
-            
-            scrollResumeTimers.set(transcriptId, timer)
-        })
-    }
+    // Setup language menu
+    setupTranscriptLanguageMenu(container, videoId)
     
-    // Add click handlers for transcript segments (clicking on text will seek to that time)
-    const segmentElements = container.querySelectorAll('.youtube-transcript-segment')
-    segmentElements.forEach(segment => {
-        segment.addEventListener('click', (e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            const startTime = parseFloat(segment.getAttribute('data-start'))
-            const videoId = segment.getAttribute('data-video-id')
-            
-            if (!videoId || isNaN(startTime)) {
-                return
-            }
-            
-            // Try to get player instance from global Map first (most reliable)
-            let playerInstance = playerInstances.get(videoId)
-            if (!playerInstance) {
-                // Fallback: Find the corresponding YouTube player
-                youtubePlayers.forEach((playerVideoId, playerId) => {
-                    if (playerVideoId === videoId && !playerInstance) {
-                        const playerContainer = document.getElementById(playerId)
-                        if (playerContainer) {
-                            const playerDiv = playerContainer.querySelector('div')
-                            if (playerDiv) {
-                                // Method 1: Direct reference stored on div
-                                if (playerDiv.player) {
-                                    playerInstance = playerDiv.player
-                                    // Store it for future use
-                                    playerInstances.set(videoId, playerInstance)
-                                }
-                                
-                                // Method 2: Try YT.get() with playerDiv.id
-                                if (!playerInstance && playerDiv.id && window.YT && window.YT.get) {
-                                    try {
-                                        playerInstance = window.YT.get(playerDiv.id)
-                                        if (playerInstance) {
-                                            playerInstances.set(videoId, playerInstance)
-                                        }
-                                    } catch (err) {
-                                        // Ignore
-                                    }
-                                }
-                                
-                                // Method 3: Try to get from iframe
-                                if (!playerInstance) {
-                                    const iframe = playerDiv.querySelector('iframe')
-                                    if (iframe) {
-                                        // YouTube API creates iframe with a specific ID pattern
-                                        // Try to find it by checking all iframes or using YT.get
-                                        if (window.YT && window.YT.get) {
-                                            // Try common iframe ID patterns
-                                            const iframeIdPatterns = [
-                                                iframe.id,
-                                                `youtube-player-${videoId}`,
-                                                playerDiv.id
-                                            ]
-                                            for (const id of iframeIdPatterns) {
-                                                if (!id) continue
-                                                try {
-                                                    const testInstance = window.YT.get(id)
-                                                    if (testInstance && typeof testInstance.seekTo === 'function') {
-                                                        playerInstance = testInstance
-                                                        playerInstances.set(videoId, playerInstance)
-                                                        break
-                                                    }
-                                                } catch (e) {
-                                                    // Continue trying
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                })
-            }
-            
-            // Execute seek if player instance found
-            if (playerInstance) {
-                try {
-                    if (typeof playerInstance.seekTo === 'function') {
-                        playerInstance.seekTo(startTime, true)
-                        if (typeof playerInstance.playVideo === 'function') {
-                            playerInstance.playVideo()
-                        }
-                    }
-                } catch (err) {
-                    console.error('Error seeking to time:', startTime, err)
-                }
-            }
-        })
-    })
+    // Render transcript (with translation if available)
+    const selectedLanguage = transcriptSelectedLanguages.get(videoId) || null
+    renderTranscriptWithTranslation(containerId, videoId, selectedLanguage)
 }
 
 /**
