@@ -44,7 +44,7 @@ function convertYouTubeLinks(html) {
             const playerId = `youtube-player-${youtubePlayerCounter++}`
             const transcriptId = `youtube-transcript-${youtubePlayerCounter - 1}`
             youtubePlayers.set(playerId, videoId)
-            return `<div id="${playerId}" style="position: relative; width: 604.44px; height: 340px; max-width: 100%; overflow: hidden; background-color: #000; margin: 16px auto; display: block;">
+            return `<div id="${playerId}" style="position: relative; width: 100%; max-width: 700px; aspect-ratio: 16 / 9; overflow: hidden; background-color: #000; margin: 16px auto; display: block;">
                 <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
             </div>
             <div id="${transcriptId}" class="youtube-transcript-container"></div>`
