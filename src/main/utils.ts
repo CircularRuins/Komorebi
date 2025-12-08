@@ -6,6 +6,7 @@ import { spawn } from "child_process"
 import { ImageCallbackTypes, TouchBarTexts } from "../schema-types"
 import { initMainTouchBar } from "./touchbar"
 import fontList = require("font-list")
+import { mergeSegmentsIntoSentences, TranscriptSegment } from "./youtube-transcript"
 
 export function setUtilsListeners(manager: WindowManager) {
     async function openExternal(url: string, background = false) {
@@ -462,10 +463,6 @@ export function setUtilsListeners(manager: WindowManager) {
             }
 
             // Check if executable exists
-            console.log("Looking for Python executable at:", pythonExecPath)
-            console.log("isPackaged:", isPackaged)
-            console.log("resourcesPath:", isPackaged ? (process.resourcesPath || app.getAppPath()) : "N/A")
-            
             if (!fs.existsSync(pythonExecPath)) {
                 const errorMsg = isPackaged
                     ? `Python executable not found at ${pythonExecPath}. Please ensure the application was packaged correctly.`
@@ -533,7 +530,16 @@ export function setUtilsListeners(manager: WindowManager) {
                     if (code === 0) {
                         try {
                             const result = JSON.parse(stdout)
-                            resolve(result)
+                            
+                            // Check if result is an array of transcript segments
+                            if (Array.isArray(result) && result.length > 0) {
+                                // Merge segments into complete sentences
+                                const mergedSegments = mergeSegmentsIntoSentences(result as TranscriptSegment[])
+                                resolve(mergedSegments)
+                            } else {
+                                // If result is not an array or is empty, return as-is (might be an error object)
+                                resolve(result)
+                            }
                         } catch (e) {
                             reject(new Error(`Failed to parse transcript: ${e}`))
                         }

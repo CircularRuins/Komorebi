@@ -232,6 +232,182 @@ function parseTranscriptXml(xmlData: string): TranscriptSegment[] {
 }
 
 /**
+ * Count tokens (words) in text
+ * Splits text by whitespace and punctuation to count tokens
+ */
+function countTokens(text: string): number {
+    if (!text || text.trim().length === 0) {
+        return 0
+    }
+    // Match all non-whitespace sequences as tokens
+    // This handles both English words and Chinese characters
+    const tokens = text.match(/\S+/g)
+    return tokens ? tokens.length : 0
+}
+
+/**
+ * Check if a character is a sentence-ending punctuation
+ */
+function isSentenceEndPunctuation(char: string): boolean {
+    return /[.!?。！？]/.test(char)
+}
+
+/**
+ * Split a segment into sentences if it contains sentence boundaries
+ * Returns an array of segments, each representing a sentence or part of a sentence
+ */
+function splitSegmentIntoSentences(segment: TranscriptSegment): TranscriptSegment[] {
+    const text = segment.text
+    const result: TranscriptSegment[] = []
+    
+    // Find all sentence boundaries in the text
+    const sentenceEndRegex = /[.!?。！？]/g
+    const boundaries: number[] = []
+    let match
+    
+    while ((match = sentenceEndRegex.exec(text)) !== null) {
+        boundaries.push(match.index + 1) // Position after the punctuation
+    }
+    
+    // If no sentence boundaries found, return the segment as-is
+    if (boundaries.length === 0) {
+        return [segment]
+    }
+    
+    // Split the segment into sentences
+    let lastIndex = 0
+    const segmentTokenCount = countTokens(text)
+    
+    for (const boundary of boundaries) {
+        const sentenceText = text.substring(lastIndex, boundary).trim()
+        if (sentenceText.length > 0) {
+            const prefixText = text.substring(0, lastIndex)
+            const prefixTokenCount = countTokens(prefixText)
+            const sentenceTokenCount = countTokens(sentenceText)
+            
+            // Calculate start time: if sentence starts at beginning of segment, use segment start
+            // Otherwise, estimate based on token ratio
+            const sentenceStart = lastIndex === 0
+                ? segment.start
+                : segment.start + (prefixTokenCount / segmentTokenCount) * segment.duration
+            
+            // Calculate end time: estimate based on token ratio
+            const sentenceEnd = segment.start + ((prefixTokenCount + sentenceTokenCount) / segmentTokenCount) * segment.duration
+            const sentenceDuration = sentenceEnd - sentenceStart
+            
+            result.push({
+                text: sentenceText,
+                start: sentenceStart,
+                duration: sentenceDuration,
+            })
+        }
+        lastIndex = boundary
+    }
+    
+    // Handle remaining text after last sentence boundary
+    if (lastIndex < text.length) {
+        const remainingText = text.substring(lastIndex).trim()
+        if (remainingText.length > 0) {
+            // This is a partial sentence, keep it for merging with next segment
+            const prefixText = text.substring(0, lastIndex)
+            const prefixTokenCount = countTokens(prefixText)
+            const sentenceTokenCount = countTokens(remainingText)
+            
+            const sentenceStart = lastIndex === 0
+                ? segment.start
+                : segment.start + (prefixTokenCount / segmentTokenCount) * segment.duration
+            
+            const sentenceEnd = segment.start + segment.duration
+            const sentenceDuration = sentenceEnd - sentenceStart
+            
+            result.push({
+                text: remainingText,
+                start: sentenceStart,
+                duration: sentenceDuration,
+            })
+        }
+    }
+    
+    return result.length > 0 ? result : [segment]
+}
+
+/**
+ * Merge transcript segments into complete sentences
+ * Handles cases where sentences span multiple segments or where segments contain multiple sentences
+ */
+export function mergeSegmentsIntoSentences(segments: TranscriptSegment[]): TranscriptSegment[] {
+    if (segments.length === 0) {
+        return []
+    }
+    
+    const result: TranscriptSegment[] = []
+    const expandedSegments: TranscriptSegment[] = []
+    
+    // First pass: split segments that contain multiple sentences
+    for (const segment of segments) {
+        if (!segment.text || segment.text.trim().length === 0) {
+            continue // Skip empty segments
+        }
+        
+        const splitSegments = splitSegmentIntoSentences(segment)
+        expandedSegments.push(...splitSegments)
+    }
+    
+    if (expandedSegments.length === 0) {
+        return []
+    }
+    
+    // Second pass: merge segments that belong to the same sentence
+    let currentSentence: TranscriptSegment | null = null
+    
+    for (let i = 0; i < expandedSegments.length; i++) {
+        const segment = expandedSegments[i]
+        const text = segment.text.trim()
+        
+        if (text.length === 0) {
+            continue
+        }
+        
+        // Check if this segment ends with a sentence-ending punctuation
+        const endsWithPunctuation = isSentenceEndPunctuation(text[text.length - 1])
+        const isLastSegment = i === expandedSegments.length - 1
+        
+        if (currentSentence === null) {
+            // Start a new sentence
+            currentSentence = { ...segment }
+        } else {
+            // Merge with current sentence
+            // Add space if needed
+            const needsSpace = !currentSentence.text.endsWith(' ') && !text.startsWith(' ')
+            currentSentence.text += (needsSpace ? ' ' : '') + text
+            
+            // Update duration: use the end time of the current segment
+            // The duration should be from the start of the first segment to the end of the current segment
+            const segmentEnd = segment.start + segment.duration
+            currentSentence.duration = segmentEnd - currentSentence.start
+        }
+        
+        // If this segment ends with punctuation or it's the last segment, finalize the sentence
+        if (endsWithPunctuation || isLastSegment) {
+            if (currentSentence) {
+                // The duration is already calculated correctly in the merge step above
+                // because expandedSegments from splitSegmentIntoSentences already have
+                // precise time calculations based on token ratios
+                result.push(currentSentence)
+                currentSentence = null
+            }
+        }
+    }
+    
+    // If there's a remaining sentence without punctuation, add it
+    if (currentSentence !== null) {
+        result.push(currentSentence)
+    }
+    
+    return result
+}
+
+/**
  * Find transcript by language priority
  */
 function findTranscript(
@@ -287,20 +463,15 @@ export async function fetchYouTubeTranscript(
     languages: string[] = ["en"]
 ): Promise<TranscriptSegment[]> {
     try {
-        console.log(`[YouTube Transcript] Fetching transcript for video: ${videoId}`)
-        
         // Step 1: Fetch video HTML
         const watchUrl = WATCH_URL.replace("{video_id}", videoId)
-        console.log(`[YouTube Transcript] Fetching HTML from: ${watchUrl}`)
         const html = await httpGet(watchUrl)
 
         // Step 2: Extract INNERTUBE_API_KEY
         const apiKey = extractInnertubeApiKey(html)
-        console.log(`[YouTube Transcript] Extracted API key: ${apiKey.substring(0, 10)}...`)
 
         // Step 3: Fetch InnerTube data
         const innertubeUrl = INNERTUBE_API_URL.replace("{api_key}", apiKey)
-        console.log(`[YouTube Transcript] Fetching InnerTube data`)
         const innertubeData = await httpPost(innertubeUrl, {
             context: INNERTUBE_CONTEXT,
             videoId: videoId,
@@ -308,24 +479,23 @@ export async function fetchYouTubeTranscript(
 
         // Step 4: Extract captions JSON
         const captionsJson = extractCaptionsJson(innertubeData, videoId)
-        console.log(`[YouTube Transcript] Found ${captionsJson.captionTracks?.length || 0} caption tracks`)
 
         // Step 5: Find transcript by language priority
         const transcript = findTranscript(captionsJson, languages)
         if (!transcript) {
             throw new Error("No transcript found for this video")
         }
-        console.log(`[YouTube Transcript] Selected transcript: ${transcript.languageCode}`)
 
         // Step 6: Fetch actual transcript XML
-        console.log(`[YouTube Transcript] Fetching transcript XML from: ${transcript.baseUrl.substring(0, 100)}...`)
         const transcriptXml = await httpGet(transcript.baseUrl)
-        console.log(`[YouTube Transcript] Received XML, length: ${transcriptXml.length}`)
 
         // Step 7: Parse XML and return segments
         const segments = parseTranscriptXml(transcriptXml)
-        console.log(`[YouTube Transcript] Parsed ${segments.length} segments`)
-        return segments
+        
+        // Step 8: Merge segments into complete sentences
+        const mergedSegments = mergeSegmentsIntoSentences(segments)
+        
+        return mergedSegments
     } catch (error) {
         console.error(`[YouTube Transcript] Error:`, error)
         throw error
