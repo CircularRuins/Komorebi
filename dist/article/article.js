@@ -27,8 +27,11 @@ function extractVideoId(url) {
  */
 let youtubePlayerCounter = 0
 const youtubePlayers = new Map()
+const playerInstances = new Map() // Store player instances by videoId
 const transcriptData = new Map() // Store transcript segments for each video
 const transcriptIntervals = new Map() // Store interval IDs for time tracking
+const userScrolling = new Map() // Track if user is manually scrolling for each transcript
+const scrollResumeTimers = new Map() // Timers to resume auto-scroll after user stops scrolling
 
 function convertYouTubeLinks(html) {
     if (!html || typeof html !== 'string') return html || ''
@@ -208,6 +211,12 @@ function updateTranscriptSegment(videoId, currentTime) {
         // Force a reflow to ensure styles are applied
         void currentSegment.offsetHeight
         
+        // Check if user is manually scrolling - if so, don't auto-scroll
+        const transcriptId = container.id
+        if (userScrolling.get(transcriptId)) {
+            return // User is scrolling, skip auto-scroll
+        }
+        
         // TLDW style: Use getBoundingClientRect for accurate position calculation
         const elementRect = currentSegment.getBoundingClientRect()
         const viewportRect = transcriptContent.getBoundingClientRect()
@@ -235,11 +244,6 @@ function updateTranscriptSegment(videoId, currentTime) {
                 })
             })
         }
-    } else {
-        // Debug: log when no current segment found
-        if (Math.random() < 0.1) { // Log 10% of the time
-            console.log('[Transcript] No current segment found for time:', currentTime.toFixed(2), 'segments:', segments.length)
-        }
     }
 }
 
@@ -251,9 +255,6 @@ function startTranscriptTracking(videoId) {
     if (transcriptIntervals.has(videoId)) {
         clearInterval(transcriptIntervals.get(videoId))
     }
-    
-    console.log('[Transcript] Starting tracking for video:', videoId)
-    console.log('[Transcript] YouTube players map:', Array.from(youtubePlayers.entries()))
     
     // Update transcript every 100ms
     const intervalId = setInterval(() => {
@@ -344,16 +345,6 @@ function startTranscriptTracking(videoId) {
                 } catch (e) {
                     // getCurrentTime might fail if player is not ready
                 }
-            } else {
-                // Debug: log when player instance is not available (only occasionally)
-                if (Math.random() < 0.01) { // Only log 1% of the time to avoid spam
-                    console.log('[Transcript] Player instance not available for video:', videoId, {
-                        hasPlayerDiv: !!playerDiv,
-                        playerDivId: playerDiv?.id,
-                        hasYT: !!window.YT,
-                        hasYTGet: !!(window.YT && window.YT.get)
-                    })
-                }
             }
         } catch (err) {
             // Player might be destroyed, clear interval
@@ -364,7 +355,6 @@ function startTranscriptTracking(videoId) {
     }, 100)
     
     transcriptIntervals.set(videoId, intervalId)
-    console.log('[Transcript] Tracking started, interval ID:', intervalId)
 }
 
 /**
@@ -410,9 +400,7 @@ async function renderTranscript(containerId, videoId) {
     transcriptHTML += '<div class="youtube-transcript-content">'
     
     transcript.forEach((segment, index) => {
-        const timeStr = formatTime(segment.start)
         transcriptHTML += `<div class="youtube-transcript-segment" data-start="${segment.start}" data-video-id="${videoId}">`
-        transcriptHTML += `<span class="youtube-transcript-timestamp" data-start="${segment.start}">${timeStr}</span>`
         transcriptHTML += `<span class="youtube-transcript-text">${segment.text}</span>`
         transcriptHTML += '</div>'
     })
@@ -435,54 +423,125 @@ async function renderTranscript(containerId, videoId) {
     // Setup tab switching
     setupTabSwitching(container)
     
-    // Add click handlers for timestamps
-    const timestampElements = container.querySelectorAll('.youtube-transcript-timestamp')
-    timestampElements.forEach(timestamp => {
-        timestamp.style.cursor = 'pointer'
-        timestamp.addEventListener('click', (e) => {
+    // Setup scroll detection for manual scrolling
+    const transcriptContent = container.querySelector('.youtube-transcript-content')
+    if (transcriptContent) {
+        let scrollTimeout = null
+        const transcriptId = containerId
+        
+        // Initialize userScrolling state
+        userScrolling.set(transcriptId, false)
+        
+        // Detect when user starts scrolling
+        transcriptContent.addEventListener('scroll', () => {
+            // Mark that user is manually scrolling
+            userScrolling.set(transcriptId, true)
+            
+            // Clear existing timeout
+            if (scrollResumeTimers.has(transcriptId)) {
+                clearTimeout(scrollResumeTimers.get(transcriptId))
+            }
+            
+            // Set timeout to resume auto-scroll after user stops scrolling (2 seconds)
+            const timer = setTimeout(() => {
+                userScrolling.set(transcriptId, false)
+                scrollResumeTimers.delete(transcriptId)
+            }, 2000)
+            
+            scrollResumeTimers.set(transcriptId, timer)
+        })
+    }
+    
+    // Add click handlers for transcript segments (clicking on text will seek to that time)
+    const segmentElements = container.querySelectorAll('.youtube-transcript-segment')
+    segmentElements.forEach(segment => {
+        segment.addEventListener('click', (e) => {
             e.preventDefault()
-            const startTime = parseFloat(timestamp.getAttribute('data-start'))
-            const segment = timestamp.closest('.youtube-transcript-segment')
-            const videoId = segment ? segment.getAttribute('data-video-id') : null
+            e.stopPropagation()
+            const startTime = parseFloat(segment.getAttribute('data-start'))
+            const videoId = segment.getAttribute('data-video-id')
             
-            if (!videoId) return
+            if (!videoId || isNaN(startTime)) {
+                return
+            }
             
-            // Find the corresponding YouTube player
-            youtubePlayers.forEach((playerVideoId, playerId) => {
-                if (playerVideoId === videoId) {
-                    const playerContainer = document.getElementById(playerId)
-                    if (playerContainer) {
-                        const playerDiv = playerContainer.querySelector('div')
-                        if (playerDiv) {
-                            // Try to get player instance
-                            let playerInstance = null
-                            try {
-                                // Try to get from stored reference first
+            // Try to get player instance from global Map first (most reliable)
+            let playerInstance = playerInstances.get(videoId)
+            if (!playerInstance) {
+                // Fallback: Find the corresponding YouTube player
+                youtubePlayers.forEach((playerVideoId, playerId) => {
+                    if (playerVideoId === videoId && !playerInstance) {
+                        const playerContainer = document.getElementById(playerId)
+                        if (playerContainer) {
+                            const playerDiv = playerContainer.querySelector('div')
+                            if (playerDiv) {
+                                // Method 1: Direct reference stored on div
                                 if (playerDiv.player) {
                                     playerInstance = playerDiv.player
-                                } else if (playerDiv.id && window.YT && window.YT.get) {
-                                    // Try to get from YT API using the div ID
-                                    playerInstance = window.YT.get(playerDiv.id)
+                                    // Store it for future use
+                                    playerInstances.set(videoId, playerInstance)
                                 }
                                 
-                                if (playerInstance && typeof playerInstance.seekTo === 'function') {
-                                    playerInstance.seekTo(startTime, true)
-                                    if (typeof playerInstance.playVideo === 'function') {
-                                        playerInstance.playVideo()
+                                // Method 2: Try YT.get() with playerDiv.id
+                                if (!playerInstance && playerDiv.id && window.YT && window.YT.get) {
+                                    try {
+                                        playerInstance = window.YT.get(playerDiv.id)
+                                        if (playerInstance) {
+                                            playerInstances.set(videoId, playerInstance)
+                                        }
+                                    } catch (err) {
+                                        // Ignore
                                     }
-                                } else {
-                                    console.log('Player instance not available for seeking')
                                 }
-                            } catch (err) {
-                                console.log('Could not seek to time:', startTime, err)
+                                
+                                // Method 3: Try to get from iframe
+                                if (!playerInstance) {
+                                    const iframe = playerDiv.querySelector('iframe')
+                                    if (iframe) {
+                                        // YouTube API creates iframe with a specific ID pattern
+                                        // Try to find it by checking all iframes or using YT.get
+                                        if (window.YT && window.YT.get) {
+                                            // Try common iframe ID patterns
+                                            const iframeIdPatterns = [
+                                                iframe.id,
+                                                `youtube-player-${videoId}`,
+                                                playerDiv.id
+                                            ]
+                                            for (const id of iframeIdPatterns) {
+                                                if (!id) continue
+                                                try {
+                                                    const testInstance = window.YT.get(id)
+                                                    if (testInstance && typeof testInstance.seekTo === 'function') {
+                                                        playerInstance = testInstance
+                                                        playerInstances.set(videoId, playerInstance)
+                                                        break
+                                                    }
+                                                } catch (e) {
+                                                    // Continue trying
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                }
-            })
+                })
+            }
             
-            // Log for debugging
-            console.log('Seek to:', startTime, 'for video:', videoId)
+            // Execute seek if player instance found
+            if (playerInstance) {
+                try {
+                    if (typeof playerInstance.seekTo === 'function') {
+                        playerInstance.seekTo(startTime, true)
+                        if (typeof playerInstance.playVideo === 'function') {
+                            playerInstance.playVideo()
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error seeking to time:', startTime, err)
+                }
+            }
         })
     })
 }
@@ -550,6 +609,8 @@ function createYouTubePlayers() {
                         // Store player reference - TLDW style: store directly on the div
                         const playerInstance = event.target
                         playerDiv.player = playerInstance
+                        // Also store in global Map for easy access
+                        playerInstances.set(videoId, playerInstance)
                         
                         // Render transcript after player is ready
                         const playerIndex = playerId.replace('youtube-player-', '')
@@ -661,4 +722,14 @@ window.addEventListener('beforeunload', () => {
         clearInterval(intervalId)
     })
     transcriptIntervals.clear()
+    
+    // Clean up scroll resume timers
+    scrollResumeTimers.forEach((timer) => {
+        clearTimeout(timer)
+    })
+    scrollResumeTimers.clear()
+    userScrolling.clear()
+    
+    // Clean up player instances
+    playerInstances.clear()
 })

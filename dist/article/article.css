@@ -206,7 +206,7 @@ article blockquote {
 }
 
 .youtube-transcript-content {
-    max-height: 400px;
+    max-height: 300px;
     overflow-y: auto;
     padding: 12px;
     background-color: #ffffff;
@@ -312,7 +312,7 @@ article blockquote {
 .youtube-transcript-chat {
     display: flex;
     flex-direction: column;
-    height: 400px;
+    height: 300px;
     background-color: #ffffff;
 }
 
