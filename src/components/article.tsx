@@ -1,4 +1,5 @@
 import * as React from "react"
+import ReactDOM from "react-dom"
 import intl from "react-intl-universal"
 import { renderToString } from "react-dom/server"
 import { RSSItem } from "../scripts/models/item"
@@ -13,6 +14,7 @@ import {
     Link,
     TooltipHost,
     TooltipDelay,
+    TextField,
 } from "@fluentui/react"
 import {
     RSSSource,
@@ -62,6 +64,7 @@ type ArticleState = {
     translationError: string | null
     showTranslated: boolean
     preloadPath: string
+    selectedTranslationLanguage: string | null
 }
 
 class Article extends React.Component<ArticleProps, ArticleState> {
@@ -93,6 +96,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 translationError: null,
                 showTranslated: false,
                 preloadPath: window.utils?.getPreloadPath?.() || "../preload.js",
+                selectedTranslationLanguage: null,
             }
             return
         }
@@ -111,6 +115,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             translationError: null,
             showTranslated: false,
             preloadPath: window.utils?.getPreloadPath?.() || "../preload.js",
+            selectedTranslationLanguage: null,
         }
         window.utils.addWebviewContextListener(this.contextMenuHandler)
         window.utils.addWebviewKeydownListener(this.keyDownHandler)
@@ -276,7 +281,18 @@ class Article extends React.Component<ArticleProps, ArticleState> {
         }
     }
 
+    handleClickOutside = (e: MouseEvent) => {
+        if (this.translationMenuOpen && 
+            this.translationMenuRef.current && 
+            !this.translationMenuRef.current.contains(e.target as Node) &&
+            this.translationChevronRef.current &&
+            !this.translationChevronRef.current.contains(e.target as Node)) {
+            this.handleTranslationMenuClose()
+        }
+    }
+
     componentDidMount = () => {
+        // 原有的componentDidMount逻辑
         let webview = document.getElementById("article") as Electron.WebviewTag
         if (webview != this.webview) {
             this.webview = webview
@@ -292,10 +308,6 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                     console.log(`[Webview ${level}]`, message)
                 })
                 
-                // Enable devtools for debugging (only in development)
-                // You can manually open devtools by right-clicking on the webview
-                // or by calling webview.openDevTools() in the console
-                
                 let card = document.querySelector(
                     `#refocus div[data-iid="${this.props.item._id}"]`
                 ) as HTMLElement
@@ -303,6 +315,9 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 if (card) card.scrollIntoViewIfNeeded()
             }
         }
+
+        // 添加点击外部关闭菜单的监听
+        document.addEventListener('mousedown', this.handleClickOutside)
     }
     componentDidUpdate = (prevProps: ArticleProps) => {
         if (prevProps.item._id != this.props.item._id) {
@@ -316,6 +331,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 translatedTitle: null,
                 showTranslated: false,
                 translationError: null,
+                selectedTranslationLanguage: null,
             })
             if (this.props.source.openTarget === SourceOpenTarget.FullContent)
                 this.loadFull()
@@ -328,6 +344,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             `#refocus div[data-iid="${this.props.item._id}"]`
         ) as HTMLElement
         if (refocus) refocus.focus()
+        document.removeEventListener('mousedown', this.handleClickOutside)
     }
 
     toggleWebpage = () => {
@@ -373,7 +390,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
         }
     }
 
-    handleTranslate = async () => {
+    handleTranslate = async (targetLanguage?: string) => {
         // 检查配置是否完整
         if (!this.props.translationConfig.apiEndpoint || 
             !this.props.translationConfig.apiKey || 
@@ -398,8 +415,8 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             return
         }
 
-        // 如果已经有翻译内容，直接切换显示
-        if (this.state.translatedContent) {
+        // 如果已经有翻译内容且没有指定新语言，直接切换显示
+        if (this.state.translatedContent && !targetLanguage) {
             this.setState({ showTranslated: !this.state.showTranslated })
             return
         }
@@ -450,6 +467,204 @@ class Article extends React.Component<ArticleProps, ArticleState> {
 
     toggleTranslation = () => {
         this.setState({ showTranslated: !this.state.showTranslated })
+    }
+
+    translationLanguageOptions = () => [
+        { code: 'en', name: 'English', nativeName: 'English' },
+        { code: 'zh-CN', name: 'Simplified Chinese', nativeName: '简体中文' },
+        { code: 'ja', name: 'Japanese', nativeName: '日本語' },
+        { code: 'es', name: 'Spanish', nativeName: 'Español' },
+    ]
+
+    handleLanguageSelect = (languageCode: string) => {
+        // 如果选择的是当前已选的语言，则取消选择
+        const newLanguage = this.state.selectedTranslationLanguage === languageCode 
+            ? null 
+            : languageCode
+        this.setState({ selectedTranslationLanguage: newLanguage })
+        
+        // 如果选择了语言，关闭菜单并触发翻译
+        if (newLanguage) {
+            this.handleTranslationMenuClose()
+            this.handleTranslate(newLanguage)
+        } else {
+            // 如果取消选择，关闭菜单
+            this.handleTranslationMenuClose()
+        }
+    }
+
+    translationMenuRef = React.createRef<HTMLDivElement>()
+    translationChevronRef = React.createRef<HTMLDivElement>()
+    translationMenuOpen = false
+    translationLanguageSearch = ""
+
+    handleTranslationMenuToggle = () => {
+        this.translationMenuOpen = !this.translationMenuOpen
+        this.forceUpdate()
+    }
+
+    handleTranslationMenuClose = () => {
+        this.translationMenuOpen = false
+        this.translationLanguageSearch = ""
+        this.forceUpdate()
+    }
+
+    handleTranslationLanguageSearch = (value: string) => {
+        this.translationLanguageSearch = value
+        this.forceUpdate()
+    }
+
+    renderTranslationMenu = () => {
+        if (!this.translationMenuOpen || !this.translationChevronRef.current) return null
+
+        const rect = this.translationChevronRef.current.getBoundingClientRect()
+        const filteredLanguages = this.translationLanguageOptions()
+
+        const menuStyle: React.CSSProperties = {
+            position: 'fixed',
+            zIndex: 50,
+            width: '260px',
+            borderRadius: '16px',
+            border: '1px solid rgba(0, 0, 0, 0.1)',
+            backgroundColor: '#ffffff',
+            padding: 0,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+            top: `${rect.bottom + 4}px`,
+            left: `${rect.left - 200}px`,
+            outline: 'none',
+        }
+
+        return ReactDOM.createPortal(
+            <div
+                ref={this.translationMenuRef}
+                style={menuStyle}
+                onMouseEnter={() => {
+                    // Keep menu open
+                }}
+                onMouseLeave={() => {
+                    setTimeout(() => {
+                        this.handleTranslationMenuClose()
+                    }, 100)
+                }}
+            >
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                    {/* 显示原文选项 */}
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '6px 8px',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            transition: 'background-color 0.15s, color 0.15s',
+                            borderRadius: '4px',
+                            margin: '0 4px',
+                            userSelect: 'none',
+                            outline: 'none',
+                            borderBottom: '1px solid #f0f0f0',
+                            marginBottom: '4px',
+                            paddingBottom: '10px',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f5f5f5'
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent'
+                        }}
+                        onClick={(e) => {
+                            this.setState({
+                                showTranslated: false,
+                                selectedTranslationLanguage: null,
+                            })
+                            this.handleTranslationMenuClose()
+                        }}
+                    >
+                        <div>
+                            <div style={{ fontWeight: 500, fontSize: '12px', color: '#000', lineHeight: '16px' }}>
+                                {intl.get("article.showOriginal") || "显示原文"}
+                            </div>
+                        </div>
+                        {!this.state.showTranslated && !this.state.selectedTranslationLanguage ? (
+                            <Icon
+                                iconName="Accept"
+                                style={{
+                                    fontSize: '16px',
+                                    color: '#000',
+                                }}
+                            />
+                        ) : (
+                            <Icon
+                                iconName="CircleRing"
+                                style={{
+                                    fontSize: '16px',
+                                    color: '#ccc',
+                                }}
+                            />
+                        )}
+                    </div>
+                    {filteredLanguages.map((lang) => {
+                        const isTargetLanguage = lang.code === this.state.selectedTranslationLanguage
+
+                        return (
+                            <div
+                                key={lang.code}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '6px 8px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    transition: 'background-color 0.15s, color 0.15s',
+                                    borderRadius: '4px',
+                                    margin: '0 4px',
+                                    userSelect: 'none',
+                                    outline: 'none',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f5f5f5'
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent'
+                                }}
+                                onClick={(e) => {
+                                    this.handleLanguageSelect(lang.code)
+                                    this.handleTranslationMenuClose()
+                                }}
+                            >
+                                <div>
+                                    <div style={{ fontWeight: 500, fontSize: '12px', color: '#000', lineHeight: '16px' }}>
+                                        {lang.nativeName}
+                                    </div>
+                                    <div style={{ fontSize: '10px', color: '#666', lineHeight: '14px', marginTop: '2px' }}>
+                                        {lang.name}
+                                    </div>
+                                </div>
+                                {isTargetLanguage ? (
+                                    <Icon
+                                        iconName="Accept"
+                                        style={{
+                                            fontSize: '16px',
+                                            color: '#000',
+                                        }}
+                                    />
+                                ) : (
+                                    <Icon
+                                        iconName="CircleRing"
+                                        style={{
+                                            fontSize: '16px',
+                                            color: '#ccc',
+                                        }}
+                                    />
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>,
+            document.body
+        )
     }
 
     articleView = () => {
@@ -597,39 +812,40 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                             }}
                         />
                     </TooltipHost>
-                    <TooltipHost
-                        content={
-                            this.state.showTranslated
-                                ? intl.get("article.showOriginal")
-                                : this.state.isTranslating
-                                ? intl.get("article.translating")
-                                : intl.get("article.translate")
-                        }
-                        delay={TooltipDelay.zero}>
-                        <CommandBarButton
-                            iconProps={{
-                                iconName: this.state.isTranslating ? "Sync" : "Translate",
-                                style: { 
-                                    fontSize: 16,
-                                },
-                            }}
-                            onClick={this.handleTranslate}
-                            disabled={this.state.isTranslating || this.state.loadWebpage}
-                            styles={{
-                                root: {
-                                    minWidth: 40,
-                                    height: 32,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                },
-                                icon: {
-                                    fontSize: 16,
-                                    animation: this.state.isTranslating ? "rotating 1.5s linear infinite" : "none",
-                                },
-                            }}
-                        />
-                    </TooltipHost>
+                    <div style={{ position: 'relative' }} ref={this.translationChevronRef}>
+                        <TooltipHost
+                            content={
+                                this.state.isTranslating
+                                    ? intl.get("article.translating")
+                                    : intl.get("article.translate")
+                            }
+                            delay={TooltipDelay.zero}>
+                            <CommandBarButton
+                                iconProps={{
+                                    iconName: this.state.isTranslating ? "Sync" : "Translate",
+                                    style: { 
+                                        fontSize: 16,
+                                    },
+                                }}
+                                onClick={this.handleTranslationMenuToggle}
+                                disabled={this.state.isTranslating || this.state.loadWebpage}
+                                styles={{
+                                    root: {
+                                        minWidth: 40,
+                                        height: 32,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                    },
+                                    icon: {
+                                        fontSize: 16,
+                                        animation: this.state.isTranslating ? "rotating 1.5s linear infinite" : "none",
+                                    },
+                                }}
+                            />
+                        </TooltipHost>
+                    </div>
+                    {this.renderTranslationMenu()}
                     <TooltipHost
                         content={intl.get("close")}
                         delay={TooltipDelay.zero}>
