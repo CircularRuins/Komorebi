@@ -284,6 +284,18 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 webview.focus()
                 this.setState({ loaded: false, error: false })
                 webview.addEventListener("did-stop-loading", this.webviewLoaded)
+                
+                // Listen to console messages from webview
+                webview.addEventListener("console-message", (e: any) => {
+                    const message = e.message
+                    const level = e.level
+                    console.log(`[Webview ${level}]`, message)
+                })
+                
+                // Enable devtools for debugging (only in development)
+                // You can manually open devtools by right-clicking on the webview
+                // or by calling webview.openDevTools() in the console
+                
                 let card = document.querySelector(
                     `#refocus div[data-iid="${this.props.item._id}"]`
                 ) as HTMLElement
