@@ -63,6 +63,24 @@ function convertYouTubeLinks(html) {
 }
 
 /**
+ * Start loading transcripts for all videos immediately (doesn't need player)
+ */
+function startLoadingTranscripts() {
+    youtubePlayers.forEach((videoId, playerId) => {
+        const playerIndex = playerId.replace('youtube-player-', '')
+        const transcriptId = `youtube-transcript-${playerIndex}`
+        const container = document.getElementById(transcriptId)
+        
+        // Start loading transcript immediately if container exists
+        if (container) {
+            renderTranscript(transcriptId, videoId).catch(err => {
+                console.error('Error rendering transcript:', err)
+            })
+        }
+    })
+}
+
+/**
  * Initialize YouTube players using iframe API
  */
 function initializeYouTubePlayers() {
@@ -587,29 +605,26 @@ function updateTranscriptSegment(videoId, currentTime) {
             return // User is scrolling, skip auto-scroll
         }
         
-        // TLDW style: Use getBoundingClientRect for accurate position calculation
+        // Calculate position to keep current segment at the top
         const elementRect = currentSegment.getBoundingClientRect()
         const viewportRect = transcriptContent.getBoundingClientRect()
         
-        // Check if element is outside the top 1/3 area (25% to 40% of viewport) - exactly like TLDW
-        const topThreshold = viewportRect.top + viewportRect.height * 0.25
-        const bottomThreshold = viewportRect.top + viewportRect.height * 0.40
+        // Calculate element's position relative to the scroll container's content
+        const currentScrollTop = transcriptContent.scrollTop
+        const elementTopInContent = elementRect.top - viewportRect.top + currentScrollTop
         
-        // Also check if element is completely out of view
-        const isOutOfView = elementRect.bottom < viewportRect.top || elementRect.top > viewportRect.bottom
+        // Check if current segment is not at the top (with small tolerance for smooth scrolling)
+        const padding = 12 // padding of .youtube-transcript-content
+        const targetScrollTop = elementTopInContent - padding
+        const tolerance = 2
+        const isNotAtTop = Math.abs(currentScrollTop - targetScrollTop) > tolerance
         
-        // Scroll if element is out of view or outside the preferred area
-        if (isOutOfView || elementRect.top < topThreshold || elementRect.bottom > bottomThreshold) {
-            // Calculate the element's position relative to the viewport - exactly like TLDW
-            const relativeTop = elementRect.top - viewportRect.top + transcriptContent.scrollTop
-            
-            // Position the element in the top 1/3 of the viewport - exactly like TLDW
-            const scrollPosition = relativeTop - (viewportRect.height / 3)
-            
-            // Use requestAnimationFrame for smoother scrolling - exactly like TLDW
+        // Always scroll to keep current segment at the top
+        if (isNotAtTop) {
+            // Use requestAnimationFrame for smoother scrolling
             requestAnimationFrame(() => {
                 transcriptContent.scrollTo({
-                    top: Math.max(0, scrollPosition),
+                    top: Math.max(0, targetScrollTop),
                     behavior: 'smooth'
                 })
             })
@@ -825,6 +840,9 @@ function createYouTubePlayers() {
         const playerDivId = `${playerId}-inner`
         playerDiv.id = playerDivId
         
+        // Transcript loading is already started in startLoadingTranscripts()
+        // No need to load it here again
+        
         try {
             const playerConfig = {
                 videoId: videoId,
@@ -860,15 +878,7 @@ function createYouTubePlayers() {
                         // Also store in global Map for easy access
                         playerInstances.set(videoId, playerInstance)
                         
-                        // Render transcript after player is ready
-                        const playerIndex = playerId.replace('youtube-player-', '')
-                        const transcriptId = `youtube-transcript-${playerIndex}`
-                        
-                        setTimeout(() => {
-                            renderTranscript(transcriptId, videoId).catch(err => {
-                                console.error('Error rendering transcript:', err)
-                            })
-                        }, 500)
+                        // Transcript is already loading in parallel, no need to wait here
                     },
                     onStateChange: (event) => {
                         // TLDW style: Start tracking when playing (state === 1)
@@ -957,9 +967,11 @@ getArticle(url).then(article => {
     main.innerHTML = dom.body.innerHTML
     main.classList.add("show")
     
-    // Initialize YouTube players after DOM is updated
+    // Start loading transcripts immediately (doesn't need player, only needs DOM)
     // Use setTimeout to ensure DOM is fully rendered
     setTimeout(() => {
+        startLoadingTranscripts()
+        // Initialize YouTube players in parallel
         initializeYouTubePlayers()
     }, 0)
 })

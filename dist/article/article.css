@@ -232,10 +232,12 @@ article blockquote {
 }
 
 .youtube-transcript-content {
-    max-height: 300px;
+    width: 100%;
+    aspect-ratio: 3 / 1;
     overflow-y: auto;
     padding: 12px;
     background-color: #ffffff;
+    box-sizing: border-box;
 }
 
 .youtube-transcript-segment {
@@ -354,8 +356,10 @@ article blockquote {
 .youtube-transcript-chat {
     display: flex;
     flex-direction: column;
-    height: 300px;
+    width: 100%;
+    aspect-ratio: 3 / 1;
     background-color: #ffffff;
+    box-sizing: border-box;
 }
 
 .youtube-transcript-chat-messages {

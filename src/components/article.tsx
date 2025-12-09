@@ -22,7 +22,7 @@ import {
     SourceTextDirection,
 } from "../scripts/models/source"
 import { shareSubmenu } from "./context-menu"
-import { platformCtrl, decodeFetchResponse } from "../scripts/utils"
+import { platformCtrl, decodeFetchResponse, extractVideoId } from "../scripts/utils"
 import { translateArticle, translateArticleWithTitle, TranslationConfig } from "../scripts/translation"
 import { selectAIConfig } from "../scripts/models/page"
 
@@ -514,6 +514,18 @@ class Article extends React.Component<ArticleProps, ArticleState> {
         this.forceUpdate()
     }
 
+    isYouTubeArticle = (): boolean => {
+        // 检查文章链接是否包含 YouTube 视频 ID
+        if (this.props.item?.link && extractVideoId(this.props.item.link) !== null) {
+            return true
+        }
+        // 检查 source URL 是否来自 YouTube
+        if (this.props.source?.url && /youtube\.com/.test(this.props.source.url)) {
+            return true
+        }
+        return false
+    }
+
     renderTranslationMenu = () => {
         if (!this.translationMenuOpen || !this.translationChevronRef.current) return null
 
@@ -812,40 +824,44 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                             }}
                         />
                     </TooltipHost>
-                    <div style={{ position: 'relative' }} ref={this.translationChevronRef}>
-                        <TooltipHost
-                            content={
-                                this.state.isTranslating
-                                    ? intl.get("article.translating")
-                                    : intl.get("article.translate")
-                            }
-                            delay={TooltipDelay.zero}>
-                            <CommandBarButton
-                                iconProps={{
-                                    iconName: this.state.isTranslating ? "Sync" : "Translate",
-                                    style: { 
-                                        fontSize: 16,
-                                    },
-                                }}
-                                onClick={this.handleTranslationMenuToggle}
-                                disabled={this.state.isTranslating || this.state.loadWebpage}
-                                styles={{
-                                    root: {
-                                        minWidth: 40,
-                                        height: 32,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                    },
-                                    icon: {
-                                        fontSize: 16,
-                                        animation: this.state.isTranslating ? "rotating 1.5s linear infinite" : "none",
-                                    },
-                                }}
-                            />
-                        </TooltipHost>
-                    </div>
-                    {this.renderTranslationMenu()}
+                    {!this.isYouTubeArticle() && (
+                        <>
+                            <div style={{ position: 'relative' }} ref={this.translationChevronRef}>
+                                <TooltipHost
+                                    content={
+                                        this.state.isTranslating
+                                            ? intl.get("article.translating")
+                                            : intl.get("article.translate")
+                                    }
+                                    delay={TooltipDelay.zero}>
+                                    <CommandBarButton
+                                        iconProps={{
+                                            iconName: this.state.isTranslating ? "Sync" : "Translate",
+                                            style: { 
+                                                fontSize: 16,
+                                            },
+                                        }}
+                                        onClick={this.handleTranslationMenuToggle}
+                                        disabled={this.state.isTranslating || this.state.loadWebpage}
+                                        styles={{
+                                            root: {
+                                                minWidth: 40,
+                                                height: 32,
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                            },
+                                            icon: {
+                                                fontSize: 16,
+                                                animation: this.state.isTranslating ? "rotating 1.5s linear infinite" : "none",
+                                            },
+                                        }}
+                                    />
+                                </TooltipHost>
+                            </div>
+                            {this.renderTranslationMenu()}
+                        </>
+                    )}
                     <TooltipHost
                         content={intl.get("close")}
                         delay={TooltipDelay.zero}>

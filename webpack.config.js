@@ -58,6 +58,9 @@ module.exports = [
         performance: {
             hints: false,
         },
+        experiments: {
+            asyncWebAssembly: true,
+        },
         module: {
             rules: [
                 {
@@ -71,6 +74,10 @@ module.exports = [
                 {
                     test: /\.md$/,
                     type: "asset/source",
+                },
+                {
+                    test: /\.wasm$/,
+                    type: "webassembly/async",
                 },
             ],
         },

@@ -59,6 +59,7 @@
   },
   "dependencies": {
     "node-polyfill-webpack-plugin": "^2.0.1",
-    "openai": "^6.7.0"
+    "openai": "^6.7.0",
+    "tiktoken": "^1.0.0"
   }
 }

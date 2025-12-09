@@ -9,6 +9,7 @@ import fontList = require("font-list")
 import { mergeSegmentsIntoSentences, TranscriptSegment } from "./youtube-transcript"
 import OpenAI from "openai"
 import { store } from "./settings"
+import { translateTexts, TranslationConfig } from "../scripts/translation-utils"
 
 export function setUtilsListeners(manager: WindowManager) {
     async function openExternal(url: string, background = false) {
@@ -663,82 +664,14 @@ export function setUtilsListeners(manager: WindowManager) {
 
             const targetLanguage = getTargetLanguageName(targetLanguageCode)
 
-            // Join texts with separator
-            const textToTranslate = texts.join('\n\n---SEPARATOR---\n\n')
-
-            // Build translation prompt
-            const prompt = `Please translate the following text into ${targetLanguage}. If the text is already in ${targetLanguage}, return it as is. Maintain the order and structure of the text, with each segment separated by "---SEPARATOR---".
-
-${textToTranslate}`
-
-            // Normalize API endpoint
-            let normalizedEndpoint = apiEndpoint.trim()
-            if (!normalizedEndpoint.startsWith("http://") && !normalizedEndpoint.startsWith("https://")) {
-                normalizedEndpoint = "https://" + normalizedEndpoint
-            }
-            if (!normalizedEndpoint.includes("/v1/chat/completions")) {
-                normalizedEndpoint = normalizedEndpoint.replace(/\/$/, "") + "/v1/chat/completions"
+            // 使用共享的翻译函数
+            const config: TranslationConfig = {
+                apiEndpoint,
+                apiKey,
+                model
             }
 
-            const openai = new OpenAI({
-                apiKey: apiKey,
-                baseURL: normalizedEndpoint.replace("/v1/chat/completions", ""),
-                dangerouslyAllowBrowser: true
-            })
-
-            const completion = await openai.chat.completions.create({
-                model: model,
-                messages: [
-                    {
-                        role: 'user',
-                        content: prompt
-                    }
-                ],
-                temperature: 0.3,
-                max_tokens: 8000,
-            })
-
-            if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
-                const translatedText = completion.choices[0].message.content || ''
-                if (!translatedText) {
-                    throw new Error('翻译结果为空')
-                }
-
-                // Split translated text by separator
-                let translatedTexts = translatedText.split('\n\n---SEPARATOR---\n\n')
-
-                // If split count doesn't match, try alternative separators
-                if (translatedTexts.length !== texts.length) {
-                    const altSplit = translatedText.split('---SEPARATOR---')
-                    if (altSplit.length === texts.length) {
-                        translatedTexts = altSplit.map(t => t.trim())
-                    } else if (translatedTexts.length === 1 && texts.length === 1) {
-                        translatedTexts = [translatedText.trim()]
-                    } else {
-                        const cleaned = translatedText.replace(/\n\n---SEPARATOR---\n\n/g, '---SEPARATOR---')
-                        const cleanedSplit = cleaned.split('---SEPARATOR---')
-                        if (cleanedSplit.length === texts.length) {
-                            translatedTexts = cleanedSplit.map(t => t.trim())
-                        }
-                    }
-                }
-
-                // Ensure we have the same number of translations as original texts
-                const minLength = Math.min(texts.length, translatedTexts.length)
-                const result: string[] = []
-                for (let i = 0; i < texts.length; i++) {
-                    if (i < minLength) {
-                        result.push(translatedTexts[i].trim())
-                    } else {
-                        // If translation is shorter, use original text
-                        result.push(texts[i])
-                    }
-                }
-
-                return result
-            } else {
-                throw new Error('API返回格式不正确，未找到choices数组或message内容')
-            }
+            return await translateTexts(texts, targetLanguage, config)
         } catch (error: any) {
             if (error instanceof OpenAI.APIError) {
                 let errorMessage = error.message
