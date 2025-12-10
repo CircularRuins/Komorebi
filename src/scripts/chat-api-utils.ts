@@ -200,36 +200,90 @@ export async function createChatCompletionWithFetch(
 }
 
 /**
- * 生成视频字幕摘要（使用和翻译功能相同的结构）
- * @param transcriptText 字幕文本
+ * 转录片段接口
+ */
+export interface TranscriptSegment {
+    text: string
+    start: number
+    duration: number
+}
+
+/**
+ * 摘要要点接口
+ */
+export interface SummaryTakeaway {
+    label: string
+    insight: string
+    timestamps: string[]
+}
+
+/**
+ * 格式化时间戳（秒数转为 MM:SS 或 HH:MM:SS）
+ */
+function formatTime(totalSeconds: number): string {
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = Math.floor(totalSeconds % 60)
+    
+    const pad = (value: number): string => value.toString().padStart(2, '0')
+    
+    if (hours > 0) {
+        return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
+    }
+    return `${pad(minutes)}:${pad(seconds)}`
+}
+
+/**
+ * 格式化转录文本为带时间戳的格式
+ */
+function formatTranscriptWithTimestamps(segments: TranscriptSegment[]): string {
+    return segments.map(segment => {
+        const start = formatTime(segment.start)
+        return `[${start}] ${segment.text}`
+    }).join('\n')
+}
+
+/**
+ * 生成视频字幕摘要（返回结构化数据，类似 TLDW takeaways）
+ * @param segments 转录片段数组
  * @param config Chat API配置
  * @param targetLanguage 目标语言名称（如 "English", "简体中文" 等）
- * @returns 生成的摘要
+ * @returns 生成的摘要要点数组
  */
 export async function generateTranscriptSummary(
-    transcriptText: string,
+    segments: TranscriptSegment[],
     config: ChatApiConfig,
     targetLanguage: string = "English"
-): Promise<string> {
-    if (!transcriptText || !transcriptText.trim()) {
-        throw new Error('字幕文本为空，无法生成摘要')
+): Promise<SummaryTakeaway[]> {
+    if (!segments || segments.length === 0) {
+        throw new Error('转录片段为空，无法生成摘要')
     }
 
-    // 构建摘要提示词（要求返回markdown格式，使用指定语言）
-    const prompt = `You must write the summary in ${targetLanguage} language. Please provide a brief summary of the key points from the following video transcript. Use Markdown format.
+    const transcriptWithTimestamps = formatTranscriptWithTimestamps(segments)
 
-IMPORTANT: The entire summary must be written in ${targetLanguage}. Do not use any other language.
-
-Requirements:
-- Write entirely in ${targetLanguage} language
-- Keep it concise, only summarize the main points
-- Use Markdown formatting (headings, lists, bold, etc.)
-- Use bullet points for key points
-
-Transcript:
-${transcriptText}
-
-Summary (must be in ${targetLanguage}, Markdown format):`
+    // 构建摘要提示词（参考 TLDW takeaways 设计）
+    const prompt = `<task>
+<role>You are an expert editorial analyst distilling a video's most potent insights for time-pressed viewers.</role>
+<goal>Produce 4-6 high-signal takeaways that help a viewer retain the video's core ideas.</goal>
+<instructions>
+  <item>Only use information stated explicitly in the transcript. Never speculate.</item>
+  <item>Make each label specific, punchy, and no longer than 10 words.</item>
+  <item>Write each insight as 1-2 sentences that preserve the speaker's framing.</item>
+  <item>Attach 1-2 zero-padded timestamps (MM:SS or HH:MM:SS) that point to the supporting moments.</item>
+  <item>Favor contrarian viewpoints, concrete examples, data, or memorable stories over generic advice.</item>
+  <item>Avoid overlapping takeaways. Each one should stand alone.</item>
+  <item>IMPORTANT: You MUST respond in ${targetLanguage}. All text in the "label" and "insight" fields must be in ${targetLanguage}.</item>
+</instructions>
+<qualityControl>
+  <item>Verify every claim is grounded in transcript lines you can cite verbatim.</item>
+  <item>Ensure timestamps map to the lines that justify the insight.</item>
+  <item>If the transcript lacks enough high-quality insights, still return at least four by choosing the strongest available.</item>
+</qualityControl>
+<outputFormat>Return strict JSON with 4-6 objects: [{"label":"string","insight":"string","timestamps":["MM:SS"]}]. Do not include markdown or commentary.</outputFormat>
+<transcript><![CDATA[
+${transcriptWithTimestamps}
+]]></transcript>
+</task>`
 
     // 使用和翻译功能相同的客户端创建方式
     const translationConfig: TranslationConfig = {
@@ -251,16 +305,83 @@ Summary (must be in ${targetLanguage}, Markdown format):`
                 content: prompt
             }
         ],
-        temperature: 0.7,
+        temperature: 0.6,
         max_tokens: 2000,
+        response_format: { type: "json_object" }
     })
 
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
-        const summary = completion.choices[0].message.content || ''
-        if (!summary) {
+        const responseText = completion.choices[0].message.content || ''
+        if (!responseText) {
             throw new Error('摘要结果为空')
         }
-        return summary
+
+        // 解析 JSON 响应
+        let parsed: any
+        try {
+            // 尝试提取 JSON（可能被代码块包裹）
+            const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/i)
+            const jsonText = jsonMatch ? jsonMatch[1].trim() : responseText.trim()
+            parsed = JSON.parse(jsonText)
+        } catch (parseError) {
+            throw new Error('API返回的JSON格式不正确')
+        }
+
+        // 规范化响应数据
+        const candidateArray = Array.isArray(parsed)
+            ? parsed
+            : Array.isArray(parsed?.takeaways)
+                ? parsed.takeaways
+                : Array.isArray(parsed?.items)
+                    ? parsed.items
+                    : []
+
+        const takeaways: SummaryTakeaway[] = []
+
+        for (const item of candidateArray) {
+            if (!item || typeof item !== 'object') {
+                continue
+            }
+
+            const label = (item.label || item.title || '').trim()
+            const insight = (item.insight || item.summary || item.description || '').trim()
+            
+            // 提取时间戳
+            const timestampSources: string[] = []
+            if (Array.isArray(item.timestamps)) {
+                timestampSources.push(...item.timestamps)
+            }
+            if (typeof item.timestamp === 'string') {
+                timestampSources.push(item.timestamp)
+            }
+            if (typeof item.time === 'string') {
+                timestampSources.push(item.time)
+            }
+
+            // 规范化时间戳（移除方括号，确保格式正确）
+            const normalizedTimestamps = timestampSources
+                .map(ts => ts.trim().replace(/[\[\]]/g, ''))
+                .filter(ts => /^\d{1,2}:\d{2}(?::\d{2})?$/.test(ts))
+                .slice(0, 2) // 最多2个时间戳
+
+            if (label && insight && normalizedTimestamps.length > 0) {
+                takeaways.push({
+                    label,
+                    insight,
+                    timestamps: normalizedTimestamps
+                })
+            }
+
+            if (takeaways.length >= 6) {
+                break
+            }
+        }
+
+        if (takeaways.length === 0) {
+            throw new Error('AI模型未返回有效的摘要要点')
+        }
+
+        return takeaways
     } else {
         throw new Error('API返回格式不正确，未找到choices数组或message内容')
     }

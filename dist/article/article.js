@@ -660,6 +660,161 @@ function markdownToHtml(markdown) {
 }
 
 /**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+    if (typeof text !== 'string') {
+        return ''
+    }
+    const div = document.createElement('div')
+    div.textContent = text
+    return div.innerHTML
+}
+
+/**
+ * Parse timestamp string (MM:SS or HH:MM:SS) to seconds
+ */
+function parseTimestamp(timestamp) {
+    const parts = timestamp.split(':').map(p => parseInt(p, 10))
+    if (parts.length === 2) {
+        // MM:SS
+        return parts[0] * 60 + parts[1]
+    } else if (parts.length === 3) {
+        // HH:MM:SS
+        return parts[0] * 3600 + parts[1] * 60 + parts[2]
+    }
+    return null
+}
+
+/**
+ * Format seconds to timestamp string (MM:SS or HH:MM:SS)
+ */
+function formatTimestamp(seconds) {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = Math.floor(seconds % 60)
+    
+    const pad = (n) => n.toString().padStart(2, '0')
+    
+    if (hours > 0) {
+        return `${pad(hours)}:${pad(minutes)}:${pad(secs)}`
+    }
+    return `${pad(minutes)}:${pad(secs)}`
+}
+
+/**
+ * Get YouTube player instance for a video
+ */
+function getPlayerInstance(videoId) {
+    // Try to get from cache first
+    let playerInstance = playerInstances.get(videoId)
+    if (playerInstance) {
+        return playerInstance
+    }
+    
+    // Search for player in DOM
+    youtubePlayers.forEach((playerVideoId, playerId) => {
+        if (playerVideoId === videoId && !playerInstance) {
+            const playerContainer = document.getElementById(playerId)
+            if (playerContainer) {
+                const playerDiv = playerContainer.querySelector('div')
+                if (playerDiv && playerDiv.player) {
+                    playerInstance = playerDiv.player
+                    playerInstances.set(videoId, playerInstance)
+                }
+            }
+        }
+    })
+    
+    return playerInstance
+}
+
+/**
+ * Handle timestamp click - seek to time in video
+ */
+function handleTimestampClick(videoId, timestamp) {
+    const seconds = parseTimestamp(timestamp)
+    if (seconds === null) {
+        console.error('Invalid timestamp:', timestamp)
+        return
+    }
+    
+    const playerInstance = getPlayerInstance(videoId)
+    if (playerInstance && typeof playerInstance.seekTo === 'function') {
+        try {
+            playerInstance.seekTo(seconds, true)
+            if (typeof playerInstance.playVideo === 'function') {
+                playerInstance.playVideo()
+            }
+        } catch (err) {
+            console.error('Error seeking to time:', seconds, err)
+        }
+    } else {
+        console.warn('Player instance not available for video:', videoId)
+    }
+}
+
+/**
+ * Render summary takeaways as HTML
+ */
+function renderSummaryTakeaways(takeaways, videoId) {
+    if (!takeaways || !Array.isArray(takeaways) || takeaways.length === 0) {
+        return '<div class="youtube-transcript-summary-text">No takeaways available.</div>'
+    }
+    
+    // Play icon SVG (matching TLDW style)
+    const playIconSvg = '<svg class="youtube-transcript-summary-timestamp-icon" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 2.5L9.5 6L2.5 9.5V2.5Z" fill="currentColor"/></svg>'
+    
+    let html = '<div class="youtube-transcript-summary-text">'
+    html += '<ul class="youtube-transcript-summary-list">'
+    
+    takeaways.forEach((takeaway, index) => {
+        html += '<li class="youtube-transcript-summary-item">'
+        html += `<strong class="youtube-transcript-summary-label">${escapeHtml(takeaway.label)}</strong>`
+        html += `<span class="youtube-transcript-summary-insight">${escapeHtml(takeaway.insight)}</span>`
+        
+        if (takeaway.timestamps && takeaway.timestamps.length > 0) {
+            html += '<div class="youtube-transcript-summary-timestamps">'
+            takeaway.timestamps.forEach((timestamp, tsIndex) => {
+                html += `<button class="youtube-transcript-summary-timestamp" data-video-id="${videoId}" data-timestamp="${timestamp}" type="button">`
+                html += playIconSvg
+                html += `<span>${escapeHtml(timestamp)}</span>`
+                html += '</button>'
+                if (tsIndex < takeaway.timestamps.length - 1) {
+                    html += ' '
+                }
+            })
+            html += '</div>'
+        }
+        
+        html += '</li>'
+    })
+    
+    html += '</ul>'
+    html += '</div>'
+    
+    return html
+}
+
+/**
+ * Setup timestamp click handlers for summary
+ */
+function setupSummaryTimestampHandlers(container, videoId) {
+    const timestampButtons = container.querySelectorAll('.youtube-transcript-summary-timestamp')
+    timestampButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            const timestamp = button.getAttribute('data-timestamp')
+            const buttonVideoId = button.getAttribute('data-video-id')
+            if (timestamp && buttonVideoId === videoId) {
+                handleTimestampClick(videoId, timestamp)
+            }
+        })
+    })
+}
+
+/**
  * Generate summary for video transcript
  */
 async function generateSummary(videoId) {
@@ -679,21 +834,18 @@ async function generateSummary(videoId) {
         throw new Error('Utils bridge not available')
     }
     
-    // Extract text from transcript segments
-    const transcriptText = transcript.map(segment => segment.text).join(' ')
-    
-    // Call through IPC (same structure as translation)
+    // Pass transcript segments directly (not just text)
     try {
-        const summary = await window.utils.generateTranscriptSummary(transcriptText)
+        const takeaways = await window.utils.generateTranscriptSummary(transcript)
         
-        if (!summary) {
+        if (!takeaways || !Array.isArray(takeaways) || takeaways.length === 0) {
             throw new Error('Empty summary received from API')
         }
         
         // Cache the summary
-        transcriptSummaries.set(videoId, summary)
+        transcriptSummaries.set(videoId, takeaways)
         
-        return summary
+        return takeaways
     } catch (error) {
         // Handle configuration incomplete error
         if (error.message && error.message.includes('配置不完整')) {
@@ -726,9 +878,10 @@ function setupSummaryTab(container, videoId) {
     const existingSummary = transcriptSummaries.get(videoId)
     
     if (existingSummary) {
-        // Display existing summary (render as markdown)
-        const htmlSummary = markdownToHtml(existingSummary)
-        summaryContent.innerHTML = `<div class="youtube-transcript-summary-text">${htmlSummary}</div>`
+        // Display existing summary (render as structured takeaways)
+        const htmlSummary = renderSummaryTakeaways(existingSummary, videoId)
+        summaryContent.innerHTML = htmlSummary
+        setupSummaryTimestampHandlers(summaryContent, videoId)
     } else {
         // Show Generate button
         summaryContent.innerHTML = `
@@ -747,10 +900,11 @@ function setupSummaryTab(container, videoId) {
                 summaryContent.innerHTML = '<div class="youtube-transcript-summary-loading">Generating summary...</div>'
                 
                 try {
-                    const summary = await generateSummary(videoId)
-                    // Display summary (render as markdown)
-                    const htmlSummary = markdownToHtml(summary)
-                    summaryContent.innerHTML = `<div class="youtube-transcript-summary-text">${htmlSummary}</div>`
+                    const takeaways = await generateSummary(videoId)
+                    // Display summary (render as structured takeaways)
+                    const htmlSummary = renderSummaryTakeaways(takeaways, videoId)
+                    summaryContent.innerHTML = htmlSummary
+                    setupSummaryTimestampHandlers(summaryContent, videoId)
                 } catch (error) {
                     console.error('Error generating summary:', error)
                     const errorMessage = error instanceof Error ? error.message : String(error)

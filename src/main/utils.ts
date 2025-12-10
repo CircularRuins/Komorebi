@@ -732,7 +732,7 @@ export function setUtilsListeners(manager: WindowManager) {
     })
 
     // Handle request to generate transcript summary
-    ipcMain.handle("generate-transcript-summary", async (_, transcriptText: string) => {
+    ipcMain.handle("generate-transcript-summary", async (_, segments: Array<{text: string, start: number, duration: number}>) => {
         try {
             // Get Chat API config from store
             const apiEndpoint = store.get("aiChatApiEndpoint", "") as string
@@ -743,8 +743,8 @@ export function setUtilsListeners(manager: WindowManager) {
                 throw new Error("Chat API配置不完整，请先设置Chat API配置")
             }
 
-            if (!transcriptText || !transcriptText.trim()) {
-                throw new Error("字幕文本为空，无法生成摘要")
+            if (!segments || !Array.isArray(segments) || segments.length === 0) {
+                throw new Error("转录片段为空，无法生成摘要")
             }
 
             // Get current locale and convert to language name
@@ -762,7 +762,7 @@ export function setUtilsListeners(manager: WindowManager) {
                 model
             }
 
-            return await generateTranscriptSummary(transcriptText, config, targetLanguage)
+            return await generateTranscriptSummary(segments, config, targetLanguage)
         } catch (error: any) {
             if (error instanceof OpenAI.APIError) {
                 let errorMessage = error.message

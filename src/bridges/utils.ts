@@ -190,9 +190,9 @@ const utilsBridge = {
     },
 
     generateTranscriptSummary: async (
-        transcriptText: string
-    ): Promise<string> => {
-        return await ipcRenderer.invoke("generate-transcript-summary", transcriptText)
+        segments: Array<{text: string, start: number, duration: number}>
+    ): Promise<Array<{label: string, insight: string, timestamps: string[]}>> => {
+        return await ipcRenderer.invoke("generate-transcript-summary", segments)
     },
 
     getPreloadPath: (): string => {
