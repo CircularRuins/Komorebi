@@ -10,6 +10,46 @@ import { mergeSegmentsIntoSentences, TranscriptSegment } from "./youtube-transcr
 import OpenAI from "openai"
 import { store } from "./settings"
 import { translateTexts, TranslationConfig } from "../scripts/translation-utils"
+import { generateTranscriptSummary, ChatApiConfig } from "../scripts/chat-api-utils"
+
+// 语言名称映射（用于生成摘要）
+const localeToLanguageName: { [key: string]: string } = {
+    "en-US": "English",
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文",
+    "ja": "日本語",
+    "fr-FR": "Français",
+    "de": "Deutsch",
+    "es": "Español",
+    "it": "Italiano",
+    "pt-BR": "Português do Brasil",
+    "pt-PT": "Português de Portugal",
+    "ru": "Русский",
+    "ko": "한국어",
+    "nl": "Nederlands",
+    "sv": "Svenska",
+    "tr": "Türkçe",
+    "uk": "Українська",
+    "cs": "Čeština",
+    "fi-FI": "Suomi",
+}
+
+/**
+ * 获取目标语言名称
+ */
+function getTargetLanguageName(locale: string): string {
+    // 先尝试完整locale
+    if (localeToLanguageName[locale]) {
+        return localeToLanguageName[locale]
+    }
+    // 尝试只使用语言代码
+    const langCode = locale.split("-")[0]
+    if (localeToLanguageName[langCode]) {
+        return localeToLanguageName[langCode]
+    }
+    // 默认返回English
+    return "English"
+}
 
 export function setUtilsListeners(manager: WindowManager) {
     async function openExternal(url: string, background = false) {
@@ -688,6 +728,65 @@ export function setUtilsListeners(manager: WindowManager) {
             } else {
                 throw new Error(`翻译失败: ${String(error)}`)
             }
+        }
+    })
+
+    // Handle request to generate transcript summary
+    ipcMain.handle("generate-transcript-summary", async (_, transcriptText: string) => {
+        try {
+            // Get Chat API config from store
+            const apiEndpoint = store.get("aiChatApiEndpoint", "") as string
+            const apiKey = store.get("aiChatApiKey", "") as string
+            const model = store.get("aiModel", "") as string
+
+            if (!apiEndpoint || !apiKey || !model) {
+                throw new Error("Chat API配置不完整，请先设置Chat API配置")
+            }
+
+            if (!transcriptText || !transcriptText.trim()) {
+                throw new Error("字幕文本为空，无法生成摘要")
+            }
+
+            // Get current locale and convert to language name
+            const locale = store.get("locale", "en-US") as string
+            // Handle "default" locale (fallback to en-US)
+            const actualLocale = locale === "default" ? "en-US" : locale
+            const targetLanguage = getTargetLanguageName(actualLocale)
+            
+            // Debug: log locale and target language
+            console.log(`[Summary] Locale: ${locale}, Actual Locale: ${actualLocale}, Target Language: ${targetLanguage}`)
+
+            const config: ChatApiConfig = {
+                apiEndpoint,
+                apiKey,
+                model
+            }
+
+            return await generateTranscriptSummary(transcriptText, config, targetLanguage)
+        } catch (error: any) {
+            if (error instanceof OpenAI.APIError) {
+                let errorMessage = error.message
+                if (error.status === 404) {
+                    errorMessage = `404错误: 请求的URL不存在\n${error.message}\n\n请检查Chat API Endpoint是否正确`
+                } else if (error.status === 401) {
+                    errorMessage = `401错误: API密钥无效\n${error.message}\n\n请检查Chat API Key是否正确`
+                } else if (error.status === 429) {
+                    errorMessage = `429错误: 请求频率过高\n${error.message}\n\n请稍后再试`
+                }
+                throw new Error(errorMessage)
+            } else if (error instanceof Error) {
+                throw error
+            } else {
+                throw new Error(`生成摘要失败: ${String(error)}`)
+            }
+        }
+    })
+
+    // Handle request to open AI config page from webview
+    ipcMain.handle("open-ai-config", () => {
+        if (manager.hasWindow()) {
+            // Send message to main window to open AI config
+            manager.mainWindow.webContents.send("open-ai-config-request")
         }
     })
 }

@@ -352,8 +352,8 @@ article blockquote {
     color: #dc2626;
 }
 
-/* Chat UI Styles */
-.youtube-transcript-chat {
+/* Summary UI Styles */
+.youtube-transcript-summary {
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -362,44 +362,111 @@ article blockquote {
     box-sizing: border-box;
 }
 
-.youtube-transcript-chat-messages {
+.youtube-transcript-summary-content {
     flex: 1;
+    padding: 12px;
+    background-color: #ffffff;
     overflow-y: auto;
-    padding: 16px;
-    background-color: #fafafa;
+    box-sizing: border-box;
 }
 
-.youtube-transcript-chat-input-area {
-    display: flex;
-    gap: 8px;
-    padding: 12px 16px;
-    background-color: #ffffff;
-    border-top: 1px solid #e5e7eb;
-}
-
-.youtube-transcript-chat-input {
-    flex: 1;
-    padding: 10px 14px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 0.875rem;
+.youtube-transcript-summary-text {
     color: #374151;
-    outline: none;
-    transition: all 0.2s ease;
-    background-color: #ffffff;
+    font-size: 0.875rem;
+    line-height: 1.6;
 }
 
-.youtube-transcript-chat-input:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+/* Markdown styles for summary */
+.youtube-transcript-summary-text h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 16px 0 12px 0;
+    color: #1f2937;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 8px;
 }
 
-.youtube-transcript-chat-input::placeholder {
-    color: #9ca3af;
+.youtube-transcript-summary-text h2 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 14px 0 10px 0;
+    color: #1f2937;
 }
 
-.youtube-transcript-chat-send {
-    padding: 10px 20px;
+.youtube-transcript-summary-text h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 12px 0 8px 0;
+    color: #374151;
+}
+
+.youtube-transcript-summary-text p {
+    margin: 8px 0;
+    color: #374151;
+}
+
+.youtube-transcript-summary-text ul,
+.youtube-transcript-summary-text ol {
+    margin: 8px 0;
+    padding-left: 24px;
+}
+
+.youtube-transcript-summary-text li {
+    margin: 4px 0;
+    color: #374151;
+}
+
+.youtube-transcript-summary-text code {
+    background-color: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875em;
+    color: #dc2626;
+}
+
+.youtube-transcript-summary-text pre {
+    background-color: #f3f4f6;
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 12px 0;
+}
+
+.youtube-transcript-summary-text pre code {
+    background-color: transparent;
+    padding: 0;
+    color: #1f2937;
+}
+
+.youtube-transcript-summary-text a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.youtube-transcript-summary-text a:hover {
+    text-decoration: underline;
+}
+
+.youtube-transcript-summary-text strong {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.youtube-transcript-summary-text em {
+    font-style: italic;
+}
+
+.youtube-transcript-summary-empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+    padding: 24px;
+}
+
+.youtube-transcript-summary-generate {
+    padding: 12px 24px;
     background-color: var(--primary);
     color: #ffffff;
     border: none;
@@ -411,30 +478,69 @@ article blockquote {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.youtube-transcript-chat-send:hover {
+.youtube-transcript-summary-generate:hover:not(:disabled) {
     background-color: var(--primary-alt);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.youtube-transcript-chat-send:active {
+.youtube-transcript-summary-generate:active:not(:disabled) {
     background-color: #004578;
     transform: translateY(1px);
 }
 
-/* Scrollbar styling for chat messages */
-.youtube-transcript-chat-messages::-webkit-scrollbar {
+.youtube-transcript-summary-generate:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.youtube-transcript-summary-loading {
+    padding: 24px;
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.youtube-transcript-summary-error {
+    padding: 24px;
+    text-align: center;
+    color: #dc2626;
+    font-size: 0.875rem;
+}
+
+.youtube-transcript-summary-error > div {
+    margin-bottom: 16px;
+}
+
+.youtube-transcript-summary-retry {
+    padding: 8px 16px;
+    background-color: var(--primary);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.youtube-transcript-summary-retry:hover {
+    background-color: var(--primary-alt);
+}
+
+/* Scrollbar styling for summary content */
+.youtube-transcript-summary-content::-webkit-scrollbar {
     width: 6px;
 }
 
-.youtube-transcript-chat-messages::-webkit-scrollbar-track {
+.youtube-transcript-summary-content::-webkit-scrollbar-track {
     background: transparent;
 }
 
-.youtube-transcript-chat-messages::-webkit-scrollbar-thumb {
+.youtube-transcript-summary-content::-webkit-scrollbar-thumb {
     background: #d1d5db;
     border-radius: 3px;
 }
 
-.youtube-transcript-chat-messages::-webkit-scrollbar-thumb:hover {
+.youtube-transcript-summary-content::-webkit-scrollbar-thumb:hover {
     background: #9ca3af;
 }

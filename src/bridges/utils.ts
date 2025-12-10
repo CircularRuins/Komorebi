@@ -189,8 +189,29 @@ const utilsBridge = {
         return await ipcRenderer.invoke("translate-transcript", texts, targetLanguageCode)
     },
 
+    generateTranscriptSummary: async (
+        transcriptText: string
+    ): Promise<string> => {
+        return await ipcRenderer.invoke("generate-transcript-summary", transcriptText)
+    },
+
     getPreloadPath: (): string => {
         return ipcRenderer.sendSync("get-preload-path") as string
+    },
+
+    openAIConfig: async () => {
+        return await ipcRenderer.invoke("open-ai-config")
+    },
+
+    addOpenAIConfigRequestListener: (callback: () => void) => {
+        ipcRenderer.removeAllListeners("open-ai-config-request")
+        ipcRenderer.on("open-ai-config-request", () => {
+            callback()
+        })
+    },
+
+    removeOpenAIConfigRequestListener: () => {
+        ipcRenderer.removeAllListeners("open-ai-config-request")
     },
 }
 

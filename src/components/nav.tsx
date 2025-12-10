@@ -137,6 +137,13 @@ class Nav extends React.Component<NavProps, NavState> {
         document.addEventListener("keydown", this.navShortcutsHandler)
         if (window.utils.platform === "darwin")
             window.utils.addTouchBarEventsListener(this.navShortcutsHandler)
+        
+        // Listen for open-ai-config-request from main process (triggered from webview)
+        if (window.utils.addOpenAIConfigRequestListener) {
+            window.utils.addOpenAIConfigRequestListener(() => {
+                this.props.openAIConfig()
+            })
+        }
     }
     componentWillUnmount() {
         document.removeEventListener("keydown", this.navShortcutsHandler)
@@ -145,6 +152,11 @@ class Nav extends React.Component<NavProps, NavState> {
         }
         if (this.settingsMenuCloseTimer) {
             clearTimeout(this.settingsMenuCloseTimer)
+        }
+        
+        // Remove IPC listener
+        if (window.utils.removeOpenAIConfigRequestListener) {
+            window.utils.removeOpenAIConfigRequestListener()
         }
     }
 

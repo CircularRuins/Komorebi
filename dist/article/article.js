@@ -36,6 +36,8 @@ const transcriptSelectedLanguages = new Map() // Store selected language for eac
 const transcriptMenuOpen = new Map() // Store menu open state for each video
 const transcriptTranslations = new Map() // Store translations: Map<videoId, Map<languageCode, string[]>>
 const transcriptTranslating = new Map() // Store translating state for each video
+const lastScrollTarget = new Map() // Track last scroll target for each transcript to detect rapid changes
+const transcriptSummaries = new Map() // Store generated summaries: Map<videoId, string>
 
 function convertYouTubeLinks(html) {
     if (!html || typeof html !== 'string') return html || ''
@@ -532,8 +534,244 @@ function setupTabSwitching(container) {
                     content.style.display = 'none'
                 }
             })
+            
+            // Setup summary tab if switching to summary
+            if (targetTab === 'summary') {
+                // Extract videoId from container id
+                // Container id format: youtube-transcript-{index}
+                const containerId = container.id
+                const match = containerId.match(/youtube-transcript-(\d+)/)
+                if (match) {
+                    const playerIndex = parseInt(match[1])
+                    const playerId = `youtube-player-${playerIndex}`
+                    const videoId = youtubePlayers.get(playerId)
+                    if (videoId) {
+                        setupSummaryTab(container, videoId)
+                    }
+                }
+            }
         })
     })
+}
+
+/**
+ * Convert Markdown to HTML (simple implementation)
+ */
+function markdownToHtml(markdown) {
+    if (!markdown || !markdown.trim()) {
+        return ''
+    }
+    
+    let html = markdown
+    
+    // Escape HTML first
+    function escapeHtml(text) {
+        const div = document.createElement('div')
+        div.textContent = text
+        return div.innerHTML
+    }
+    
+    // Code blocks (process first to avoid conflicts)
+    const codeBlocks = []
+    html = html.replace(/```([\s\S]*?)```/g, (match, code) => {
+        const placeholder = `__CODE_BLOCK_${codeBlocks.length}__`
+        codeBlocks.push(`<pre><code>${escapeHtml(code.trim())}</code></pre>`)
+        return placeholder
+    })
+    
+    // Inline code
+    const inlineCodes = []
+    html = html.replace(/`([^`]+)`/g, (match, code) => {
+        const placeholder = `__INLINE_CODE_${inlineCodes.length}__`
+        inlineCodes.push(`<code>${escapeHtml(code)}</code>`)
+        return placeholder
+    })
+    
+    // Headings
+    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>')
+    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    
+    // Bold
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    html = html.replace(/__(.+?)__/g, '<strong>$1</strong>')
+    
+    // Italic
+    html = html.replace(/\b\*([^*\s][^*]*?[^*\s])\*\b/g, '<em>$1</em>')
+    html = html.replace(/\b_([^_\s][^_]*?[^_\s])_\b/g, '<em>$1</em>')
+    
+    // Links
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    
+    // Lists
+    const lines = html.split('\n')
+    const processedLines = []
+    let inList = false
+    let listItems = []
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        const trimmed = line.trim()
+        
+        const unorderedMatch = trimmed.match(/^[\*\-] (.+)$/)
+        const orderedMatch = trimmed.match(/^\d+\. (.+)$/)
+        
+        if (unorderedMatch || orderedMatch) {
+            if (!inList) {
+                inList = true
+                listItems = []
+            }
+            const content = unorderedMatch ? unorderedMatch[1] : orderedMatch[1]
+            listItems.push(`<li>${content}</li>`)
+        } else {
+            if (inList) {
+                processedLines.push(`<ul>${listItems.join('')}</ul>`)
+                inList = false
+                listItems = []
+            }
+            
+            if (!trimmed) {
+                processedLines.push('')
+            } else if (trimmed.startsWith('<h') || trimmed.startsWith('<pre') || trimmed.startsWith('<ul') || trimmed.startsWith('<ol')) {
+                processedLines.push(trimmed)
+            } else if (trimmed.startsWith('__CODE_BLOCK_') || trimmed.startsWith('__INLINE_CODE_')) {
+                processedLines.push(trimmed)
+            } else {
+                processedLines.push(`<p>${trimmed}</p>`)
+            }
+        }
+    }
+    
+    if (inList && listItems.length > 0) {
+        processedLines.push(`<ul>${listItems.join('')}</ul>`)
+    }
+    
+    html = processedLines.join('\n')
+    
+    // Restore code blocks and inline code
+    codeBlocks.forEach((code, index) => {
+        html = html.replace(`__CODE_BLOCK_${index}__`, code)
+    })
+    inlineCodes.forEach((code, index) => {
+        html = html.replace(`__INLINE_CODE_${index}__`, code)
+    })
+    
+    return html
+}
+
+/**
+ * Generate summary for video transcript
+ */
+async function generateSummary(videoId) {
+    // Check if summary already exists
+    if (transcriptSummaries.has(videoId)) {
+        return transcriptSummaries.get(videoId)
+    }
+    
+    // Get transcript data
+    const transcript = transcriptData.get(videoId)
+    if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
+        throw new Error('Transcript not available')
+    }
+    
+    // Check if utils bridge is available
+    if (typeof window === 'undefined' || !window.utils || !window.utils.generateTranscriptSummary) {
+        throw new Error('Utils bridge not available')
+    }
+    
+    // Extract text from transcript segments
+    const transcriptText = transcript.map(segment => segment.text).join(' ')
+    
+    // Call through IPC (same structure as translation)
+    try {
+        const summary = await window.utils.generateTranscriptSummary(transcriptText)
+        
+        if (!summary) {
+            throw new Error('Empty summary received from API')
+        }
+        
+        // Cache the summary
+        transcriptSummaries.set(videoId, summary)
+        
+        return summary
+    } catch (error) {
+        // Handle configuration incomplete error
+        if (error.message && error.message.includes('配置不完整')) {
+            if (window.utils && window.utils.showMessageBox) {
+                const openConfig = await window.utils.showMessageBox(
+                    'Chat API Configuration Incomplete',
+                    'Please configure Chat API settings first.',
+                    'Open Config',
+                    'Cancel',
+                    false,
+                    'warning'
+                )
+                if (openConfig && window.utils.openAIConfig) {
+                    await window.utils.openAIConfig()
+                }
+            }
+        }
+        throw error
+    }
+}
+
+/**
+ * Setup summary tab functionality
+ */
+function setupSummaryTab(container, videoId) {
+    const summaryContent = container.querySelector('.youtube-transcript-summary-content')
+    if (!summaryContent) return
+    
+    // Check if summary already exists
+    const existingSummary = transcriptSummaries.get(videoId)
+    
+    if (existingSummary) {
+        // Display existing summary (render as markdown)
+        const htmlSummary = markdownToHtml(existingSummary)
+        summaryContent.innerHTML = `<div class="youtube-transcript-summary-text">${htmlSummary}</div>`
+    } else {
+        // Show Generate button
+        summaryContent.innerHTML = `
+            <div class="youtube-transcript-summary-empty">
+                <button class="youtube-transcript-summary-generate">Generate Summary</button>
+            </div>
+        `
+        
+        // Setup Generate button click handler
+        const generateButton = summaryContent.querySelector('.youtube-transcript-summary-generate')
+        if (generateButton) {
+            generateButton.addEventListener('click', async () => {
+                // Disable button and show loading
+                generateButton.disabled = true
+                generateButton.textContent = 'Generating...'
+                summaryContent.innerHTML = '<div class="youtube-transcript-summary-loading">Generating summary...</div>'
+                
+                try {
+                    const summary = await generateSummary(videoId)
+                    // Display summary (render as markdown)
+                    const htmlSummary = markdownToHtml(summary)
+                    summaryContent.innerHTML = `<div class="youtube-transcript-summary-text">${htmlSummary}</div>`
+                } catch (error) {
+                    console.error('Error generating summary:', error)
+                    const errorMessage = error instanceof Error ? error.message : String(error)
+                    summaryContent.innerHTML = `
+                        <div class="youtube-transcript-summary-error">
+                            <div>Failed to generate summary: ${errorMessage}</div>
+                            <button class="youtube-transcript-summary-retry">Retry</button>
+                        </div>
+                    `
+                    
+                    // Setup retry button
+                    const retryButton = summaryContent.querySelector('.youtube-transcript-summary-retry')
+                    if (retryButton) {
+                        retryButton.addEventListener('click', () => {
+                            setupSummaryTab(container, videoId)
+                        })
+                    }
+                }
+            })
+        }
+    }
 }
 
 /**
@@ -589,10 +827,14 @@ function updateTranscriptSegment(videoId, currentTime) {
     }
     
     // Remove current class from all segments
+    const previousCurrentSegment = container.querySelector('.youtube-transcript-segment.current')
     segments.forEach(seg => seg.classList.remove('current'))
     
     // Add current class to the active segment and scroll
     if (currentSegment) {
+        // Check if this is a new segment (different from previous)
+        const isNewSegment = previousCurrentSegment !== currentSegment
+        
         // Ensure current class is added
         currentSegment.classList.add('current')
         
@@ -606,28 +848,60 @@ function updateTranscriptSegment(videoId, currentTime) {
         }
         
         // Calculate position to keep current segment at the top
-        const elementRect = currentSegment.getBoundingClientRect()
-        const viewportRect = transcriptContent.getBoundingClientRect()
+        // Force a reflow to ensure accurate measurements after class change
+        void currentSegment.offsetHeight
         
-        // Calculate element's position relative to the scroll container's content
         const currentScrollTop = transcriptContent.scrollTop
-        const elementTopInContent = elementRect.top - viewportRect.top + currentScrollTop
         
-        // Check if current segment is not at the top (with small tolerance for smooth scrolling)
+        // Use offsetTop for more reliable position calculation
+        // Calculate element's position relative to transcriptContent
+        let elementTopInContent = 0
+        let element = currentSegment
+        while (element && element !== transcriptContent) {
+            elementTopInContent += element.offsetTop
+            element = element.offsetParent
+        }
+        
+        // If offsetTop calculation failed, fallback to getBoundingClientRect
+        if (elementTopInContent === 0 || element !== transcriptContent) {
+            const elementRect = currentSegment.getBoundingClientRect()
+            const viewportRect = transcriptContent.getBoundingClientRect()
+            elementTopInContent = elementRect.top - viewportRect.top + currentScrollTop
+        }
+        
+        // Calculate target scroll position (accounting for padding)
         const padding = 12 // padding of .youtube-transcript-content
         const targetScrollTop = elementTopInContent - padding
-        const tolerance = 2
-        const isNotAtTop = Math.abs(currentScrollTop - targetScrollTop) > tolerance
         
-        // Always scroll to keep current segment at the top
-        if (isNotAtTop) {
-            // Use requestAnimationFrame for smoother scrolling
-            requestAnimationFrame(() => {
-                transcriptContent.scrollTo({
-                    top: Math.max(0, targetScrollTop),
-                    behavior: 'smooth'
-                })
+        // Always scroll when segment becomes current, especially if it's a new segment
+        // Use very small tolerance to ensure immediate response
+        const tolerance = 0.1
+        const scrollDistance = Math.abs(currentScrollTop - targetScrollTop)
+        const needsScroll = scrollDistance > tolerance || isNewSegment
+        
+        // Always scroll when it's a new segment or when position doesn't match
+        if (needsScroll) {
+            // Check if this is a rapid segment change
+            const lastTarget = lastScrollTarget.get(transcriptId)
+            const targetChanged = lastTarget === undefined || Math.abs(lastTarget - targetScrollTop) > 10 || isNewSegment
+            
+            // If target changed or it's a new segment, cancel any ongoing scroll immediately
+            if (targetChanged && lastTarget !== undefined) {
+                // Cancel ongoing smooth scroll
+                transcriptContent.scrollTop = currentScrollTop
+            }
+            
+            // Update last scroll target
+            lastScrollTarget.set(transcriptId, targetScrollTop)
+            
+            // Immediately start smooth scroll
+            transcriptContent.scrollTo({
+                top: Math.max(0, targetScrollTop),
+                behavior: 'smooth'
             })
+        } else {
+            // Update last target even if no scroll needed
+            lastScrollTarget.set(transcriptId, targetScrollTop)
         }
     }
 }
@@ -760,14 +1034,14 @@ async function renderTranscript(containerId, videoId) {
     if (!container) return
     
     // Show loading state with tabs
-    container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="chat">Chat</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-loading">Loading transcript...</div></div></div><div class="youtube-transcript-tab-content" data-content="chat" style="display: none;"><div class="youtube-transcript-chat"><div class="youtube-transcript-chat-messages"></div><div class="youtube-transcript-chat-input-area"><input type="text" class="youtube-transcript-chat-input" placeholder="Type your message..."><button class="youtube-transcript-chat-send">Send</button></div></div></div></div>'
+    container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">Summary</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-loading">Loading transcript...</div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div></div>'
     
     // Fetch transcript from YouTube
     const transcript = await fetchYouTubeTranscript(videoId)
     
     // If transcript fetch failed, show error message
     if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
-        container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="chat">Chat</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-error">Transcript not available for this video.</div></div></div><div class="youtube-transcript-tab-content" data-content="chat" style="display: none;"><div class="youtube-transcript-chat"><div class="youtube-transcript-chat-messages"></div><div class="youtube-transcript-chat-input-area"><input type="text" class="youtube-transcript-chat-input" placeholder="Type your message..."><button class="youtube-transcript-chat-send">Send</button></div></div></div></div>'
+        container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">Summary</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-error">Transcript not available for this video.</div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div></div>'
         setupTabSwitching(container)
         setupTranscriptLanguageMenu(container, videoId)
         return
@@ -780,18 +1054,14 @@ async function renderTranscript(containerId, videoId) {
     let transcriptHTML = '<div class="youtube-transcript">'
     transcriptHTML += '<div class="youtube-transcript-tabs">'
     transcriptHTML += '<button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>'
-    transcriptHTML += '<button class="youtube-transcript-tab" data-tab="chat">Chat</button>'
+    transcriptHTML += '<button class="youtube-transcript-tab" data-tab="summary">Summary</button>'
     transcriptHTML += '</div>'
     transcriptHTML += '<div class="youtube-transcript-tab-content" data-content="transcript">'
     transcriptHTML += '<div class="youtube-transcript-content"></div>'
     transcriptHTML += '</div>'
-    transcriptHTML += '<div class="youtube-transcript-tab-content" data-content="chat" style="display: none;">'
-    transcriptHTML += '<div class="youtube-transcript-chat">'
-    transcriptHTML += '<div class="youtube-transcript-chat-messages"></div>'
-    transcriptHTML += '<div class="youtube-transcript-chat-input-area">'
-    transcriptHTML += '<input type="text" class="youtube-transcript-chat-input" placeholder="Type your message...">'
-    transcriptHTML += '<button class="youtube-transcript-chat-send">Send</button>'
-    transcriptHTML += '</div>'
+    transcriptHTML += '<div class="youtube-transcript-tab-content" data-content="summary" style="display: none;">'
+    transcriptHTML += '<div class="youtube-transcript-summary">'
+    transcriptHTML += '<div class="youtube-transcript-summary-content"></div>'
     transcriptHTML += '</div>'
     transcriptHTML += '</div>'
     transcriptHTML += '</div>'
