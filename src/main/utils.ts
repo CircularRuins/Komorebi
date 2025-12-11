@@ -10,20 +10,24 @@ import { mergeSegmentsIntoSentences, TranscriptSegment } from "./youtube-transcr
 import OpenAI from "openai"
 import { store } from "./settings"
 import { translateTexts, TranslationConfig } from "../scripts/translation-utils"
-import { generateTranscriptSummary, ChatApiConfig } from "../scripts/chat-api-utils"
+import { generateTranscriptSummary, generateJuiciestQuotes, ChatApiConfig } from "../scripts/chat-api-utils"
 
 // 语言名称映射（用于生成摘要）
 const localeToLanguageName: { [key: string]: string } = {
     "en-US": "English",
+    "en": "English",
     "zh-CN": "简体中文",
     "zh-TW": "繁體中文",
+    "zh": "简体中文", // 默认中文使用简体
     "ja": "日本語",
     "fr-FR": "Français",
+    "fr": "Français",
     "de": "Deutsch",
     "es": "Español",
     "it": "Italiano",
     "pt-BR": "Português do Brasil",
     "pt-PT": "Português de Portugal",
+    "pt": "Português do Brasil", // 默认葡萄牙语使用巴西葡萄牙语
     "ru": "Русский",
     "ko": "한국어",
     "nl": "Nederlands",
@@ -32,6 +36,7 @@ const localeToLanguageName: { [key: string]: string } = {
     "uk": "Українська",
     "cs": "Čeština",
     "fi-FI": "Suomi",
+    "fi": "Suomi",
 }
 
 /**
@@ -732,7 +737,7 @@ export function setUtilsListeners(manager: WindowManager) {
     })
 
     // Handle request to generate transcript summary
-    ipcMain.handle("generate-transcript-summary", async (_, segments: Array<{text: string, start: number, duration: number}>) => {
+    ipcMain.handle("generate-transcript-summary", async (_, segments: Array<{text: string, start: number, duration: number}>, snippet?: string) => {
         try {
             // Get Chat API config from store
             const apiEndpoint = store.get("aiChatApiEndpoint", "") as string
@@ -748,13 +753,13 @@ export function setUtilsListeners(manager: WindowManager) {
             }
 
             // Get current locale and convert to language name
-            const locale = store.get("locale", "en-US") as string
-            // Handle "default" locale (fallback to en-US)
-            const actualLocale = locale === "default" ? "en-US" : locale
+            const localeSetting = store.get("locale", "default") as string
+            // Handle "default" locale (use system locale)
+            const actualLocale = localeSetting === "default" ? app.getLocale() : localeSetting
             const targetLanguage = getTargetLanguageName(actualLocale)
             
             // Debug: log locale and target language
-            console.log(`[Summary] Locale: ${locale}, Actual Locale: ${actualLocale}, Target Language: ${targetLanguage}`)
+            console.log(`[Summary] Locale Setting: ${localeSetting}, Actual Locale: ${actualLocale}, Target Language: ${targetLanguage}`)
 
             const config: ChatApiConfig = {
                 apiEndpoint,
@@ -762,7 +767,7 @@ export function setUtilsListeners(manager: WindowManager) {
                 model
             }
 
-            return await generateTranscriptSummary(segments, config, targetLanguage)
+            return await generateTranscriptSummary(segments, config, targetLanguage, snippet)
         } catch (error: any) {
             if (error instanceof OpenAI.APIError) {
                 let errorMessage = error.message
@@ -778,6 +783,57 @@ export function setUtilsListeners(manager: WindowManager) {
                 throw error
             } else {
                 throw new Error(`生成摘要失败: ${String(error)}`)
+            }
+        }
+    })
+
+    // Handle request to generate juiciest quotes
+    ipcMain.handle("generate-juiciest-quotes", async (_, segments: Array<{text: string, start: number, duration: number}>, snippet?: string) => {
+        try {
+            // Get Chat API config from store
+            const apiEndpoint = store.get("aiChatApiEndpoint", "") as string
+            const apiKey = store.get("aiChatApiKey", "") as string
+            const model = store.get("aiModel", "") as string
+
+            if (!apiEndpoint || !apiKey || !model) {
+                throw new Error("Chat API配置不完整，请先设置Chat API配置")
+            }
+
+            if (!segments || !Array.isArray(segments) || segments.length === 0) {
+                throw new Error("转录片段为空，无法生成引用")
+            }
+
+            // Get current locale and convert to language name
+            const locale = store.get("locale", "en-US") as string
+            // Handle "default" locale (fallback to en-US)
+            const actualLocale = locale === "default" ? "en-US" : locale
+            const targetLanguage = getTargetLanguageName(actualLocale)
+            
+            // Debug: log locale and target language
+            console.log(`[Quotes] Locale: ${locale}, Actual Locale: ${actualLocale}, Target Language: ${targetLanguage}`)
+
+            const config: ChatApiConfig = {
+                apiEndpoint,
+                apiKey,
+                model
+            }
+
+            return await generateJuiciestQuotes(segments, config, targetLanguage, snippet)
+        } catch (error: any) {
+            if (error instanceof OpenAI.APIError) {
+                let errorMessage = error.message
+                if (error.status === 404) {
+                    errorMessage = `404错误: 请求的URL不存在\n${error.message}\n\n请检查Chat API Endpoint是否正确`
+                } else if (error.status === 401) {
+                    errorMessage = `401错误: API密钥无效\n${error.message}\n\n请检查Chat API Key是否正确`
+                } else if (error.status === 429) {
+                    errorMessage = `429错误: 请求频率过高\n${error.message}\n\n请稍后再试`
+                }
+                throw new Error(errorMessage)
+            } else if (error instanceof Error) {
+                throw error
+            } else {
+                throw new Error(`生成引用失败: ${String(error)}`)
             }
         }
     })

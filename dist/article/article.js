@@ -38,6 +38,7 @@ const transcriptTranslations = new Map() // Store translations: Map<videoId, Map
 const transcriptTranslating = new Map() // Store translating state for each video
 const lastScrollTarget = new Map() // Track last scroll target for each transcript to detect rapid changes
 const transcriptSummaries = new Map() // Store generated summaries: Map<videoId, string>
+const transcriptQuotes = new Map() // Store generated quotes: Map<videoId, Array<{quote: string, timestamp: string, speaker?: string}>>
 
 function convertYouTubeLinks(html) {
     if (!html || typeof html !== 'string') return html || ''
@@ -550,6 +551,21 @@ function setupTabSwitching(container) {
                     }
                 }
             }
+            
+            // Setup quotes tab if switching to quotes
+            if (targetTab === 'quotes') {
+                // Extract videoId from container id
+                const containerId = container.id
+                const match = containerId.match(/youtube-transcript-(\d+)/)
+                if (match) {
+                    const playerIndex = parseInt(match[1])
+                    const playerId = `youtube-player-${playerIndex}`
+                    const videoId = youtubePlayers.get(playerId)
+                    if (videoId) {
+                        setupQuotesTab(container, videoId)
+                    }
+                }
+            }
         })
     })
 }
@@ -755,51 +771,183 @@ function handleTimestampClick(videoId, timestamp) {
 }
 
 /**
- * Render summary takeaways as HTML
+ * Get summary section titles based on locale
  */
-function renderSummaryTakeaways(takeaways, videoId) {
-    if (!takeaways || !Array.isArray(takeaways) || takeaways.length === 0) {
+function getSummaryTitles(locale) {
+    // Default to English
+    const defaultTitles = {
+        overview: 'Overview',
+        takeaways: 'Key Takeaways'
+    }
+    
+    // Language mappings
+    const titleMappings = {
+        'zh-CN': {
+            overview: '摘要速览',
+            takeaways: '重点提要'
+        },
+        'zh-TW': {
+            overview: '摘要速覽',
+            takeaways: '重點提要'
+        },
+        'ja': {
+            overview: '概要',
+            takeaways: '重要なポイント'
+        },
+        'fr-FR': {
+            overview: 'Aperçu',
+            takeaways: 'Points clés'
+        },
+        'fr': {
+            overview: 'Aperçu',
+            takeaways: 'Points clés'
+        },
+        'de': {
+            overview: 'Übersicht',
+            takeaways: 'Wichtige Punkte'
+        },
+        'es': {
+            overview: 'Resumen',
+            takeaways: 'Puntos clave'
+        },
+        'it': {
+            overview: 'Panoramica',
+            takeaways: 'Punti chiave'
+        },
+        'pt-BR': {
+            overview: 'Visão geral',
+            takeaways: 'Principais pontos'
+        },
+        'pt-PT': {
+            overview: 'Visão geral',
+            takeaways: 'Principais pontos'
+        },
+        'pt': {
+            overview: 'Visão geral',
+            takeaways: 'Principais pontos'
+        },
+        'ru': {
+            overview: 'Обзор',
+            takeaways: 'Ключевые моменты'
+        },
+        'ko': {
+            overview: '개요',
+            takeaways: '핵심 요점'
+        },
+        'nl': {
+            overview: 'Overzicht',
+            takeaways: 'Belangrijke punten'
+        },
+        'sv': {
+            overview: 'Översikt',
+            takeaways: 'Viktiga punkter'
+        },
+        'tr': {
+            overview: 'Genel Bakış',
+            takeaways: 'Önemli Noktalar'
+        },
+        'uk': {
+            overview: 'Огляд',
+            takeaways: 'Ключові моменти'
+        },
+        'cs': {
+            overview: 'Přehled',
+            takeaways: 'Klíčové body'
+        },
+        'fi-FI': {
+            overview: 'Yleiskatsaus',
+            takeaways: 'Tärkeät kohdat'
+        },
+        'fi': {
+            overview: 'Yleiskatsaus',
+            takeaways: 'Tärkeät kohdat'
+        }
+    }
+    
+    if (!locale) {
+        return defaultTitles
+    }
+    
+    // Try full locale first
+    if (titleMappings[locale]) {
+        return titleMappings[locale]
+    }
+    
+    // Try language code only
+    const langCode = locale.split('-')[0]
+    if (titleMappings[langCode]) {
+        return titleMappings[langCode]
+    }
+    
+    return defaultTitles
+}
+
+/**
+ * Render summary as HTML (overview + takeaways)
+ */
+function renderSummaryTakeaways(summary, videoId) {
+    // Handle both old format (array) and new format (object with overview and takeaways)
+    let overview = ''
+    let takeaways = []
+    
+    if (summary && typeof summary === 'object') {
+        if (Array.isArray(summary)) {
+            // Old format: just array of takeaways
+            takeaways = summary
+        } else if (summary.overview && summary.takeaways) {
+            // New format: object with overview and takeaways
+            overview = summary.overview
+            takeaways = Array.isArray(summary.takeaways) ? summary.takeaways : []
+        } else {
+            return '<div class="youtube-transcript-summary-text">No summary available.</div>'
+        }
+    } else {
+        return '<div class="youtube-transcript-summary-text">No summary available.</div>'
+    }
+    
+    if (!takeaways || takeaways.length === 0) {
         return '<div class="youtube-transcript-summary-text">No takeaways available.</div>'
     }
     
-    // Play icon SVG (matching TLDW style)
-    const playIconSvg = '<svg class="youtube-transcript-summary-timestamp-icon" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 2.5L9.5 6L2.5 9.5V2.5Z" fill="currentColor"/></svg>'
+    // Get locale from URL parameter
+    const locale = get('l') || 'en-US'
+    const titles = getSummaryTitles(locale)
     
     let html = '<div class="youtube-transcript-summary-text">'
-    html += '<ul class="youtube-transcript-summary-list">'
+    
+    // Render overview section
+    if (overview) {
+        html += '<div class="youtube-transcript-summary-overview">'
+        html += `<h3 class="youtube-transcript-summary-overview-title">${escapeHtml(titles.overview)}</h3>`
+        html += `<p class="youtube-transcript-summary-overview-content">${escapeHtml(overview)}</p>`
+        html += '</div>'
+    }
+    
+    // Render takeaways section
+    html += '<div class="youtube-transcript-summary-takeaways">'
+    html += `<h3 class="youtube-transcript-summary-takeaways-title">${escapeHtml(titles.takeaways)}</h3>`
+    html += '<div class="youtube-transcript-summary-takeaways-content">'
     
     takeaways.forEach((takeaway, index) => {
-        html += '<li class="youtube-transcript-summary-item">'
+        html += '<div class="youtube-transcript-summary-takeaway-item">'
         html += `<strong class="youtube-transcript-summary-label">${escapeHtml(takeaway.label)}</strong>`
         html += `<span class="youtube-transcript-summary-insight">${escapeHtml(takeaway.insight)}</span>`
-        
-        if (takeaway.timestamps && takeaway.timestamps.length > 0) {
-            html += '<div class="youtube-transcript-summary-timestamps">'
-            takeaway.timestamps.forEach((timestamp, tsIndex) => {
-                html += `<button class="youtube-transcript-summary-timestamp" data-video-id="${videoId}" data-timestamp="${timestamp}" type="button">`
-                html += playIconSvg
-                html += `<span>${escapeHtml(timestamp)}</span>`
-                html += '</button>'
-                if (tsIndex < takeaway.timestamps.length - 1) {
-                    html += ' '
-                }
-            })
-            html += '</div>'
-        }
-        
-        html += '</li>'
+        html += '</div>'
     })
     
-    html += '</ul>'
+    html += '</div>'
+    html += '</div>'
     html += '</div>'
     
     return html
 }
 
 /**
- * Setup timestamp click handlers for summary
+ * Setup timestamp click handlers for summary (no longer needed, but kept for backward compatibility)
  */
 function setupSummaryTimestampHandlers(container, videoId) {
+    // No longer needed since we removed timestamps from takeaways
+    // But kept for backward compatibility in case old summaries are cached
     const timestampButtons = container.querySelectorAll('.youtube-transcript-summary-timestamp')
     timestampButtons.forEach(button => {
         button.addEventListener('click', (e) => {
@@ -834,18 +982,21 @@ async function generateSummary(videoId) {
         throw new Error('Utils bridge not available')
     }
     
-    // Pass transcript segments directly (not just text)
+    // Extract article snippet
+    const snippet = extractArticleSnippet()
+    
+    // Pass transcript segments and snippet
     try {
-        const takeaways = await window.utils.generateTranscriptSummary(transcript)
+        const summary = await window.utils.generateTranscriptSummary(transcript, snippet)
         
-        if (!takeaways || !Array.isArray(takeaways) || takeaways.length === 0) {
+        if (!summary || !summary.overview || !summary.takeaways || !Array.isArray(summary.takeaways) || summary.takeaways.length === 0) {
             throw new Error('Empty summary received from API')
         }
         
         // Cache the summary
-        transcriptSummaries.set(videoId, takeaways)
+        transcriptSummaries.set(videoId, summary)
         
-        return takeaways
+        return summary
     } catch (error) {
         // Handle configuration incomplete error
         if (error.message && error.message.includes('配置不完整')) {
@@ -864,6 +1015,217 @@ async function generateSummary(videoId) {
             }
         }
         throw error
+    }
+}
+
+/**
+ * Render quotes as HTML
+ */
+function renderQuotes(quotes, videoId) {
+    if (!quotes || !Array.isArray(quotes) || quotes.length === 0) {
+        return '<div class="youtube-transcript-quotes-text">No quotes available.</div>'
+    }
+    
+    // Play icon SVG (matching TLDW style)
+    const playIconSvg = '<svg class="youtube-transcript-quote-timestamp-icon" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 2.5L9.5 6L2.5 9.5V2.5Z" fill="currentColor"/></svg>'
+    
+    let html = '<div class="youtube-transcript-quotes-text">'
+    html += '<ul class="youtube-transcript-quotes-list">'
+    
+    quotes.forEach((quoteItem, index) => {
+        html += '<li class="youtube-transcript-quote-item">'
+        
+        // Show speaker if available
+        if (quoteItem.speaker && quoteItem.speaker.trim()) {
+            html += `<div class="youtube-transcript-quote-speaker">${escapeHtml(quoteItem.speaker)}</div>`
+        }
+        
+        html += `<blockquote class="youtube-transcript-quote-text">"${escapeHtml(quoteItem.quote)}"</blockquote>`
+        
+        // Show timestamp button
+        if (quoteItem.timestamp) {
+            html += '<div class="youtube-transcript-quote-timestamp-wrapper">'
+            html += `<button class="youtube-transcript-quote-timestamp" data-video-id="${videoId}" data-timestamp="${quoteItem.timestamp}" type="button">`
+            html += playIconSvg
+            html += `<span>${escapeHtml(quoteItem.timestamp)}</span>`
+            html += '</button>'
+            html += '</div>'
+        }
+        
+        html += '</li>'
+    })
+    
+    html += '</ul>'
+    html += '</div>'
+    
+    return html
+}
+
+/**
+ * Setup timestamp click handlers for quotes
+ */
+function setupQuotesTimestampHandlers(container, videoId) {
+    const timestampButtons = container.querySelectorAll('.youtube-transcript-quote-timestamp')
+    timestampButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            const timestamp = button.getAttribute('data-timestamp')
+            const buttonVideoId = button.getAttribute('data-video-id')
+            if (timestamp && buttonVideoId === videoId) {
+                handleTimestampClick(videoId, timestamp)
+            }
+        })
+    })
+}
+
+/**
+ * Extract snippet from article content
+ */
+function extractArticleSnippet() {
+    try {
+        // Try to get article content from URL parameter
+        const articleContent = get("a")
+        if (articleContent) {
+            // Decode the article content
+            const decodedContent = decodeURIComponent(articleContent)
+            // Remove HTML tags and get text
+            const tempDiv = document.createElement('div')
+            tempDiv.innerHTML = decodedContent
+            const textContent = tempDiv.textContent || tempDiv.innerText || ''
+            // Get first 500 characters as snippet
+            return textContent.trim().substring(0, 500)
+        }
+        
+        // Fallback: try to get from DOM
+        const mainElement = document.getElementById('main')
+        if (mainElement) {
+            const articleElement = mainElement.querySelector('article')
+            if (articleElement) {
+                const textContent = articleElement.textContent || articleElement.innerText || ''
+                return textContent.trim().substring(0, 500)
+            }
+        }
+    } catch (error) {
+        console.warn('Failed to extract article snippet:', error)
+    }
+    return undefined
+}
+
+/**
+ * Generate quotes for video transcript
+ */
+async function generateQuotes(videoId) {
+    // Check if quotes already exists
+    if (transcriptQuotes.has(videoId)) {
+        return transcriptQuotes.get(videoId)
+    }
+    
+    // Get transcript data
+    const transcript = transcriptData.get(videoId)
+    if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
+        throw new Error('Transcript not available')
+    }
+    
+    // Check if utils bridge is available
+    if (typeof window === 'undefined' || !window.utils || !window.utils.generateJuiciestQuotes) {
+        throw new Error('Utils bridge not available')
+    }
+    
+    // Extract article snippet
+    const snippet = extractArticleSnippet()
+    
+    // Pass transcript segments and snippet
+    try {
+        const quotes = await window.utils.generateJuiciestQuotes(transcript, snippet)
+        
+        if (!quotes || !Array.isArray(quotes) || quotes.length === 0) {
+            throw new Error('Empty quotes received from API')
+        }
+        
+        // Cache the quotes
+        transcriptQuotes.set(videoId, quotes)
+        
+        return quotes
+    } catch (error) {
+        // Handle configuration incomplete error
+        if (error.message && error.message.includes('配置不完整')) {
+            if (window.utils && window.utils.showMessageBox) {
+                const openConfig = await window.utils.showMessageBox(
+                    'Chat API Configuration Incomplete',
+                    'Please configure Chat API settings first.',
+                    'Open Config',
+                    'Cancel',
+                    false,
+                    'warning'
+                )
+                if (openConfig && window.utils.openAIConfig) {
+                    await window.utils.openAIConfig()
+                }
+            }
+        }
+        throw error
+    }
+}
+
+/**
+ * Setup quotes tab functionality
+ */
+function setupQuotesTab(container, videoId) {
+    const quotesContent = container.querySelector('.youtube-transcript-quotes-content')
+    if (!quotesContent) return
+    
+    // Check if quotes already exists
+    const existingQuotes = transcriptQuotes.get(videoId)
+    
+    if (existingQuotes) {
+        // Display existing quotes
+        const htmlQuotes = renderQuotes(existingQuotes, videoId)
+        quotesContent.innerHTML = htmlQuotes
+        setupQuotesTimestampHandlers(quotesContent, videoId)
+    } else {
+        // Show Generate button
+        quotesContent.innerHTML = `
+            <div class="youtube-transcript-quotes-empty">
+                <button class="youtube-transcript-quotes-generate">Generate Quotes</button>
+            </div>
+        `
+        
+        // Setup Generate button click handler
+        const generateButton = quotesContent.querySelector('.youtube-transcript-quotes-generate')
+        if (generateButton) {
+            generateButton.addEventListener('click', async () => {
+                // Disable button and show loading
+                generateButton.disabled = true
+                generateButton.textContent = 'Generating...'
+                quotesContent.innerHTML = '<div class="youtube-transcript-quotes-loading">Generating quotes...</div>'
+                
+                try {
+                    const quotes = await generateQuotes(videoId)
+                    // Display quotes
+                    const htmlQuotes = renderQuotes(quotes, videoId)
+                    quotesContent.innerHTML = htmlQuotes
+                    setupQuotesTimestampHandlers(quotesContent, videoId)
+                } catch (error) {
+                    console.error('Error generating quotes:', error)
+                    const errorMessage = error instanceof Error ? error.message : String(error)
+                    quotesContent.innerHTML = `
+                        <div class="youtube-transcript-quotes-error">
+                            <div>Failed to generate quotes: ${errorMessage}</div>
+                            <button class="youtube-transcript-quotes-retry">Retry</button>
+                        </div>
+                    `
+                    
+                    // Setup retry button
+                    const retryButton = quotesContent.querySelector('.youtube-transcript-quotes-retry')
+                    if (retryButton) {
+                        retryButton.addEventListener('click', () => {
+                            setupQuotesTab(container, videoId)
+                        })
+                    }
+                }
+            })
+        }
     }
 }
 
@@ -1188,14 +1550,14 @@ async function renderTranscript(containerId, videoId) {
     if (!container) return
     
     // Show loading state with tabs
-    container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">Summary</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-loading">Loading transcript...</div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div></div>'
+    container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">AI Summary</button><button class="youtube-transcript-tab" data-tab="quotes">Quotes</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-loading">Loading transcript...</div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="quotes" style="display: none;"><div class="youtube-transcript-quotes"><div class="youtube-transcript-quotes-content"></div></div></div></div>'
     
     // Fetch transcript from YouTube
     const transcript = await fetchYouTubeTranscript(videoId)
     
     // If transcript fetch failed, show error message
     if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
-        container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">Summary</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-error">Transcript not available for this video.</div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div></div>'
+        container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">AI Summary</button><button class="youtube-transcript-tab" data-tab="quotes">Quotes</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-error">Transcript not available for this video.</div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="quotes" style="display: none;"><div class="youtube-transcript-quotes"><div class="youtube-transcript-quotes-content"></div></div></div></div>'
         setupTabSwitching(container)
         setupTranscriptLanguageMenu(container, videoId)
         return
@@ -1208,7 +1570,8 @@ async function renderTranscript(containerId, videoId) {
     let transcriptHTML = '<div class="youtube-transcript">'
     transcriptHTML += '<div class="youtube-transcript-tabs">'
     transcriptHTML += '<button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>'
-    transcriptHTML += '<button class="youtube-transcript-tab" data-tab="summary">Summary</button>'
+    transcriptHTML += '<button class="youtube-transcript-tab" data-tab="summary">AI Summary</button>'
+    transcriptHTML += '<button class="youtube-transcript-tab" data-tab="quotes">Quotes</button>'
     transcriptHTML += '</div>'
     transcriptHTML += '<div class="youtube-transcript-tab-content" data-content="transcript">'
     transcriptHTML += '<div class="youtube-transcript-content"></div>'
@@ -1216,6 +1579,11 @@ async function renderTranscript(containerId, videoId) {
     transcriptHTML += '<div class="youtube-transcript-tab-content" data-content="summary" style="display: none;">'
     transcriptHTML += '<div class="youtube-transcript-summary">'
     transcriptHTML += '<div class="youtube-transcript-summary-content"></div>'
+    transcriptHTML += '</div>'
+    transcriptHTML += '</div>'
+    transcriptHTML += '<div class="youtube-transcript-tab-content" data-content="quotes" style="display: none;">'
+    transcriptHTML += '<div class="youtube-transcript-quotes">'
+    transcriptHTML += '<div class="youtube-transcript-quotes-content"></div>'
     transcriptHTML += '</div>'
     transcriptHTML += '</div>'
     transcriptHTML += '</div>'
@@ -1417,3 +1785,4 @@ window.addEventListener('beforeunload', () => {
     // Clean up player instances
     playerInstances.clear()
 })
+

@@ -357,7 +357,7 @@ article blockquote {
     display: flex;
     flex-direction: column;
     width: 100%;
-    aspect-ratio: 3 / 1;
+    aspect-ratio: 1 / 0.8;
     background-color: #ffffff;
     box-sizing: border-box;
 }
@@ -457,34 +457,97 @@ article blockquote {
     font-style: italic;
 }
 
-.youtube-transcript-summary-list {
-    list-style: none;
+/* Overview section styles */
+.youtube-transcript-summary-overview {
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.youtube-transcript-summary-overview-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: #1f2937;
+}
+
+.youtube-transcript-summary-overview-content {
+    margin: 0;
+    color: #374151;
+    line-height: 1.6;
+    font-size: 0.875rem;
+}
+
+/* Takeaways section styles */
+.youtube-transcript-summary-takeaways {
+    margin-top: 0;
+}
+
+.youtube-transcript-summary-takeaways-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+    color: #1f2937;
+}
+
+.youtube-transcript-summary-takeaways-content {
     padding: 0;
     margin: 0;
 }
 
-.youtube-transcript-summary-item {
-    margin-bottom: 20px;
-    padding: 12px;
-    border-left: 3px solid #007bff;
-    background-color: rgba(0, 123, 255, 0.05);
-    border-radius: 4px;
+.youtube-transcript-summary-takeaway-item {
+    margin-bottom: 12px;
+    padding-left: 20px;
+    position: relative;
+}
+
+.youtube-transcript-summary-takeaway-item::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: #007bff;
+    font-weight: bold;
+    font-size: 18px;
+    line-height: 1.2;
 }
 
 .youtube-transcript-summary-label {
-    display: block;
+    display: inline;
     font-size: 14px;
     font-weight: 600;
     color: #333;
-    margin-bottom: 8px;
+    margin-right: 8px;
 }
 
 .youtube-transcript-summary-insight {
-    display: block;
+    display: inline;
     font-size: 13px;
     color: #666;
-    line-height: 1.5;
-    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+.youtube-transcript-summary-quote {
+    margin: 8px 0;
+    padding: 10px 14px;
+    background-color: #f9fafb;
+    border-left: 3px solid #3b82f6;
+    border-radius: 4px;
+    color: #1f2937;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    font-style: italic;
+    position: relative;
+}
+
+.youtube-transcript-summary-quote::before {
+    content: '"';
+    font-size: 1.5em;
+    color: #3b82f6;
+    line-height: 0;
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    opacity: 0.3;
 }
 
 .youtube-transcript-summary-timestamps {
@@ -612,5 +675,197 @@ article blockquote {
 }
 
 .youtube-transcript-summary-content::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Quotes UI Styles */
+.youtube-transcript-quotes {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    aspect-ratio: 1 / 0.8;
+    background-color: #ffffff;
+    box-sizing: border-box;
+}
+
+.youtube-transcript-quotes-content {
+    flex: 1;
+    padding: 12px;
+    background-color: #ffffff;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.youtube-transcript-quotes-text {
+    color: #374151;
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+.youtube-transcript-quotes-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.youtube-transcript-quote-item {
+    margin-bottom: 24px;
+    padding: 16px;
+    background-color: #f9fafb;
+    border-left: 4px solid #3b82f6;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.youtube-transcript-quote-item:hover {
+    background-color: #f3f4f6;
+}
+
+.youtube-transcript-quote-text {
+    margin: 0 0 12px 0;
+    padding: 0;
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: #1f2937;
+    font-style: italic;
+    font-weight: 500;
+    border: none;
+}
+
+.youtube-transcript-quote-speaker {
+    font-size: 0.8125rem;
+    color: #3b82f6;
+    line-height: 1.5;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-style: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.youtube-transcript-quote-timestamp-wrapper {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+}
+
+.youtube-transcript-quote-timestamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background-color: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 9999px;
+    color: #3b82f6;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+    vertical-align: baseline;
+    pointer-events: auto;
+}
+
+.youtube-transcript-quote-timestamp:hover {
+    background-color: rgba(59, 130, 246, 0.2);
+    color: #2563eb;
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+.youtube-transcript-quote-timestamp:active {
+    transform: translateY(0);
+}
+
+.youtube-transcript-quote-timestamp-icon {
+    width: 12px;
+    height: 12px;
+    fill: currentColor;
+    flex-shrink: 0;
+}
+
+.youtube-transcript-quotes-empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+    padding: 24px;
+}
+
+.youtube-transcript-quotes-generate {
+    padding: 12px 24px;
+    background-color: var(--primary);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.youtube-transcript-quotes-generate:hover:not(:disabled) {
+    background-color: #2563eb;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.youtube-transcript-quotes-generate:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.youtube-transcript-quotes-generate:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.youtube-transcript-quotes-loading {
+    padding: 24px 16px;
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.youtube-transcript-quotes-error {
+    padding: 24px 16px;
+    text-align: center;
+    color: #dc2626;
+    font-size: 0.875rem;
+}
+
+.youtube-transcript-quotes-error > div {
+    margin-bottom: 12px;
+}
+
+.youtube-transcript-quotes-retry {
+    padding: 8px 16px;
+    background-color: #dc2626;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.youtube-transcript-quotes-retry:hover {
+    background-color: #b91c1c;
+}
+
+.youtube-transcript-quotes-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.youtube-transcript-quotes-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.youtube-transcript-quotes-content::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+}
+
+.youtube-transcript-quotes-content::-webkit-scrollbar-thumb:hover {
     background: #9ca3af;
 }

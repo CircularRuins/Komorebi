@@ -190,9 +190,17 @@ const utilsBridge = {
     },
 
     generateTranscriptSummary: async (
-        segments: Array<{text: string, start: number, duration: number}>
-    ): Promise<Array<{label: string, insight: string, timestamps: string[]}>> => {
-        return await ipcRenderer.invoke("generate-transcript-summary", segments)
+        segments: Array<{text: string, start: number, duration: number}>,
+        snippet?: string
+    ): Promise<{overview: string, takeaways: Array<{label: string, insight: string}>}> => {
+        return await ipcRenderer.invoke("generate-transcript-summary", segments, snippet)
+    },
+
+    generateJuiciestQuotes: async (
+        segments: Array<{text: string, start: number, duration: number}>,
+        snippet?: string
+    ): Promise<Array<{quote: string, timestamp: string, speaker?: string}>> => {
+        return await ipcRenderer.invoke("generate-juiciest-quotes", segments, snippet)
     },
 
     getPreloadPath: (): string => {

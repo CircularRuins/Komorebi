@@ -209,12 +209,28 @@ export interface TranscriptSegment {
 }
 
 /**
- * 摘要要点接口
+ * 摘要要点接口（不含时间戳）
  */
 export interface SummaryTakeaway {
     label: string
     insight: string
-    timestamps: string[]
+}
+
+/**
+ * 视频摘要完整结构
+ */
+export interface TranscriptSummary {
+    overview: string  // 摘要速览：简短介绍视频内容，包含人物信息
+    takeaways: SummaryTakeaway[]  // 重点提要
+}
+
+/**
+ * 最精彩引用接口
+ */
+export interface JuiciestQuote {
+    quote: string        // 原文引用
+    timestamp: string     // 时间戳 (MM:SS 或 HH:MM:SS)
+    speaker?: string      // 说话者名称（可选）
 }
 
 /**
@@ -244,42 +260,52 @@ function formatTranscriptWithTimestamps(segments: TranscriptSegment[]): string {
 }
 
 /**
- * 生成视频字幕摘要（返回结构化数据，类似 TLDW takeaways）
+ * 生成视频字幕摘要（返回结构化数据，包含摘要速览和重点提要）
  * @param segments 转录片段数组
  * @param config Chat API配置
  * @param targetLanguage 目标语言名称（如 "English", "简体中文" 等）
- * @returns 生成的摘要要点数组
+ * @param snippet 文章摘要/片段（可选）
+ * @returns 生成的摘要结构，包含 overview 和 takeaways
  */
 export async function generateTranscriptSummary(
     segments: TranscriptSegment[],
     config: ChatApiConfig,
-    targetLanguage: string = "English"
-): Promise<SummaryTakeaway[]> {
+    targetLanguage: string = "English",
+    snippet?: string
+): Promise<TranscriptSummary> {
     if (!segments || segments.length === 0) {
         throw new Error('转录片段为空，无法生成摘要')
     }
 
     const transcriptWithTimestamps = formatTranscriptWithTimestamps(segments)
 
-    // 构建摘要提示词（参考 TLDW takeaways 设计）
+    // 构建摘要提示词（生成两部分：摘要速览和重点提要）
+    const snippetSection = snippet ? `<articleInfo>
+<summary>${snippet}</summary>
+</articleInfo>
+
+` : ''
+
     const prompt = `<task>
-<role>You are an expert editorial analyst distilling a video's most potent insights for time-pressed viewers.</role>
-<goal>Produce 4-6 high-signal takeaways that help a viewer retain the video's core ideas.</goal>
+${snippetSection}<role>You are an expert editorial analyst summarizing video content for viewers.</role>
+<goal>Produce a concise overview and 4-6 key takeaways that help viewers understand the video's core content.</goal>
 <instructions>
   <item>Only use information stated explicitly in the transcript. Never speculate.</item>
-  <item>Make each label specific, punchy, and no longer than 10 words.</item>
-  <item>Write each insight as 1-2 sentences that preserve the speaker's framing.</item>
-  <item>Attach 1-2 zero-padded timestamps (MM:SS or HH:MM:SS) that point to the supporting moments.</item>
+  <item>Generate two parts:
+    1. Overview: A brief summary (2-4 sentences) introducing the video's content. If there are people mentioned in the transcript (speakers, interviewees, guests, etc.), include their names and roles/identities in the overview. Use the article summary above to help identify speakers and context when available.
+    2. Takeaways: 4-6 key points, each with a label and insight. No timestamps needed.</item>
+  <item>For the overview: Write 2-4 sentences that give a quick introduction to what the video is about. If people are mentioned, introduce them (e.g., "This video features an interview with [Name], who discusses..."). Use the article summary above to help identify speakers when available.</item>
+  <item>For each takeaway: Make the label specific, punchy, and no longer than 10 words. Write the insight as 1-2 sentences that preserve the speaker's framing.</item>
   <item>Favor contrarian viewpoints, concrete examples, data, or memorable stories over generic advice.</item>
   <item>Avoid overlapping takeaways. Each one should stand alone.</item>
-  <item>IMPORTANT: You MUST respond in ${targetLanguage}. All text in the "label" and "insight" fields must be in ${targetLanguage}.</item>
+  <item>CRITICAL LANGUAGE REQUIREMENT: You MUST write ALL text (including the "overview" field and all "label" and "insight" fields in "takeaways") STRICTLY in ${targetLanguage}. This is mandatory and non-negotiable. Do NOT use any other language. Every single word in your response must be in ${targetLanguage}. If the transcript is in a different language, you must translate and summarize it in ${targetLanguage}.</item>
 </instructions>
 <qualityControl>
   <item>Verify every claim is grounded in transcript lines you can cite verbatim.</item>
-  <item>Ensure timestamps map to the lines that justify the insight.</item>
-  <item>If the transcript lacks enough high-quality insights, still return at least four by choosing the strongest available.</item>
+  <item>If the transcript lacks enough high-quality insights, still return at least four takeaways by choosing the strongest available.</item>
+  <item>Double-check that ALL text is in ${targetLanguage} before returning the response.</item>
 </qualityControl>
-<outputFormat>Return strict JSON with 4-6 objects: [{"label":"string","insight":"string","timestamps":["MM:SS"]}]. Do not include markdown or commentary.</outputFormat>
+<outputFormat>Return strict JSON with this structure: {"overview":"string","takeaways":[{"label":"string","insight":"string"}]}. The "overview" field and all "label" and "insight" fields MUST be written in ${targetLanguage}. Do not include markdown or commentary. Do not include timestamps in takeaways.</outputFormat>
 <transcript><![CDATA[
 ${transcriptWithTimestamps}
 ]]></transcript>
@@ -298,7 +324,7 @@ ${transcriptWithTimestamps}
         messages: [
             {
                 role: 'system',
-                content: `You are a helpful assistant that summarizes video transcripts. You must always respond in ${targetLanguage} language. Never use any other language.`
+                content: `You are a helpful assistant that summarizes video transcripts. You MUST write ALL output text (including overview and all takeaways) STRICTLY in ${targetLanguage} language. This is mandatory. Never use any other language. If the transcript is in a different language, you must translate and summarize it in ${targetLanguage}.`
             },
             {
                 role: 'user',
@@ -327,13 +353,16 @@ ${transcriptWithTimestamps}
             throw new Error('API返回的JSON格式不正确')
         }
 
-        // 规范化响应数据
-        const candidateArray = Array.isArray(parsed)
-            ? parsed
-            : Array.isArray(parsed?.takeaways)
-                ? parsed.takeaways
-                : Array.isArray(parsed?.items)
-                    ? parsed.items
+        // 提取 overview
+        const overview = (parsed?.overview || parsed?.summary || '').trim()
+        
+        // 规范化响应数据 - 提取 takeaways
+        const candidateArray = Array.isArray(parsed?.takeaways)
+            ? parsed.takeaways
+            : Array.isArray(parsed?.items)
+                ? parsed.items
+                : Array.isArray(parsed)
+                    ? parsed
                     : []
 
         const takeaways: SummaryTakeaway[] = []
@@ -345,30 +374,11 @@ ${transcriptWithTimestamps}
 
             const label = (item.label || item.title || '').trim()
             const insight = (item.insight || item.summary || item.description || '').trim()
-            
-            // 提取时间戳
-            const timestampSources: string[] = []
-            if (Array.isArray(item.timestamps)) {
-                timestampSources.push(...item.timestamps)
-            }
-            if (typeof item.timestamp === 'string') {
-                timestampSources.push(item.timestamp)
-            }
-            if (typeof item.time === 'string') {
-                timestampSources.push(item.time)
-            }
 
-            // 规范化时间戳（移除方括号，确保格式正确）
-            const normalizedTimestamps = timestampSources
-                .map(ts => ts.trim().replace(/[\[\]]/g, ''))
-                .filter(ts => /^\d{1,2}:\d{2}(?::\d{2})?$/.test(ts))
-                .slice(0, 2) // 最多2个时间戳
-
-            if (label && insight && normalizedTimestamps.length > 0) {
+            if (label && insight) {
                 takeaways.push({
                     label,
-                    insight,
-                    timestamps: normalizedTimestamps
+                    insight
                 })
             }
 
@@ -377,11 +387,162 @@ ${transcriptWithTimestamps}
             }
         }
 
+        if (!overview) {
+            throw new Error('AI模型未返回有效的摘要速览')
+        }
+
         if (takeaways.length === 0) {
             throw new Error('AI模型未返回有效的摘要要点')
         }
 
-        return takeaways
+        return {
+            overview,
+            takeaways
+        }
+    } else {
+        throw new Error('API返回格式不正确，未找到choices数组或message内容')
+    }
+}
+
+/**
+ * 生成最精彩引用（返回结构化数据，类似 TLDW quotes）
+ * @param segments 转录片段数组
+ * @param config Chat API配置
+ * @param targetLanguage 目标语言名称（如 "English", "简体中文" 等）
+ * @param snippet 文章摘要/片段（可选）
+ * @returns 生成的最精彩引用数组
+ */
+export async function generateJuiciestQuotes(
+    segments: TranscriptSegment[],
+    config: ChatApiConfig,
+    targetLanguage: string = "English",
+    snippet?: string
+): Promise<JuiciestQuote[]> {
+    if (!segments || segments.length === 0) {
+        throw new Error('转录片段为空，无法生成引用')
+    }
+
+    const transcriptWithTimestamps = formatTranscriptWithTimestamps(segments)
+
+    // 构建引用提取提示词（参考 TLDW quotes 设计）
+    const snippetSection = snippet ? `<articleInfo>
+<summary>${snippet}</summary>
+</articleInfo>
+
+` : ''
+
+    const prompt = `<task>
+${snippetSection}
+<role>You are extracting the most quotable, high-impact lines from a video transcript.</role>
+<goal>Return up to five of the most compelling quotes that convey the video's main message.</goal>
+<instructions>
+  <item>Only use direct quotes that appear verbatim in the transcript.</item>
+  <item>Each quote must highlight memorable language, strong emotion, or critical insights.</item>
+  <item>Each quote must include the exact timestamp (MM:SS or HH:MM:SS) where it appears in the transcript, pointing to where the quote begins.</item>
+  <item>Identify the speaker: Extract the speaker name if it's explicitly mentioned in the transcript (e.g., "John:", "Speaker 1:", "Interviewer:", labels, or speaker tags). If not explicitly mentioned, you may reasonably infer the speaker from context clues in the transcript or article summary (e.g., dialogue patterns, role indicators like "Host" or "Guest", or consistent speaking patterns). Use the article summary above to help identify speakers when available. However, NEVER invent or fabricate speaker names that don't exist in the transcript or cannot be reasonably inferred from it. If you cannot determine or reasonably infer the speaker, leave the "speaker" field empty.</item>
+  <item>Order the quotes from most to least impactful.</item>
+  <item>IMPORTANT: You MUST respond in ${targetLanguage}. The "quote" field must be in the original language of the transcript.</item>
+</instructions>
+<qualityControl>
+  <item>Do not fabricate quotes or timestamps.</item>
+  <item>If fewer than five strong quotes exist, return the best available and respect schema limits.</item>
+</qualityControl>
+<outputFormat>Return strict JSON with up to 5 objects: [{"quote":"string","timestamp":"MM:SS","speaker":"string (optional)"}]. The "quote" field must be the exact verbatim text from the transcript. The "speaker" field should contain the name or identifier of who said the quote if available in the transcript. Order quotes from most to least impactful. Do not include markdown or commentary.</outputFormat>
+<transcript><![CDATA[
+${transcriptWithTimestamps}
+]]></transcript>
+</task>`
+
+    // 使用和翻译功能相同的客户端创建方式
+    const translationConfig: TranslationConfig = {
+        apiEndpoint: config.apiEndpoint,
+        apiKey: config.apiKey,
+        model: config.model
+    }
+    const openai = createOpenAIClient(translationConfig)
+
+    const completion = await openai.chat.completions.create({
+        model: config.model,
+        messages: [
+            {
+                role: 'system',
+                content: `You are a helpful assistant that extracts memorable quotes from video transcripts. You must always respond in ${targetLanguage} language. Never use any other language.`
+            },
+            {
+                role: 'user',
+                content: prompt
+            }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+        response_format: { type: "json_object" }
+    })
+
+    if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
+        const responseText = completion.choices[0].message.content || ''
+        if (!responseText) {
+            throw new Error('引用结果为空')
+        }
+
+        // 解析 JSON 响应
+        let parsed: any
+        try {
+            // 尝试提取 JSON（可能被代码块包裹）
+            const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/i)
+            const jsonText = jsonMatch ? jsonMatch[1].trim() : responseText.trim()
+            parsed = JSON.parse(jsonText)
+        } catch (parseError) {
+            throw new Error('API返回的JSON格式不正确')
+        }
+
+        // 规范化响应数据
+        const candidateArray = Array.isArray(parsed)
+            ? parsed
+            : Array.isArray(parsed?.quotes)
+                ? parsed.quotes
+                : Array.isArray(parsed?.items)
+                    ? parsed.items
+                    : []
+
+        const quotes: JuiciestQuote[] = []
+
+        for (const item of candidateArray) {
+            if (!item || typeof item !== 'object') {
+                continue
+            }
+
+            const quote = (item.quote || '').trim()
+            const timestamp = (item.timestamp || item.time || '').trim()
+            const speaker = (item.speaker || '').trim()
+
+            // 规范化时间戳（移除方括号，确保格式正确）
+            const normalizedTimestamp = timestamp
+                .replace(/[\[\]]/g, '')
+                .trim()
+
+            // 验证时间戳格式
+            if (!/^\d{1,2}:\d{2}(?::\d{2})?$/.test(normalizedTimestamp)) {
+                continue
+            }
+
+            if (quote && normalizedTimestamp) {
+                quotes.push({
+                    quote,
+                    timestamp: normalizedTimestamp,
+                    speaker: speaker || undefined
+                })
+            }
+
+            if (quotes.length >= 5) {
+                break
+            }
+        }
+
+        if (quotes.length === 0) {
+            throw new Error('AI模型未返回有效的引用')
+        }
+
+        return quotes
     } else {
         throw new Error('API返回格式不正确，未找到choices数组或message内容')
     }

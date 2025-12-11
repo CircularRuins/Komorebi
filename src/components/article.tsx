@@ -713,7 +713,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             this.state.fontFamily
         )}&s=${this.state.fontSize}&d=${this.props.source.textDir}&u=${
             this.props.item.link
-        }&m=${this.state.loadFull ? 1 : 0}`
+        }&m=${this.state.loadFull ? 1 : 0}&l=${encodeURIComponent(this.props.locale)}`
     }
 
     render = () => {
