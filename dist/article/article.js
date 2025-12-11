@@ -1019,12 +1019,63 @@ async function generateSummary(videoId) {
 }
 
 /**
+ * Get interpretation label based on locale
+ */
+function getInterpretationLabel(locale) {
+    if (!locale) {
+        return 'Interpretation: '
+    }
+    
+    // Try full locale first
+    const localeMappings = {
+        'zh-CN': '解读：',
+        'zh-TW': '解讀：',
+        'zh': '解读：',
+        'ja': '解釈：',
+        'fr-FR': 'Interprétation : ',
+        'fr': 'Interprétation : ',
+        'de': 'Interpretation: ',
+        'es': 'Interpretación: ',
+        'it': 'Interpretazione: ',
+        'pt-BR': 'Interpretação: ',
+        'pt-PT': 'Interpretação: ',
+        'pt': 'Interpretação: ',
+        'ru': 'Интерпретация: ',
+        'ko': '해석: ',
+        'nl': 'Interpretatie: ',
+        'sv': 'Tolkning: ',
+        'tr': 'Yorum: ',
+        'uk': 'Інтерпретація: ',
+        'cs': 'Interpretace: ',
+        'fi-FI': 'Tulkinta: ',
+        'fi': 'Tulkinta: '
+    }
+    
+    if (localeMappings[locale]) {
+        return localeMappings[locale]
+    }
+    
+    // Try language code only
+    const langCode = locale.split('-')[0]
+    if (localeMappings[langCode]) {
+        return localeMappings[langCode]
+    }
+    
+    // Default to English
+    return 'Interpretation: '
+}
+
+/**
  * Render quotes as HTML
  */
 function renderQuotes(quotes, videoId) {
     if (!quotes || !Array.isArray(quotes) || quotes.length === 0) {
         return '<div class="youtube-transcript-quotes-text">No quotes available.</div>'
     }
+    
+    // Get locale from URL parameter
+    const locale = get('l') || 'en-US'
+    const interpretationLabel = getInterpretationLabel(locale)
     
     // Play icon SVG (matching TLDW style)
     const playIconSvg = '<svg class="youtube-transcript-quote-timestamp-icon" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 2.5L9.5 6L2.5 9.5V2.5Z" fill="currentColor"/></svg>'
@@ -1041,6 +1092,11 @@ function renderQuotes(quotes, videoId) {
         }
         
         html += `<blockquote class="youtube-transcript-quote-text">"${escapeHtml(quoteItem.quote)}"</blockquote>`
+        
+        // Show interpretation if available
+        if (quoteItem.interpretation && quoteItem.interpretation.trim()) {
+            html += `<div class="youtube-transcript-quote-interpretation"><span class="youtube-transcript-quote-interpretation-label">${escapeHtml(interpretationLabel)}</span>${escapeHtml(quoteItem.interpretation)}</div>`
+        }
         
         // Show timestamp button
         if (quoteItem.timestamp) {

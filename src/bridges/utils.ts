@@ -199,7 +199,7 @@ const utilsBridge = {
     generateJuiciestQuotes: async (
         segments: Array<{text: string, start: number, duration: number}>,
         snippet?: string
-    ): Promise<Array<{quote: string, timestamp: string, speaker?: string}>> => {
+    ): Promise<Array<{quote: string, timestamp: string, speaker?: string, interpretation?: string}>> => {
         return await ipcRenderer.invoke("generate-juiciest-quotes", segments, snippet)
     },
 

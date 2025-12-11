@@ -732,6 +732,21 @@ article blockquote {
     border: none;
 }
 
+.youtube-transcript-quote-interpretation {
+    margin: 0 0 12px 0;
+    padding: 0;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: #6b7280;
+    font-style: normal;
+    font-weight: 400;
+}
+
+.youtube-transcript-quote-interpretation-label {
+    font-weight: 600;
+    color: #4b5563;
+}
+
 .youtube-transcript-quote-speaker {
     font-size: 0.8125rem;
     color: #3b82f6;

@@ -231,6 +231,7 @@ export interface JuiciestQuote {
     quote: string        // 原文引用
     timestamp: string     // 时间戳 (MM:SS 或 HH:MM:SS)
     speaker?: string      // 说话者名称（可选）
+    interpretation?: string  // 简要说明这个引用表达的意思（可选，与应用设置的语言一致）
 }
 
 /**
@@ -440,14 +441,15 @@ ${snippetSection}
   <item>Each quote must highlight memorable language, strong emotion, or critical insights.</item>
   <item>Each quote must include the exact timestamp (MM:SS or HH:MM:SS) where it appears in the transcript, pointing to where the quote begins.</item>
   <item>Identify the speaker: Extract the speaker name if it's explicitly mentioned in the transcript (e.g., "John:", "Speaker 1:", "Interviewer:", labels, or speaker tags). If not explicitly mentioned, you may reasonably infer the speaker from context clues in the transcript or article summary (e.g., dialogue patterns, role indicators like "Host" or "Guest", or consistent speaking patterns). Use the article summary above to help identify speakers when available. However, NEVER invent or fabricate speaker names that don't exist in the transcript or cannot be reasonably inferred from it. If you cannot determine or reasonably infer the speaker, leave the "speaker" field empty.</item>
+  <item>For each quote, provide a brief interpretation (1-2 sentences) that explains what the quote means in context. The interpretation should help readers understand the significance or meaning of the quote within the video's narrative.</item>
   <item>Order the quotes from most to least impactful.</item>
-  <item>IMPORTANT: You MUST respond in ${targetLanguage}. The "quote" field must be in the original language of the transcript.</item>
+  <item>IMPORTANT: You MUST respond in ${targetLanguage}. The "quote" field must be in the original language of the transcript. The "interpretation" field MUST be written in ${targetLanguage}.</item>
 </instructions>
 <qualityControl>
   <item>Do not fabricate quotes or timestamps.</item>
   <item>If fewer than five strong quotes exist, return the best available and respect schema limits.</item>
 </qualityControl>
-<outputFormat>Return strict JSON with up to 5 objects: [{"quote":"string","timestamp":"MM:SS","speaker":"string (optional)"}]. The "quote" field must be the exact verbatim text from the transcript. The "speaker" field should contain the name or identifier of who said the quote if available in the transcript. Order quotes from most to least impactful. Do not include markdown or commentary.</outputFormat>
+<outputFormat>Return strict JSON with up to 5 objects: [{"quote":"string","timestamp":"MM:SS","speaker":"string (optional)","interpretation":"string (optional)"}]. The "quote" field must be the exact verbatim text from the transcript. The "speaker" field should contain the name or identifier of who said the quote if available in the transcript. The "interpretation" field should be a brief explanation (1-2 sentences) of what the quote means in context, written in ${targetLanguage}. Order quotes from most to least impactful. Do not include markdown or commentary.</outputFormat>
 <transcript><![CDATA[
 ${transcriptWithTimestamps}
 ]]></transcript>
@@ -514,6 +516,7 @@ ${transcriptWithTimestamps}
             const quote = (item.quote || '').trim()
             const timestamp = (item.timestamp || item.time || '').trim()
             const speaker = (item.speaker || '').trim()
+            const interpretation = (item.interpretation || '').trim()
 
             // 规范化时间戳（移除方括号，确保格式正确）
             const normalizedTimestamp = timestamp
@@ -529,7 +532,8 @@ ${transcriptWithTimestamps}
                 quotes.push({
                     quote,
                     timestamp: normalizedTimestamp,
-                    speaker: speaker || undefined
+                    speaker: speaker || undefined,
+                    interpretation: interpretation || undefined
                 })
             }
 
