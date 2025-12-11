@@ -56,7 +56,7 @@
     "menu": {
         "close": "关闭菜单",
         "subscriptions": "订阅源",
-        "aiFeature": "AI功能",
+        "aiFeature": "智能搜索",
         "smartFilter": "智能筛选",
         "hotTopics": "热点话题",
         "smartFilterPlaceholder": "智能筛选功能开发中...",
@@ -294,7 +294,9 @@
                 "topkInvalid": "TopK必须是大于0的正整数",
                 "queryFailed": "查询失败，请稍后重试",
                 "clusterFailed": "分类分析失败，已显示原始文章列表",
-                "configIncomplete": "请先完成AI配置（在设置中配置）"
+                "configIncomplete": "请先完成AI配置（在设置中配置）",
+                "configNotSet": "AI配置未设置",
+                "openConfig": "打开配置"
             },
             "placeholder": {
                 "title": "AI助手-文章整理汇总",

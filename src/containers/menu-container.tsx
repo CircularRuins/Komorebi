@@ -17,7 +17,7 @@ import {
     selectTodayArticles,
     selectAlphaXiv,
     selectSources,
-    selectAIMode,
+    selectSmartSearch,
     selectAIFeatures,
     toggleSourcesPage,
     toggleSearch,
@@ -31,7 +31,7 @@ const getSources = (state: RootState) => state.sources
 const getGroups = (state: RootState) => state.groups
 const getItemOn = (state: RootState) =>
     state.page.itemId !== null && state.page.viewType !== ViewType.List
-const getIsAIMode = (state: RootState) => state.page.feedId === "ai-mode"
+const getIsAIMode = (state: RootState) => state.page.feedId === "smart-search"
 const getItems = (state: RootState) => state.items
 const getFeeds = (state: RootState) => state.feeds
 
@@ -143,7 +143,7 @@ const mapDispatchToProps = dispatch => ({
     },
     toggleAIMode: (enabled: boolean) => {
         if (enabled) {
-            dispatch(selectAIMode())
+            dispatch(selectSmartSearch())
         } else {
             dispatch(selectAllArticles())
         }

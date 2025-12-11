@@ -4,7 +4,7 @@ import { FeedContainer } from "../containers/feed-container"
 import { AnimationClassNames, Icon, FocusTrapZone, TooltipHost, TooltipDelay } from "@fluentui/react"
 import ArticleContainer from "../containers/article-container"
 import ArticleSearch from "./utils/article-search"
-import AIMode from "./ai-mode"
+import SmartSearch from "./smart-search"
 import AlphaXiv from "./alphaxiv"
 import { ViewType } from "../schema-types"
 import SourcesTabContainer from "../containers/settings/sources-container"
@@ -69,7 +69,7 @@ class Page extends React.Component<PageProps> {
     nextItem = (event: React.MouseEvent) => this.offsetItem(event, 1)
 
     render = () => {
-        const isAIMode = this.props.feeds.includes("ai-mode")
+        const isSmartSearch = this.props.feeds.includes("smart-search")
         const isAlphaXiv = this.props.feeds.includes("alphaxiv")
         const isAppPreferences = this.props.feeds.includes("app-preferences")
         const isAIConfig = this.props.feeds.includes("ai-config")
@@ -343,13 +343,44 @@ class Page extends React.Component<PageProps> {
             )
         }
         
-        // 检查是否为AI功能
-        if (isAIMode) {
-            // AI功能：始终显示 AI 功能页面，如果有 itemId 则弹出文章窗口
+        // 检查是否为智能搜索
+        if (isSmartSearch) {
+            // 智能搜索：始终显示智能搜索页面，如果有 itemId 则弹出文章窗口
             return (
                 <>
-                    <div className="ai-mode-page">
-                        <AIMode />
+                    <div
+                        className={
+                            "smart-search-page" + (this.props.menuOn ? " menu-on" : "")
+                        }
+                        style={{
+                            height: "100%",
+                            overflowY: "auto",
+                            overflowX: "hidden",
+                            padding: "20px",
+                            paddingBottom: "40px",
+                            boxSizing: "border-box",
+                            minHeight: 0,
+                            WebkitOverflowScrolling: "touch",
+                        }}>
+                        <div style={{ marginBottom: "20px" }}>
+                            <a
+                                className="btn"
+                                onClick={this.props.goBack}
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                    cursor: "pointer",
+                                    textDecoration: "none",
+                                    color: "white",
+                                    fontSize: "12px",
+                                }}
+                                title={intl.get("settings.exit") || "返回"}>
+                                <Icon iconName="Back" />
+                                <span>{intl.get("settings.exit") || "返回"}</span>
+                            </a>
+                        </div>
+                        <SmartSearch />
                     </div>
                     {this.props.itemId && (
                         <FocusTrapZone
@@ -406,9 +437,9 @@ class Page extends React.Component<PageProps> {
         
         return (
             <>
-                {/* 始终渲染AIMode组件以保持配置面板可用，但隐藏它 */}
+                {/* 始终渲染SmartSearch组件以保持配置面板可用，但隐藏它 */}
                 <div style={{ display: 'none' }}>
-                    <AIMode />
+                    <SmartSearch hideArticleList={true} />
                 </div>
                 {this.props.viewType !== ViewType.List ? (
                     <>

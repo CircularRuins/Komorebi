@@ -16,6 +16,8 @@ import { SourceActionTypes, DELETE_SOURCE, updateSourceDone, RSSSource } from ".
 import * as db from "../db"
 import { toggleMenu } from "./app"
 import { ViewType, ViewConfigs } from "../../schema-types"
+import intl from "react-intl-universal"
+import { setAIModeShowInputDialog } from "./ai-mode"
 
 export const SELECT_PAGE = "SELECT_PAGE"
 export const SWITCH_VIEW = "SWITCH_VIEW"
@@ -34,11 +36,11 @@ export enum PageType {
     AllArticlesToday,
     Sources,
     Page,
-    AIMode,
     AlphaXiv,
     AppPreferences,
     AIConfig,
     AIFeatures,
+    SmartSearch,
 }
 
 interface SelectPageAction {
@@ -158,8 +160,8 @@ export function selectSources(
     }
 }
 
-export function selectAIMode(): AppThunk {
-    return (dispatch, getState) => {
+export function selectSmartSearch(): AppThunk<Promise<void>> {
+    return async (dispatch, getState) => {
         const aiModeState = getState().aiMode
         
         // 检查所有必需的AI功能配置项是否已填写
@@ -170,27 +172,48 @@ export function selectAIMode(): AppThunk {
         const embeddingApiKey = (aiModeState.embeddingApiKey || '').trim()
         const embeddingModel = (aiModeState.embeddingModel || '').trim()
         
-        // 如果任何必需项未填写，导航到AI配置页面
+        // 如果任何必需项未填写，显示弹窗提示
         if (!chatApiEndpoint || !chatApiKey || !model || !embeddingApiEndpoint || !embeddingApiKey || !embeddingModel) {
-            dispatch(selectAIConfig())
+            // 显示错误提示并提供打开配置的选项
+            try {
+                // 检查 window.utils 是否可用
+                if (typeof window !== 'undefined' && window.utils && typeof window.utils.showMessageBox === 'function') {
+                    // 确保 intl 已初始化
+                    const configNotSet = intl.get("settings.aiMode.errors.configNotSet") || "AI配置未设置"
+                    const configIncomplete = intl.get("settings.aiMode.errors.configIncomplete") || "请先完成AI配置（在设置中配置）"
+                    const openConfigText = intl.get("settings.aiMode.errors.openConfig") || "打开配置"
+                    const cancelText = intl.get("cancel") || "取消"
+                    
+                    const openConfig = await window.utils.showMessageBox(
+                        configNotSet,
+                        configIncomplete,
+                        openConfigText,
+                        cancelText,
+                        false,
+                        "warning"
+                    )
+                    if (openConfig) {
+                        dispatch(selectAIConfig())
+                    }
+                } else {
+                    // 如果无法显示弹窗，直接跳转到配置页面
+                    dispatch(selectAIConfig())
+                }
+            } catch (error) {
+                // 如果出错，直接跳转到配置页面
+                dispatch(selectAIConfig())
+            }
             return
         }
         
-        // 配置完整，正常进入AI功能
-        dispatch({
-            type: SELECT_PAGE,
-            pageType: PageType.AIMode,
-            keepMenu: getWindowBreakpoint(),
-            filter: getState().page.filter,
-            init: true,
-        } as PageActionTypes)
+        // 配置完整，显示输入弹窗
+        dispatch(setAIModeShowInputDialog(true))
     }
 }
 
-export function selectAIFeatures(): AppThunk {
-    return (dispatch) => {
-        dispatch(toggleAIFeaturesPage(true))
-    }
+export function selectAIFeatures(): AppThunk<Promise<void>> {
+    // 直接调用 selectSmartSearch，它会检查配置
+    return selectSmartSearch()
 }
 
 export const toggleAIFeaturesPage = (show: boolean): PageActionTypes => ({
@@ -271,8 +294,8 @@ export function showItem(feedId: string, item: RSSItem): AppThunk<Promise<void>>
         let hasItem = state.items.hasOwnProperty(item._id)
         let hasSource = state.sources.hasOwnProperty(item.source)
         
-        // 如果是AI功能且source不在store中，从数据库加载
-        if (feedId === "ai-mode" && !hasSource) {
+        // 如果是智能搜索且source不在store中，从数据库加载
+        if (feedId === "smart-search" && !hasSource) {
             try {
                 // 等待数据库初始化
                 let retries = 0
@@ -316,8 +339,8 @@ export function showItem(feedId: string, item: RSSItem): AppThunk<Promise<void>>
             }
         }
         
-        // 如果是AI功能且item不在store中，临时添加到store
-        if (feedId === "ai-mode" && !hasItem && hasSource) {
+        // 如果是智能搜索且item不在store中，临时添加到store
+        if (feedId === "smart-search" && !hasItem && hasSource) {
             // 使用fetchItemsSuccess来添加item到store
             dispatch(fetchItemsSuccess([item], { ...state.items, [item._id]: item }))
             hasItem = true
@@ -517,12 +540,6 @@ export function pageReducer(
                         feedId: SOURCE,
                         itemId: null,
                     }
-                case PageType.AIMode:
-                    return {
-                        ...state,
-                        feedId: "ai-mode",
-                        itemId: null,
-                    }
                 case PageType.AlphaXiv:
                     // 不改变 feedId，保持当前的主内容区域
                     // 注意：selectAlphaXiv 现在不 dispatch SELECT_PAGE，所以这个 case 不会被触发
@@ -543,6 +560,12 @@ export function pageReducer(
                     return {
                         ...state,
                         feedId: "ai-features",
+                        itemId: null,
+                    }
+                case PageType.SmartSearch:
+                    return {
+                        ...state,
+                        feedId: "smart-search",
                         itemId: null,
                     }
                 default:

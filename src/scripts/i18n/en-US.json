@@ -292,7 +292,9 @@
                 "topkInvalid": "TopK must be a positive integer greater than 0",
                 "queryFailed": "Query failed, please try again later",
                 "clusterFailed": "Classification analysis failed, showing original article list",
-                "configIncomplete": "Please complete AI configuration first (configure in settings)"
+                "configIncomplete": "Please complete AI configuration first (configure in settings)",
+                "configNotSet": "AI Configuration Not Set",
+                "openConfig": "Open Config"
             },
             "placeholder": {
                 "title": "AI Assistant - Article Consolidate",

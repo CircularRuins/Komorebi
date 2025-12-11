@@ -9,18 +9,18 @@ import AIConfigContainer from "../containers/ai-config-container"
 import { RootState } from "../scripts/reducer"
 import { ContextMenu } from "./context-menu"
 import ResizableLayout from "./resizable-layout"
-import AIMode from "./ai-mode"
-import { AIModeContext, AIModeComponent } from "./ai-mode"
+import SmartSearch from "./smart-search"
+import { SmartSearchContext, SmartSearchComponent } from "./smart-search"
 // import LogMenu from "./log-menu"
 
 class RootWithProvider extends React.Component<{ locale: string; dispatch: any }, { contextValue: any }> {
-    private aiModeRef = React.createRef<AIModeComponent>()
+    private smartSearchRef = React.createRef<SmartSearchComponent>()
     private lastContextValue: any = null
     state = { contextValue: null }
 
     updateContextValue = () => {
-        if (this.aiModeRef.current) {
-            const newValue = (this.aiModeRef.current as any).getContextValue()
+        if (this.smartSearchRef.current) {
+            const newValue = (this.smartSearchRef.current as any).getContextValue()
             // 总是更新 Context，确保状态同步
             this.lastContextValue = newValue
             this.setState({ contextValue: newValue })
@@ -51,19 +51,19 @@ class RootWithProvider extends React.Component<{ locale: string; dispatch: any }
     }
 
     componentDidMount() {
-        // 监听AIMode挂载和更新事件
-        window.addEventListener('aiModeMounted', this.updateContextValue)
-        window.addEventListener('aiModeUpdated', this.updateContextValue)
+        // 监听SmartSearch挂载和更新事件
+        window.addEventListener('smartSearchMounted', this.updateContextValue)
+        window.addEventListener('smartSearchUpdated', this.updateContextValue)
         // 监听输入变化事件（用于更新按钮状态，但不打断输入法）
-        window.addEventListener('aiModeInputChanged', this.updateContextValue)
-        // 延迟获取Context值，确保AIMode已挂载
+        window.addEventListener('smartSearchInputChanged', this.updateContextValue)
+        // 延迟获取Context值，确保SmartSearch已挂载
         setTimeout(this.updateContextValue, 0)
     }
 
     componentWillUnmount() {
-        window.removeEventListener('aiModeMounted', this.updateContextValue)
-        window.removeEventListener('aiModeUpdated', this.updateContextValue)
-        window.removeEventListener('aiModeInputChanged', this.updateContextValue)
+        window.removeEventListener('smartSearchMounted', this.updateContextValue)
+        window.removeEventListener('smartSearchUpdated', this.updateContextValue)
+        window.removeEventListener('smartSearchInputChanged', this.updateContextValue)
     }
 
     render() {
@@ -85,11 +85,11 @@ class RootWithProvider extends React.Component<{ locale: string; dispatch: any }
                         dispatch(closeContextMenu())
                     }
                 }}>
-                {/* 始终渲染AIMode以提供Context，但隐藏它 */}
+                {/* 始终渲染SmartSearch以提供Context，但隐藏它 */}
                 <div style={{ display: 'none' }}>
-                    <AIMode ref={this.aiModeRef} />
+                    <SmartSearch ref={this.smartSearchRef} />
                 </div>
-                <AIModeContext.Provider value={this.state.contextValue}>
+                <SmartSearchContext.Provider value={this.state.contextValue}>
                     <NavContainer />
                     <ResizableLayout
                         defaultLeftWidth={240}
@@ -102,7 +102,7 @@ class RootWithProvider extends React.Component<{ locale: string; dispatch: any }
                     <SettingsContainer />
                     <AIConfigContainer />
                     <ContextMenu />
-                </AIModeContext.Provider>
+                </SmartSearchContext.Provider>
             </div>
         )
     }

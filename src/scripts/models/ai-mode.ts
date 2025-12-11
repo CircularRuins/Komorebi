@@ -87,6 +87,7 @@ export class AIModeState {
     tempTranslationModel: string = ''
     showErrorDialog: boolean = false
     errorDialogMessage: string = ''
+    showInputDialog: boolean = false
     articleCount: number = 0
     filteredArticles: RSSItem[] = []
     clusters: ArticleCluster[] = []
@@ -139,6 +140,7 @@ export const UPDATE_AI_MODE_TEMP_TRANSLATION_API_KEY = "UPDATE_AI_MODE_TEMP_TRAN
 export const UPDATE_AI_MODE_TEMP_TRANSLATION_MODEL = "UPDATE_AI_MODE_TEMP_TRANSLATION_MODEL"
 export const SET_AI_MODE_SHOW_ERROR_DIALOG = "SET_AI_MODE_SHOW_ERROR_DIALOG"
 export const SET_AI_MODE_ERROR_DIALOG_MESSAGE = "SET_AI_MODE_ERROR_DIALOG_MESSAGE"
+export const SET_AI_MODE_SHOW_INPUT_DIALOG = "SET_AI_MODE_SHOW_INPUT_DIALOG"
 export const SET_AI_MODE_ARTICLE_COUNT = "SET_AI_MODE_ARTICLE_COUNT"
 export const SET_AI_MODE_FILTERED_ARTICLES = "SET_AI_MODE_FILTERED_ARTICLES"
 export const SET_AI_MODE_CLUSTERS = "SET_AI_MODE_CLUSTERS"
@@ -356,6 +358,11 @@ export interface SetAIModeErrorDialogMessageAction {
     errorDialogMessage: string
 }
 
+export interface SetAIModeShowInputDialogAction {
+    type: typeof SET_AI_MODE_SHOW_INPUT_DIALOG
+    showInputDialog: boolean
+}
+
 export interface SetAIModeArticleCountAction {
     type: typeof SET_AI_MODE_ARTICLE_COUNT
     articleCount: number
@@ -445,6 +452,7 @@ export type AIModeActionTypes =
     | UpdateAIModeTempTranslationModelAction
     | SetAIModeShowErrorDialogAction
     | SetAIModeErrorDialogMessageAction
+    | SetAIModeShowInputDialogAction
     | SetAIModeArticleCountAction
     | SetAIModeFilteredArticlesAction
     | SetAIModeClustersAction
@@ -741,6 +749,13 @@ export function setAIModeErrorDialogMessage(errorDialogMessage: string): AIModeA
     return {
         type: SET_AI_MODE_ERROR_DIALOG_MESSAGE,
         errorDialogMessage
+    }
+}
+
+export function setAIModeShowInputDialog(showInputDialog: boolean): AIModeActionTypes {
+    return {
+        type: SET_AI_MODE_SHOW_INPUT_DIALOG,
+        showInputDialog
     }
 }
 
@@ -1090,6 +1105,9 @@ export function aiModeReducer(
 
         case SET_AI_MODE_ERROR_DIALOG_MESSAGE:
             return { ...state, errorDialogMessage: action.errorDialogMessage }
+
+        case SET_AI_MODE_SHOW_INPUT_DIALOG:
+            return { ...state, showInputDialog: action.showInputDialog }
 
         case SET_AI_MODE_ARTICLE_COUNT:
             return { ...state, articleCount: action.articleCount }

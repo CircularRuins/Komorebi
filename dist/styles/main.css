@@ -518,6 +518,24 @@ img.favicon.dropdown {
     min-height: 0;
 }
 
+/* 智能搜索页面样式 */
+.smart-search-page {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+.resizable-layout .smart-search-page {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    min-height: 0;
+}
+
 .ai-mode-container {
     flex: 1;
     display: flex;

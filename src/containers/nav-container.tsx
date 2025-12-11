@@ -7,7 +7,7 @@ import {
     toggleLogMenu,
     openSettingsTab,
 } from "../scripts/models/app"
-import { selectAIMode, selectAllArticles, selectAppPreferences, selectAIConfig } from "../scripts/models/page"
+import { selectSmartSearch, selectAllArticles, selectAppPreferences, selectAIConfig } from "../scripts/models/page"
 import { ViewType } from "../schema-types"
 import Nav from "../components/nav"
 
@@ -15,7 +15,7 @@ const getState = (state: RootState) => state.app
 const getItemShown = (state: RootState) =>
     state.page.itemId && state.page.viewType !== ViewType.List
 const getIsAIModeEnabled = (state: RootState) => 
-    state.page.feedId === "ai-mode"
+    state.page.feedId === "smart-search"
 const getSettingsDisplay = (state: RootState) => 
     state.app.settings.display
 const getAIConfigDisplay = (state: RootState) => 
@@ -43,7 +43,7 @@ const mapDispatchToProps = dispatch => ({
     openAppSettings: () => dispatch(selectAppPreferences()),
     toggleAIMode: (enabled: boolean) => {
         if (enabled) {
-            dispatch(selectAIMode())
+            dispatch(selectSmartSearch())
         } else {
             dispatch(selectAllArticles())
         }

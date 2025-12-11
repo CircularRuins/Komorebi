@@ -7,7 +7,7 @@ import { SourceState, RSSSource } from "../scripts/models/source"
 import { ALL, ALL_TOTAL, ALL_TODAY } from "../scripts/models/feed"
 import { AnimationClassNames, Stack, FocusZone } from "@fluentui/react"
 import { IconButton } from "@fluentui/react/lib/Button"
-import { AIModeMenuContent } from "./ai-mode-menu-content"
+import { SmartSearchMenuContent } from "./smart-search-menu-content"
 
 export type MenuProps = {
     status: boolean
@@ -279,45 +279,7 @@ export class Menu extends React.Component<MenuProps, MenuState> {
 
 
     render() {
-        // 如果是AI功能模式，渲染AI功能菜单（通过全局状态访问）
-        if (this.props.isAIMode) {
-            return (
-                this.props.status && (
-                    <div className="menu-container show">
-                        <div 
-                            className={"menu" + (this.props.itemOn ? " item-on" : "")}
-                            style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                height: '100%',
-                                overflow: 'hidden'
-                            }}
-                        >
-                            {/* 顶部：AI功能入口（退出按钮） */}
-                            <div
-                                className="ai-feature-entry"
-                                style={{
-                                    padding: '8px 12px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    cursor: 'pointer',
-                                    flexShrink: 0
-                                }}
-                                onClick={() => this.props.toggleAIMode(false)}
-                            >
-                                <Icon iconName="AIMode" style={{ marginRight: 6 }} />
-                                <span style={{ fontWeight: 500 }}>
-                                    {intl.get("menu.aiFeature")}
-                                </span>
-                            </div>
-                            <AIModeMenu />
-                        </div>
-                    </div>
-                )
-            )
-        }
-
-        // 普通模式的菜单
+        // 普通模式的菜单（智能搜索时也保持普通菜单）
         const linkGroups = this.getLinkGroups()
         const fixedGroup = linkGroups[0]  // 今日文章等（包含AI功能入口）
         const subscriptionsGroup = linkGroups[1]  // 订阅源
@@ -393,8 +355,8 @@ export class Menu extends React.Component<MenuProps, MenuState> {
     }
 }
 
-// AI功能的菜单组件
-class AIModeMenu extends React.Component {
+// 智能搜索的菜单组件
+class SmartSearchMenu extends React.Component {
     render() {
         return (
             <div 
@@ -417,7 +379,7 @@ class AIModeMenu extends React.Component {
                     paddingBottom: '40px',
                     flexShrink: 0
                 }}>
-                    <AIModeMenuContent />
+                    <SmartSearchMenuContent />
                 </div>
             </div>
         )

@@ -340,7 +340,7 @@ export function setupAutoFetch(): AppThunk {
             if (interval) {
                 fetchTimeout = setTimeout(() => {
                     let state = getState()
-                    if (!state.app.settings.display && state.page.feedId !== "ai-mode") {
+                    if (!state.app.settings.display && state.page.feedId !== "smart-search") {
                         if (!state.app.fetchingItems) dispatch(fetchItems(true))
                     } else {
                         setupTimeout(1)
@@ -624,13 +624,6 @@ export function appReducer(
                         menuKey: action.menuKey,
                         title: action.title,
                     }
-                case PageType.AIMode:
-                    return {
-                        ...state,
-                        menu: state.menu && action.keepMenu,
-                        menuKey: "ai-mode",
-                        title: "",
-                    }
                 case PageType.AlphaXiv:
                     return {
                         ...state,
@@ -642,6 +635,13 @@ export function appReducer(
                     // AI功能页面现在使用 showAIFeaturesPage 状态控制，不再通过 menuKey
                     // 这个 case 保留用于向后兼容，但不设置 menuKey
                     return state
+                case PageType.SmartSearch:
+                    return {
+                        ...state,
+                        menu: state.menu && action.keepMenu,
+                        menuKey: "smart-search",
+                        title: "",
+                    }
             }
         case CLOSE_CONTEXT_MENU:
             return {
