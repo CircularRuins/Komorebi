@@ -186,7 +186,7 @@
                 "classificationStandard": "分类标准（可选）",
                 "classificationStandardHint": "自由填写分类标准，指导AI按照类别整理，如：按产品名称分类、按公司名称分类等。如不填写，则直接展示所有符合主题的文章，不进行分类。",
                 "recentStandards": "常用分类标准",
-                "generate": "整理汇总",
+                "generate": "搜索",
                 "clear": "清空结果"
             },
             "progress": {

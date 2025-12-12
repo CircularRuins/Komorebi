@@ -184,7 +184,7 @@
                 "classificationStandard": "Classification Standard (Optional)",
                 "classificationStandardHint": "Freely fill in classification standards to guide AI to organize by category, such as: classify by product name, classify by company name, etc. If left blank, all articles matching the topic will be displayed directly without classification.",
                 "recentStandards": "Recent Classification Standards",
-                "generate": "Consolidate",
+                "generate": "Search",
                 "clear": "Clear Results"
             },
             "progress": {

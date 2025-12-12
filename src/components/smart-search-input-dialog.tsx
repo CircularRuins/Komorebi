@@ -1,10 +1,10 @@
 import * as React from "react"
 import intl from "react-intl-universal"
-import { TextField, ITextField } from "@fluentui/react/lib/TextField"
-import { Dropdown, IDropdownOption } from "@fluentui/react/lib/Dropdown"
 import { Label } from "@fluentui/react/lib/Label"
 import { PrimaryButton, DefaultButton } from "@fluentui/react/lib/Button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
+import { Textarea } from "./ui/textarea"
 
 interface SmartSearchInputDialogProps {
     show: boolean
@@ -33,7 +33,7 @@ export const SmartSearchInputDialog: React.FC<SmartSearchInputDialogProps> = (pr
 
     const [localTimeRange, setLocalTimeRange] = React.useState<string | null>(timeRange)
     const [localTopicInput, setLocalTopicInput] = React.useState(topicInput)
-    const topicInputRef = React.useRef<ITextField>(null)
+    const topicInputRef = React.useRef<HTMLTextAreaElement>(null)
 
     // 当 props 变化时同步到本地 state
     React.useEffect(() => {
@@ -50,7 +50,7 @@ export const SmartSearchInputDialog: React.FC<SmartSearchInputDialogProps> = (pr
         }
     }, [show])
 
-    const getTimeRangeOptions = (): IDropdownOption[] => {
+    const getTimeRangeOptions = () => {
         return [
             { key: '1', text: intl.get("settings.aiMode.menu.timeRangeOptions.1") },
             { key: '3', text: intl.get("settings.aiMode.menu.timeRangeOptions.3") },
@@ -72,14 +72,14 @@ export const SmartSearchInputDialog: React.FC<SmartSearchInputDialogProps> = (pr
         onConfirm(localTimeRange, trimmedTopic, '')
     }
 
-    const handleTimeRangeChange = (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption) => {
-        const newTimeRange = option?.key as string | null
+    const handleTimeRangeChange = (value: string) => {
+        const newTimeRange = value || null
         setLocalTimeRange(newTimeRange)
         onTimeRangeChange(newTimeRange)
     }
 
-    const handleTopicInputChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-        const value = newValue || ''
+    const handleTopicInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const value = event.target.value
         setLocalTopicInput(value)
         onTopicInputChange(value)
     }
@@ -96,7 +96,7 @@ export const SmartSearchInputDialog: React.FC<SmartSearchInputDialogProps> = (pr
                 onClose()
             }
         }}>
-            <DialogContent style={{ maxWidth: '600px', width: '90%', maxHeight: '90%', overflow: 'auto' }}>
+            <DialogContent style={{ maxWidth: '300px', width: '45%', maxHeight: '90%', overflow: 'auto' }}>
                 <DialogHeader>
                     <DialogTitle>
                         {intl.get("menu.aiFeature")}
@@ -107,16 +107,20 @@ export const SmartSearchInputDialog: React.FC<SmartSearchInputDialogProps> = (pr
                     <Label style={{ fontSize: '13px', fontWeight: 600, fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>
                         {intl.get("settings.aiMode.menu.timeRange")}
                     </Label>
-                    <Dropdown
-                        selectedKey={localTimeRange}
-                        options={getTimeRangeOptions()}
-                        onChange={handleTimeRangeChange}
-                        styles={{ 
-                            root: { width: '100%', marginTop: '4px' },
-                            title: { fontSize: '12px' }
-                        }}
-                        required={true}
-                    />
+                    <div style={{ marginTop: '4px' }}>
+                        <Select value={localTimeRange || undefined} onValueChange={handleTimeRangeChange}>
+                            <SelectTrigger style={{ width: '100%' }}>
+                                <SelectValue placeholder={intl.get("settings.aiMode.menu.timeRange")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {getTimeRangeOptions().map((option) => (
+                                    <SelectItem key={option.key} value={option.key}>
+                                        {option.text}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 <div style={{ marginBottom: '16px' }}>
@@ -124,28 +128,16 @@ export const SmartSearchInputDialog: React.FC<SmartSearchInputDialogProps> = (pr
                         {intl.get("settings.aiMode.menu.topic")}
                     </Label>
                     <div style={{ position: 'relative', marginTop: '4px' }}>
-                        <TextField
-                            componentRef={topicInputRef}
+                        <Textarea
+                            ref={topicInputRef}
                             value={localTopicInput}
                             onChange={handleTopicInputChange}
                             maxLength={300}
-                            multiline
                             rows={2}
-                            resizable={false}
-                            styles={{
-                                root: { width: '100%' },
-                                fieldGroup: { 
-                                    borderRadius: '4px',
-                                    border: '1px solid var(--neutralLight)'
-                                },
-                                field: { 
-                                    fontSize: '11px',
-                                    padding: '4px 8px',
-                                    minHeight: 'auto',
-                                    lineHeight: '1.4'
-                                }
+                            style={{
+                                width: '100%',
                             }}
-                            required={true}
+                            required
                         />
                         <div style={{ position: 'absolute', top: '100%', right: '0', marginTop: '2px', fontSize: '11px', color: localTopicInput.length >= 300 ? '#d13438' : 'var(--neutralSecondary)', fontFamily: '"Segoe UI", "Source Han Sans Regular", sans-serif' }}>
                             {localTopicInput.length}/300

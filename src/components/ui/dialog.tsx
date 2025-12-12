@@ -221,7 +221,7 @@ function DialogContent({
               e.currentTarget.style.opacity = '0.7'
             }}
           >
-            <XIcon size={16} />
+            <XIcon size={16} style={{ color: '#ffffff' }} />
             <span style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', borderWidth: 0 }}>
               Close
             </span>
