@@ -51,12 +51,12 @@
         "settings": "选项",
         "minimize": "最小化",
         "maximize": "最大化",
-        "aiMode": "AI功能"
+        "aiMode": "AI搜索"
     },
     "menu": {
         "close": "关闭菜单",
         "subscriptions": "订阅源",
-        "aiFeature": "智能搜索",
+        "aiFeature": "AI搜索",
         "smartFilter": "智能筛选",
         "hotTopics": "热点话题",
         "smartFilterPlaceholder": "智能筛选功能开发中...",
@@ -208,7 +208,7 @@
                 "messages": {
                     "querying": "正在从数据库查询文章...",
                     "processing": "处理中...",
-                    "completed": "所有步骤已完成！",
+                    "completed": "已完成",
                     "startQuery": "开始查询...",
                     "queryingArticles": "正在从数据库查询文章...",
                     "queryCompleted": "已查询到 {count} 篇文章",
@@ -271,14 +271,12 @@
                 },
                 "executionSteps": "执行步骤",
                 "viewResults": "查看结果",
-                "foundArticles": "已找到 {count} 篇文章，{clusters}",
-                "foundArticlesWithClusters": "分为 {count} 个分类",
-                "foundArticlesNoClusters": "未进行分类"
+                "foundArticles": "搜索到{count}篇文章"
             },
             "results": {
                 "summary": "总结",
                 "articlesCount": "共 {count} 篇文章",
-                "filteredArticles": "筛选后的文章 ({count} 篇)",
+                "filteredArticles": "搜索结果 ({count} 篇)",
                 "clusterDescription": "共 {count} 篇文章",
                 "otherCategory": "其他",
                 "unclassifiedDescription": "未明确分类的文章",
@@ -469,5 +467,25 @@
             "emptyContent": "文章内容为空，无法翻译",
             "openConfig": "打开配置"
         }
+    },
+    "transcript": {
+        "tab": {
+            "transcript": "字幕",
+            "aiSummary": "AI摘要",
+            "quotes": "引用"
+        },
+        "loading": "正在加载字幕...",
+        "notAvailable": "此视频没有字幕。",
+        "reload": "重新加载",
+        "showOriginal": "显示原始字幕",
+        "translating": "正在翻译字幕...",
+        "translationFailed": "翻译失败：{error}",
+        "translationConfigIncomplete": "翻译配置不完整",
+        "translationConfigIncompleteMessage": "请先配置Chat API设置。",
+        "openConfig": "打开配置",
+        "cancel": "取消",
+        "noQuotesAvailable": "没有可用的引用。",
+        "extractQuotes": "提取引用",
+        "interpretation": "解读："
     }
 }

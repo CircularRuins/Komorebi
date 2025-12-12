@@ -709,11 +709,55 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 </>
             )
         )
-        return `article/article.html?a=${a}&h=${h}&f=${encodeURIComponent(
+        // Prepare i18n texts for transcript (with safe fallback)
+        const getI18n = (key: string, fallback: string): string => {
+            try {
+                const value = intl.get(key)
+                return value && value !== key ? value : fallback
+            } catch (e) {
+                return fallback
+            }
+        }
+        
+        const i18nTexts = {
+            transcript: {
+                tab: {
+                    transcript: getI18n("transcript.tab.transcript", "Transcript"),
+                    aiSummary: getI18n("transcript.tab.aiSummary", "AI Summary"),
+                    quotes: getI18n("transcript.tab.quotes", "Quotes"),
+                },
+                loading: getI18n("transcript.loading", "Loading transcript..."),
+                notAvailable: getI18n("transcript.notAvailable", "Transcript not available for this video."),
+                reload: getI18n("transcript.reload", "Reload"),
+                showOriginal: getI18n("transcript.showOriginal", "Show original transcript"),
+                translating: getI18n("transcript.translating", "Translating transcript..."),
+                translationFailed: getI18n("transcript.translationFailed", "Translation failed: {error}"),
+                translationConfigIncomplete: getI18n("transcript.translationConfigIncomplete", "Translation Config Incomplete"),
+                translationConfigIncompleteMessage: getI18n("transcript.translationConfigIncompleteMessage", "Please configure Chat API settings first."),
+                openConfig: getI18n("transcript.openConfig", "Open Config"),
+                cancel: getI18n("transcript.cancel", "Cancel"),
+                noQuotesAvailable: getI18n("transcript.noQuotesAvailable", "No quotes available."),
+                extractQuotes: getI18n("transcript.extractQuotes", "Extract Quotes"),
+                interpretation: getI18n("transcript.interpretation", "Interpretation: "),
+            }
+        }
+        let i18nParam = ""
+        try {
+            i18nParam = encodeURIComponent(JSON.stringify(i18nTexts))
+        } catch (e) {
+            console.error('Failed to stringify i18n texts:', e)
+            // Use empty string if JSON.stringify fails
+            i18nParam = ""
+        }
+        
+        const baseUrl = `article/article.html?a=${a}&h=${h}&f=${encodeURIComponent(
             this.state.fontFamily
         )}&s=${this.state.fontSize}&d=${this.props.source.textDir}&u=${
             this.props.item.link
         }&m=${this.state.loadFull ? 1 : 0}&l=${encodeURIComponent(this.props.locale)}`
+        
+        // Only add i18n parameter if it's not empty
+        return i18nParam ? `${baseUrl}&i18n=${i18nParam}` : baseUrl
     }
 
     render = () => {

@@ -170,35 +170,26 @@ export const SmartSearchContext = React.createContext<SmartSearchContextType | n
 
 // Token统计组件
 interface TokenStatisticsProps {
-    tokenStatistics: {
-        chatModel: {
-            prompt_tokens: number
-            completion_tokens: number
-            total_tokens: number
-        }
-        embeddingModel: {
-            prompt_tokens: number
-            completion_tokens: number
-            total_tokens: number
-        }
-    } | null
+    tokenStatistics: TokenStatistics | null
 }
 
 const TokenStatisticsComponent: React.FC<TokenStatisticsProps> = ({ tokenStatistics }) => {
-    if (!tokenStatistics || !tokenStatistics.chatModel || !tokenStatistics.embeddingModel) {
+    if (!tokenStatistics || !tokenStatistics.chatModel) {
         return null
     }
 
     return (
         <div style={{
-            backgroundColor: '#1e1e1e', // Cursor风格的深色背景
+            backgroundColor: '#1e1e1e',
             borderRadius: '8px',
             padding: '20px',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-            flexShrink: 0
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
         }}>
             <div style={{
-                margin: '0 0 16px 0',
                 fontSize: '13px',
                 fontWeight: 600,
                 color: '#858585',
@@ -208,68 +199,18 @@ const TokenStatisticsComponent: React.FC<TokenStatisticsProps> = ({ tokenStatist
                 {intl.get("settings.aiMode.results.tokenStatistics")}
             </div>
             <div style={{
-                display: 'flex',
-                flexDirection: 'row',
-                gap: '12px'
+                fontSize: '13px',
+                color: '#a0a0a0'
             }}>
-                {/* Chat Model统计 */}
-                <div style={{
-                    flex: 1,
-                    padding: '12px',
-                    backgroundColor: '#2a2a2a',
-                    borderRadius: '6px'
-                }}>
-                    <div style={{
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        color: '#e0e0e0',
-                        marginBottom: '8px'
-                    }}>
-                        Chat Model
-                    </div>
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
-                        fontSize: '13px',
-                        color: '#a0a0a0'
-                    }}>
-                        <div>Prompt Tokens: {(tokenStatistics.chatModel.prompt_tokens || 0).toLocaleString()}</div>
-                        <div>Completion Tokens: {(tokenStatistics.chatModel.completion_tokens || 0).toLocaleString()}</div>
-                        <div style={{ fontWeight: 600, color: '#e0e0e0' }}>
-                            Total Tokens: {(tokenStatistics.chatModel.total_tokens || 0).toLocaleString()}
-                        </div>
-                    </div>
-                </div>
-                {/* Embedding Model统计 */}
-                <div style={{
-                    flex: 1,
-                    padding: '12px',
-                    backgroundColor: '#2a2a2a',
-                    borderRadius: '6px'
-                }}>
-                    <div style={{
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        color: '#e0e0e0',
-                        marginBottom: '8px'
-                    }}>
-                        Embedding Model
-                    </div>
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
-                        fontSize: '13px',
-                        color: '#a0a0a0'
-                    }}>
-                        <div>Prompt Tokens: {(tokenStatistics.embeddingModel.prompt_tokens || 0).toLocaleString()}</div>
-                        <div>Completion Tokens: —</div>
-                        <div style={{ fontWeight: 600, color: '#e0e0e0' }}>
-                            Total Tokens: {(tokenStatistics.embeddingModel.total_tokens || 0).toLocaleString()}
-                        </div>
-                    </div>
-                </div>
+                <span style={{ marginRight: '16px' }}>
+                    Prompt: {(tokenStatistics.chatModel.prompt_tokens || 0).toLocaleString()}
+                </span>
+                <span style={{ marginRight: '16px' }}>
+                    Completion: {(tokenStatistics.chatModel.completion_tokens || 0).toLocaleString()}
+                </span>
+                <span style={{ fontWeight: 600, color: '#e0e0e0' }}>
+                    Total: {(tokenStatistics.chatModel.total_tokens || 0).toLocaleString()}
+                </span>
             </div>
         </div>
     )
@@ -1109,7 +1050,7 @@ ${articlesText}
         
 
         return (
-            <div className={`ai-mode-container ${summary ? 'has-summary' : 'no-summary'}`} style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div className={`ai-mode-container ${summary ? 'has-summary' : 'no-summary'}`} style={{ position: 'relative', minHeight: 0, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 {/* 输入界面 - 只在非隐藏模式下显示在内容页顶部，且不在查看结果时显示 */}
                 {!this.props.hideArticleList && !showResults && (
                     <div style={{
@@ -1139,14 +1080,20 @@ ${articlesText}
                         ref={this.summaryContainerRef}
                         className="ai-summary-container has-summary"
                         style={{
-                            flex: 1,
-                            overflow: 'auto',
+                            height: 'calc((100vh - var(--navHeight, 32px)) * 0.9)', // 固定高度为内容页的0.9倍
+                            maxHeight: 'calc((100vh - var(--navHeight, 32px)) * 0.9)', // 确保不超过最大高度
+                            overflowY: 'scroll',
+                            overflowX: 'hidden',
                             padding: '16px 20px 20px 20px',  // 移除导航栏高度的额外 padding
                             display: 'flex',
                             flexDirection: 'column',
                             backgroundColor: 'var(--neutralLighterAlt)',
                             minHeight: 0,
-                            gap: '20px'
+                            gap: '20px',
+                            boxSizing: 'border-box',
+                            flexShrink: 0,
+                            WebkitOverflowScrolling: 'touch',
+                            position: 'relative'
                         }}
                     >
                         <div style={{
@@ -1245,13 +1192,19 @@ ${articlesText}
                         ref={this.summaryContainerRef}
                         className="ai-summary-container has-summary"
                         style={{
-                            flex: 1,
-                            overflow: 'auto',
+                            height: 'calc((100vh - var(--navHeight, 32px)) * 0.9)', // 固定高度为内容页的0.9倍
+                            maxHeight: 'calc((100vh - var(--navHeight, 32px)) * 0.9)', // 确保不超过最大高度
+                            overflowY: 'scroll',
+                            overflowX: 'hidden',
                             padding: '16px 20px 20px 20px',  // 移除导航栏高度的额外 padding
                             display: 'flex',
                             flexDirection: 'column',
                             backgroundColor: 'var(--neutralLighterAlt)',
-                            minHeight: 0
+                            minHeight: 0,
+                            boxSizing: 'border-box',
+                            flexShrink: 0,
+                            WebkitOverflowScrolling: 'touch',
+                            position: 'relative'
                         }}
                     >
                         <div style={{
@@ -1259,7 +1212,7 @@ ${articlesText}
                             borderRadius: '8px',
                             padding: '24px',
                             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                            overflow: 'hidden'
+                            flexShrink: 0
                         }}>
                             <h3 style={{
                                 margin: '0 0 16px 0',
@@ -1385,7 +1338,7 @@ ${articlesText}
                                 padding: '20px',
                                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
                                 flexShrink: 0,
-                                maxHeight: 'calc(100vh - 220px)', // 限制最大高度，为token统计和其他组件留出空间
+                                height: 'calc((100vh - var(--navHeight, 32px)) * 0.4)', // 固定为内容页高度的0.4倍
                                 display: 'flex',
                                 flexDirection: 'column',
                                 gap: '12px',
@@ -1601,10 +1554,7 @@ ${articlesText}
                                                     marginBottom: '20px'
                                                 }}>
                                                     {intl.get("settings.aiMode.progress.foundArticles", { 
-                                                        count: filteredArticles.length, 
-                                                        clusters: clusters.length > 0 
-                                                            ? intl.get("settings.aiMode.progress.foundArticlesWithClusters", { count: clusters.length })
-                                                            : intl.get("settings.aiMode.progress.foundArticlesNoClusters")
+                                                        count: filteredArticles.length
                                                     })}
                                                 </div>
                                                 <PrimaryButton

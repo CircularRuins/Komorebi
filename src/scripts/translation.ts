@@ -250,7 +250,7 @@ export async function translateArticleWithTitle(
     const { apiEndpoint, apiKey, model } = config
 
     if (!apiEndpoint || !apiKey || !model) {
-        throw new Error("翻译配置不完整，请先设置翻译API配置")
+        throw new Error("翻译配置不完整，请先设置Chat API配置")
     }
 
     // 获取目标语言
@@ -459,7 +459,7 @@ export async function translateArticle(
     const { apiEndpoint, apiKey, model } = config
 
     if (!apiEndpoint || !apiKey || !model) {
-        throw new Error("翻译配置不完整，请先设置翻译API配置")
+        throw new Error("翻译配置不完整，请先设置Chat API配置")
     }
 
     // 获取目标语言

@@ -2,6 +2,39 @@ function get(name) {
     if (name = (new RegExp('[?&]' + encodeURIComponent(name) + '=([^&]*)')).exec(location.search))
         return decodeURIComponent(name[1]);
 }
+
+// Load i18n texts from URL parameter
+let i18nTexts = {}
+try {
+    const i18nParam = get("i18n")
+    if (i18nParam && i18nParam.trim() !== '') {
+        i18nTexts = JSON.parse(i18nParam)
+    }
+} catch (e) {
+    console.error('Failed to parse i18n texts:', e)
+    // Continue with empty i18nTexts, fallback will be used
+    i18nTexts = {}
+}
+
+// Helper function to get i18n text with fallback
+function i18n(key, fallback) {
+    try {
+        const keys = key.split('.')
+        let value = i18nTexts
+        for (const k of keys) {
+            if (value && typeof value === 'object' && k in value) {
+                value = value[k]
+            } else {
+                return String(fallback || key)
+            }
+        }
+        return String(value || fallback || key)
+    } catch (e) {
+        console.error('Error in i18n function:', e, 'key:', key)
+        return String(fallback || key)
+    }
+}
+
 let dir = get("d")
 if (dir === "1") {
     document.body.classList.add("rtl")
@@ -38,7 +71,7 @@ const transcriptTranslations = new Map() // Store translations: Map<videoId, Map
 const transcriptTranslating = new Map() // Store translating state for each video
 const lastScrollTarget = new Map() // Track last scroll target for each transcript to detect rapid changes
 const transcriptSummaries = new Map() // Store generated summaries: Map<videoId, string>
-const transcriptQuotes = new Map() // Store generated quotes: Map<videoId, Array<{quote: string, timestamp: string, speaker?: string}>>
+const transcriptQuotes = new Map() // Store extracted quotes: Map<videoId, Array<{quote: string, timestamp: string, speaker?: string}>>
 
 function convertYouTubeLinks(html) {
     if (!html || typeof html !== 'string') return html || ''
@@ -168,26 +201,29 @@ async function translateAndRenderTranscript(containerId, videoId, targetLanguage
         return
     }
     
-    // Check if translation config is available
+    // Check if translation config is available (使用Chat API配置)
     if (typeof window === 'undefined' || !window.settings) {
         console.error('Translation config not available')
         return
     }
     
-    const apiEndpoint = window.settings.getAITranslationApiEndpoint()
-    const apiKey = window.settings.getAITranslationApiKey()
-    const model = window.settings.getAITranslationModel()
+    const apiEndpoint = window.settings.getAIChatApiEndpoint()
+    const apiKey = window.settings.getAIChatApiKey()
+    const model = window.settings.getAIModel()
     
     if (!apiEndpoint || !apiKey || !model) {
         if (window.utils && window.utils.showMessageBox) {
-            await window.utils.showMessageBox(
-                'Translation Config Incomplete',
-                'Please configure translation API settings first.',
-                'OK',
-                'Cancel',
+            const openConfig = await window.utils.showMessageBox(
+                i18n('transcript.translationConfigIncomplete', 'Translation Config Incomplete'),
+                i18n('transcript.translationConfigIncompleteMessage', 'Please configure Chat API settings first.'),
+                i18n('transcript.openConfig', 'Open Config'),
+                i18n('transcript.cancel', 'Cancel'),
                 false,
                 'warning'
             )
+            if (openConfig && window.utils && window.utils.openAIConfig) {
+                await window.utils.openAIConfig()
+            }
         }
         return
     }
@@ -200,7 +236,7 @@ async function translateAndRenderTranscript(containerId, videoId, targetLanguage
     if (transcriptContent) {
         const loadingDiv = document.createElement('div')
         loadingDiv.className = 'youtube-transcript-loading'
-        loadingDiv.textContent = 'Translating transcript...'
+        loadingDiv.textContent = i18n('transcript.translating', 'Translating transcript...')
         transcriptContent.innerHTML = ''
         transcriptContent.appendChild(loadingDiv)
     }
@@ -233,7 +269,8 @@ async function translateAndRenderTranscript(containerId, videoId, targetLanguage
         if (transcriptContent) {
             const errorDiv = document.createElement('div')
             errorDiv.className = 'youtube-transcript-error'
-            errorDiv.textContent = `Translation failed: ${errorMessage}`
+            const errorText = i18n('transcript.translationFailed', 'Translation failed: {error}')
+            errorDiv.textContent = errorText.replace('{error}', errorMessage)
             transcriptContent.innerHTML = ''
             transcriptContent.appendChild(errorDiv)
         }
@@ -446,7 +483,7 @@ function renderTranscriptLanguageMenu(containerId, videoId) {
     }
     
     // "Show original" option
-    const showOriginalItem = createMenuItem('Show original transcript', null, !selectedLanguage, () => {
+    const showOriginalItem = createMenuItem(i18n('transcript.showOriginal', 'Show original transcript'), null, !selectedLanguage, () => {
         transcriptSelectedLanguages.set(videoId, null)
         transcriptMenuOpen.set(videoId, false)
         menu.remove()
@@ -1002,10 +1039,10 @@ async function generateSummary(videoId) {
         if (error.message && error.message.includes('配置不完整')) {
             if (window.utils && window.utils.showMessageBox) {
                 const openConfig = await window.utils.showMessageBox(
-                    'Chat API Configuration Incomplete',
-                    'Please configure Chat API settings first.',
-                    'Open Config',
-                    'Cancel',
+                    i18n('transcript.translationConfigIncomplete', 'Translation Config Incomplete'),
+                    i18n('transcript.translationConfigIncompleteMessage', 'Please configure Chat API settings first.'),
+                    i18n('transcript.openConfig', 'Open Config'),
+                    i18n('transcript.cancel', 'Cancel'),
                     false,
                     'warning'
                 )
@@ -1022,6 +1059,12 @@ async function generateSummary(videoId) {
  * Get interpretation label based on locale
  */
 function getInterpretationLabel(locale) {
+    // Use i18n if available
+    const i18nLabel = i18n('transcript.interpretation', null)
+    if (i18nLabel && i18nLabel !== 'transcript.interpretation') {
+        return i18nLabel
+    }
+    
     if (!locale) {
         return 'Interpretation: '
     }
@@ -1070,7 +1113,7 @@ function getInterpretationLabel(locale) {
  */
 function renderQuotes(quotes, videoId) {
     if (!quotes || !Array.isArray(quotes) || quotes.length === 0) {
-        return '<div class="youtube-transcript-quotes-text">No quotes available.</div>'
+        return '<div class="youtube-transcript-quotes-text">' + i18n('transcript.noQuotesAvailable', 'No quotes available.') + '</div>'
     }
     
     // Get locale from URL parameter
@@ -1169,7 +1212,7 @@ function extractArticleSnippet() {
 }
 
 /**
- * Generate quotes for video transcript
+ * Extract quotes for video transcript
  */
 async function generateQuotes(videoId) {
     // Check if quotes already exists
@@ -1208,10 +1251,10 @@ async function generateQuotes(videoId) {
         if (error.message && error.message.includes('配置不完整')) {
             if (window.utils && window.utils.showMessageBox) {
                 const openConfig = await window.utils.showMessageBox(
-                    'Chat API Configuration Incomplete',
-                    'Please configure Chat API settings first.',
-                    'Open Config',
-                    'Cancel',
+                    i18n('transcript.translationConfigIncomplete', 'Translation Config Incomplete'),
+                    i18n('transcript.translationConfigIncompleteMessage', 'Please configure Chat API settings first.'),
+                    i18n('transcript.openConfig', 'Open Config'),
+                    i18n('transcript.cancel', 'Cancel'),
                     false,
                     'warning'
                 )
@@ -1240,21 +1283,21 @@ function setupQuotesTab(container, videoId) {
         quotesContent.innerHTML = htmlQuotes
         setupQuotesTimestampHandlers(quotesContent, videoId)
     } else {
-        // Show Generate button
+        // Show Extract button
         quotesContent.innerHTML = `
             <div class="youtube-transcript-quotes-empty">
-                <button class="youtube-transcript-quotes-generate">Generate Quotes</button>
+                <button class="youtube-transcript-quotes-generate">${i18n('transcript.extractQuotes', 'Extract Quotes')}</button>
             </div>
         `
         
-        // Setup Generate button click handler
+        // Setup Extract button click handler
         const generateButton = quotesContent.querySelector('.youtube-transcript-quotes-generate')
         if (generateButton) {
             generateButton.addEventListener('click', async () => {
                 // Disable button and show loading
                 generateButton.disabled = true
-                generateButton.textContent = 'Generating...'
-                quotesContent.innerHTML = '<div class="youtube-transcript-quotes-loading">Generating quotes...</div>'
+                generateButton.textContent = 'Extracting...'
+                quotesContent.innerHTML = '<div class="youtube-transcript-quotes-loading">Extracting quotes...</div>'
                 
                 try {
                     const quotes = await generateQuotes(videoId)
@@ -1263,11 +1306,11 @@ function setupQuotesTab(container, videoId) {
                     quotesContent.innerHTML = htmlQuotes
                     setupQuotesTimestampHandlers(quotesContent, videoId)
                 } catch (error) {
-                    console.error('Error generating quotes:', error)
+                    console.error('Error extracting quotes:', error)
                     const errorMessage = error instanceof Error ? error.message : String(error)
                     quotesContent.innerHTML = `
                         <div class="youtube-transcript-quotes-error">
-                            <div>Failed to generate quotes: ${errorMessage}</div>
+                            <div>Failed to extract quotes: ${errorMessage}</div>
                             <button class="youtube-transcript-quotes-retry">Retry</button>
                         </div>
                     `
@@ -1605,17 +1648,37 @@ async function renderTranscript(containerId, videoId) {
     const container = document.getElementById(containerId)
     if (!container) return
     
+    // Get i18n texts once at the start of the function
+    const transcriptTab = i18n('transcript.tab.transcript', 'Transcript')
+    const aiSummaryTab = i18n('transcript.tab.aiSummary', 'AI Summary')
+    const quotesTab = i18n('transcript.tab.quotes', 'Quotes')
+    const loadingText = i18n('transcript.loading', 'Loading transcript...')
+    const notAvailableText = i18n('transcript.notAvailable', 'Transcript not available for this video.')
+    const reloadText = i18n('transcript.reload', 'Reload')
+    
     // Show loading state with tabs
-    container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">AI Summary</button><button class="youtube-transcript-tab" data-tab="quotes">Quotes</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-loading">Loading transcript...</div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="quotes" style="display: none;"><div class="youtube-transcript-quotes"><div class="youtube-transcript-quotes-content"></div></div></div></div>'
+    container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>' + transcriptTab + '</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">' + aiSummaryTab + '</button><button class="youtube-transcript-tab" data-tab="quotes">' + quotesTab + '</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-loading">' + loadingText + '</div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="quotes" style="display: none;"><div class="youtube-transcript-quotes"><div class="youtube-transcript-quotes-content"></div></div></div></div>'
     
     // Fetch transcript from YouTube
     const transcript = await fetchYouTubeTranscript(videoId)
     
     // If transcript fetch failed, show error message
     if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
-        container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">AI Summary</button><button class="youtube-transcript-tab" data-tab="quotes">Quotes</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-error">Transcript not available for this video.</div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="quotes" style="display: none;"><div class="youtube-transcript-quotes"><div class="youtube-transcript-quotes-content"></div></div></div></div>'
+        container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>' + transcriptTab + '</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">' + aiSummaryTab + '</button><button class="youtube-transcript-tab" data-tab="quotes">' + quotesTab + '</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-error"><div>' + notAvailableText + '</div><button class="youtube-transcript-reload">' + reloadText + '</button></div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="quotes" style="display: none;"><div class="youtube-transcript-quotes"><div class="youtube-transcript-quotes-content"></div></div></div></div>'
         setupTabSwitching(container)
         setupTranscriptLanguageMenu(container, videoId)
+        
+        // Setup reload button
+        const transcriptContent = container.querySelector('.youtube-transcript-content')
+        if (transcriptContent) {
+            const reloadButton = transcriptContent.querySelector('.youtube-transcript-reload')
+            if (reloadButton) {
+                reloadButton.addEventListener('click', () => {
+                    renderTranscript(containerId, videoId)
+                })
+            }
+        }
+        
         return
     }
     
@@ -1625,9 +1688,9 @@ async function renderTranscript(containerId, videoId) {
     // Create transcript HTML with tabs (content will be rendered by renderTranscriptWithTranslation)
     let transcriptHTML = '<div class="youtube-transcript">'
     transcriptHTML += '<div class="youtube-transcript-tabs">'
-    transcriptHTML += '<button class="youtube-transcript-tab active" data-tab="transcript"><span>Transcript</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>'
-    transcriptHTML += '<button class="youtube-transcript-tab" data-tab="summary">AI Summary</button>'
-    transcriptHTML += '<button class="youtube-transcript-tab" data-tab="quotes">Quotes</button>'
+    transcriptHTML += '<button class="youtube-transcript-tab active" data-tab="transcript"><span>' + transcriptTab + '</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>'
+    transcriptHTML += '<button class="youtube-transcript-tab" data-tab="summary">' + aiSummaryTab + '</button>'
+    transcriptHTML += '<button class="youtube-transcript-tab" data-tab="quotes">' + quotesTab + '</button>'
     transcriptHTML += '</div>'
     transcriptHTML += '<div class="youtube-transcript-tab-content" data-content="transcript">'
     transcriptHTML += '<div class="youtube-transcript-content"></div>'
@@ -1786,43 +1849,84 @@ let font = get("f")
 if (font) document.body.style.fontFamily = `"${font}"`
 
 let url = get("u")
-getArticle(url).then(article => {
-    // Reset YouTube player counter for new article
-    youtubePlayerCounter = 0
-    youtubePlayers.clear()
-    
-    // Convert YouTube links to embeds before inserting
-    if (article) {
-        article = convertYouTubeLinks(article)
+if (!url) {
+    console.error('Article URL parameter "u" is missing')
+    const main = document.getElementById("main")
+    if (main) {
+        main.innerHTML = '<div style="padding: 20px; text-align: center;">Error: Article URL is missing</div>'
+        main.classList.add("show")
     }
-    
-    let domParser = new DOMParser()
-    let dom = domParser.parseFromString(get("h"), "text/html")
-    dom.getElementsByTagName("article")[0].innerHTML = article
-    let baseEl = dom.createElement('base')
-    baseEl.setAttribute('href', url.split("/").slice(0, 3).join("/"))
-    dom.head.append(baseEl)
-    for (let s of dom.getElementsByTagName("script")) {
-        s.parentNode.removeChild(s)
-    }
-    for (let e of dom.querySelectorAll("*[src]")) {
-        e.src = e.src
-    }
-    for (let e of dom.querySelectorAll("*[href]")) {
-        e.href = e.href
-    }
-    let main = document.getElementById("main")
-    main.innerHTML = dom.body.innerHTML
-    main.classList.add("show")
-    
-    // Start loading transcripts immediately (doesn't need player, only needs DOM)
-    // Use setTimeout to ensure DOM is fully rendered
-    setTimeout(() => {
-        startLoadingTranscripts()
-        // Initialize YouTube players in parallel
-        initializeYouTubePlayers()
-    }, 0)
-})
+} else {
+    getArticle(url).then(article => {
+        // Reset YouTube player counter for new article
+        youtubePlayerCounter = 0
+        youtubePlayers.clear()
+        
+        // Convert YouTube links to embeds before inserting
+        if (article) {
+            article = convertYouTubeLinks(article)
+        }
+        
+        const hParam = get("h")
+        if (!hParam) {
+            console.error('Article HTML parameter "h" is missing')
+            const main = document.getElementById("main")
+            if (main) {
+                main.innerHTML = '<div style="padding: 20px; text-align: center;">Error: Article HTML is missing</div>'
+                main.classList.add("show")
+            }
+            return
+        }
+        
+        let domParser = new DOMParser()
+        let dom = domParser.parseFromString(hParam, "text/html")
+        const articleElement = dom.getElementsByTagName("article")[0]
+        if (!articleElement) {
+            console.error('Article element not found in HTML')
+            const main = document.getElementById("main")
+            if (main) {
+                main.innerHTML = '<div style="padding: 20px; text-align: center;">Error: Article structure is invalid</div>'
+                main.classList.add("show")
+            }
+            return
+        }
+        articleElement.innerHTML = article
+        let baseEl = dom.createElement('base')
+        baseEl.setAttribute('href', url.split("/").slice(0, 3).join("/"))
+        dom.head.append(baseEl)
+        for (let s of dom.getElementsByTagName("script")) {
+            s.parentNode.removeChild(s)
+        }
+        for (let e of dom.querySelectorAll("*[src]")) {
+            e.src = e.src
+        }
+        for (let e of dom.querySelectorAll("*[href]")) {
+            e.href = e.href
+        }
+        let main = document.getElementById("main")
+        if (!main) {
+            console.error('Main element not found')
+            return
+        }
+        main.innerHTML = dom.body.innerHTML
+        main.classList.add("show")
+        
+        // Start loading transcripts immediately (doesn't need player, only needs DOM)
+        // Use setTimeout to ensure DOM is fully rendered
+        setTimeout(() => {
+            startLoadingTranscripts()
+            // Initialize YouTube players in parallel
+            initializeYouTubePlayers()
+        }, 0)
+    }).catch(error => {
+        console.error('Error loading article:', error)
+        const main = document.getElementById("main")
+        if (main) {
+            main.innerHTML = '<div style="padding: 20px; text-align: center;">Error loading article: ' + String(error) + '</div>'
+            main.classList.add("show")
+        }
+    })
+}
 
 // Clean up intervals when page unloads
 window.addEventListener('beforeunload', () => {

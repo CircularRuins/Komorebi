@@ -140,6 +140,30 @@ export function splitTextsIntoChunks(
 }
 
 /**
+ * 将文本数组按句子数量分段
+ * @param texts 文本数组（每个元素代表一个句子）
+ * @param sentencesPerChunk 每个chunk的句子数量（默认50）
+ * @returns 分段后的文本块数组
+ */
+export function splitTextsIntoChunksBySentence(
+    texts: string[],
+    sentencesPerChunk: number = 50
+): TextChunk[] {
+    const chunks: TextChunk[] = []
+    
+    for (let i = 0; i < texts.length; i += sentencesPerChunk) {
+        const endIndex = Math.min(i + sentencesPerChunk - 1, texts.length - 1)
+        chunks.push({
+            texts: texts.slice(i, endIndex + 1),
+            startIndex: i,
+            endIndex: endIndex
+        })
+    }
+    
+    return chunks
+}
+
+/**
  * 规范化API端点
  */
 export function normalizeApiEndpoint(apiEndpoint: string): string {
@@ -240,7 +264,7 @@ ${textToTranslate}`
  * @param texts 要翻译的文本数组
  * @param targetLanguage 目标语言
  * @param config 翻译配置
- * @param maxTokens 最大token数（默认3000）
+ * @param maxTokens 最大token数（已废弃，保留以保持兼容性）
  * @returns 翻译后的文本数组
  */
 export async function translateTexts(
@@ -249,55 +273,16 @@ export async function translateTexts(
     config: TranslationConfig,
     maxTokens: number = 3000
 ): Promise<string[]> {
-    // 计算总token数
-    const textToTranslate = texts.join('\n\n---SEPARATOR---\n\n')
-    const prompt = `Please translate the following text into ${targetLanguage}. If the text is already in ${targetLanguage}, return it as is. Maintain the order and structure of the text, with each segment separated by "---SEPARATOR---".
+    // 按句子数量切分，每5个句子为一组
+    const chunks = splitTextsIntoChunksBySentence(texts, 5)
+    
+    // 如果只有一个chunk且句子数较少，直接翻译
+    if (chunks.length === 1 && texts.length <= 5) {
+        const openai = createOpenAIClient(config)
+        const textToTranslate = texts.join('\n\n---SEPARATOR---\n\n')
+        const prompt = `Please translate the following text into ${targetLanguage}. If the text is already in ${targetLanguage}, return it as is. Maintain the order and structure of the text, with each segment separated by "---SEPARATOR---".
 
 ${textToTranslate}`
-    
-    const totalTokens = estimateTokenCount(prompt, config.model)
-
-    // 如果token数超过限制，进行分段处理
-    if (totalTokens > maxTokens) {
-        const chunks = splitTextsIntoChunks(texts, null, config.model, maxTokens)
-        
-        // 并行翻译所有分段
-        const translationPromises = chunks.map((chunk, index) => 
-            translateTextChunk(chunk, targetLanguage, config)
-                .catch((error) => {
-                    console.error(`分段 ${index} 翻译失败:`, error)
-                    return chunk.texts // 使用原文作为后备
-                })
-        )
-        
-        const translatedChunks = await Promise.all(translationPromises)
-        
-        // 合并所有翻译结果
-        const allTranslatedTexts: string[] = []
-        for (let i = 0; i < translatedChunks.length; i++) {
-            const chunk = chunks[i]
-            const translatedChunk = translatedChunks[i]
-            
-            const expectedCount = chunk.endIndex - chunk.startIndex + 1
-            if (translatedChunk.length === expectedCount) {
-                allTranslatedTexts.push(...translatedChunk)
-            } else {
-                // 如果数量不匹配，尝试按比例分配或使用原始文本
-                const minLength = Math.min(translatedChunk.length, expectedCount)
-                for (let j = 0; j < minLength; j++) {
-                    allTranslatedTexts.push(translatedChunk[j])
-                }
-                // 如果还有缺失的，使用原文
-                for (let j = minLength; j < expectedCount; j++) {
-                    allTranslatedTexts.push(texts[chunk.startIndex + j])
-                }
-            }
-        }
-        
-        return allTranslatedTexts
-    } else {
-        // 如果token数未超过限制，直接翻译
-        const openai = createOpenAIClient(config)
         
         const completion = await openai.chat.completions.create({
             model: config.model,
@@ -334,5 +319,40 @@ ${textToTranslate}`
             throw new Error('API返回格式不正确，未找到choices数组或message内容')
         }
     }
+    
+    // 并行翻译所有分段
+    const translationPromises = chunks.map((chunk, index) => 
+        translateTextChunk(chunk, targetLanguage, config)
+            .catch((error) => {
+                console.error(`分段 ${index} 翻译失败:`, error)
+                return chunk.texts // 使用原文作为后备
+            })
+    )
+    
+    const translatedChunks = await Promise.all(translationPromises)
+    
+    // 合并所有翻译结果
+    const allTranslatedTexts: string[] = []
+    for (let i = 0; i < translatedChunks.length; i++) {
+        const chunk = chunks[i]
+        const translatedChunk = translatedChunks[i]
+        
+        const expectedCount = chunk.endIndex - chunk.startIndex + 1
+        if (translatedChunk.length === expectedCount) {
+            allTranslatedTexts.push(...translatedChunk)
+        } else {
+            // 如果数量不匹配，尝试按比例分配或使用原始文本
+            const minLength = Math.min(translatedChunk.length, expectedCount)
+            for (let j = 0; j < minLength; j++) {
+                allTranslatedTexts.push(translatedChunk[j])
+            }
+            // 如果还有缺失的，使用原文
+            for (let j = minLength; j < expectedCount; j++) {
+                allTranslatedTexts.push(texts[chunk.startIndex + j])
+            }
+        }
+    }
+    
+    return allTranslatedTexts
 }
 

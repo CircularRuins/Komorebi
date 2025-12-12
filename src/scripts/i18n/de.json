@@ -230,5 +230,25 @@
         "pacHint": "Für SOCKS-Proxies wird empfohlen, für proxy-seitiges DNS im PAC \"SOCKS5\" zurückzugeben. Das Deaktivieren des Proxies erfordert einen Neustart.",
         "fetchInterval": "Automatisches Abrufintervall",
         "never": "Nie"
+    },
+    "transcript": {
+        "tab": {
+            "transcript": "Transkript",
+            "aiSummary": "KI-Zusammenfassung",
+            "quotes": "Zitate"
+        },
+        "loading": "Transkript wird geladen...",
+        "notAvailable": "Transkript für dieses Video nicht verfügbar.",
+        "reload": "Neu laden",
+        "showOriginal": "Originales Transkript anzeigen",
+        "translating": "Transkript wird übersetzt...",
+        "translationFailed": "Übersetzung fehlgeschlagen: {error}",
+        "translationConfigIncomplete": "Übersetzungskonfiguration unvollständig",
+        "translationConfigIncompleteMessage": "Bitte konfigurieren Sie zuerst die Chat-API-Einstellungen.",
+        "openConfig": "Konfiguration öffnen",
+        "cancel": "Abbrechen",
+        "noQuotesAvailable": "Keine Zitate verfügbar.",
+        "extractQuotes": "Zitate extrahieren",
+        "interpretation": "Interpretation: "
     }
 }

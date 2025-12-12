@@ -51,12 +51,12 @@
         "settings": "Settings",
         "minimize": "Minimize",
         "maximize": "Maximize",
-        "aiMode": "AI Features"
+        "aiMode": "AI Search"
     },
     "menu": {
         "close": "Close menu",
         "subscriptions": "Subscriptions",
-        "aiFeature": "AI Features"
+        "aiFeature": "AI Search"
     },
     "article": {
         "error": "Failed to load article.",
@@ -269,14 +269,12 @@
                 },
                 "executionSteps": "Execution Steps",
                 "viewResults": "View Results",
-                "foundArticles": "Found {count} articles, {clusters}",
-                "foundArticlesWithClusters": "classified into {count} categories",
-                "foundArticlesNoClusters": "not classified"
+                "foundArticles": "Found {count} articles"
             },
             "results": {
                 "summary": "Summary",
                 "articlesCount": "{count} articles in total",
-                "filteredArticles": "Filtered Articles ({count} articles)",
+                "filteredArticles": "Search Results ({count} articles)",
                 "clusterDescription": "{count} articles in total",
                 "otherCategory": "Other",
                 "unclassifiedDescription": "Unclassified articles",
@@ -467,5 +465,25 @@
             "emptyContent": "Article content is empty, cannot translate",
             "openConfig": "Open Config"
         }
+    },
+    "transcript": {
+        "tab": {
+            "transcript": "Transcript",
+            "aiSummary": "AI Summary",
+            "quotes": "Quotes"
+        },
+        "loading": "Loading transcript...",
+        "notAvailable": "Transcript not available for this video.",
+        "reload": "Reload",
+        "showOriginal": "Show original transcript",
+        "translating": "Translating transcript...",
+        "translationFailed": "Translation failed: {error}",
+        "translationConfigIncomplete": "Translation Config Incomplete",
+        "translationConfigIncompleteMessage": "Please configure Chat API settings first.",
+        "openConfig": "Open Config",
+        "cancel": "Cancel",
+        "noQuotesAvailable": "No quotes available.",
+        "extractQuotes": "Extract Quotes",
+        "interpretation": "Interpretation: "
     }
 }

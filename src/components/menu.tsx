@@ -100,20 +100,20 @@ export class Menu extends React.Component<MenuProps, MenuState> {
                 url: null,
             },
             {
+                name: intl.get("menu.aiFeature"),
+                ariaLabel: intl.get("menu.aiFeature"),
+                key: "ai-features",
+                icon: "AIMode",
+                onClick: () => this.props.selectAIFeatures(),
+                url: null,
+            },
+            {
                 name: intl.get("alphaxiv"),
                 ariaLabel: intl.get("alphaxiv"),
                 key: "alphaxiv",
                 icon: "Globe",
                 onClick: () =>
                     this.props.selectAlphaxiv(this.props.selected !== "alphaxiv"),
-                url: null,
-            },
-            {
-                name: intl.get("menu.aiFeature"),
-                ariaLabel: intl.get("menu.aiFeature"),
-                key: "ai-features",
-                icon: "AIMode",
-                onClick: () => this.props.selectAIFeatures(),
                 url: null,
             },
         ]
@@ -186,13 +186,19 @@ export class Menu extends React.Component<MenuProps, MenuState> {
         const parts = link.ariaLabel.split(" ")
         let count = parts.length > 1 ? parts[parts.length - 1] : null
         
+        // 检查 count 是否是数字（包括 "999+" 格式）
+        const isNumericCount = count && (/^\d+(\+)?$/.test(count))
+        
         // 对于"全部文章"（ALL）和"今日文章"（ALL_TODAY），总是显示数字（包括0）
         // 对于"已收藏"（ALL_TOTAL），不显示数量
         // 对于其他项，只有当数字不为0时才显示
+        // 只对订阅源（key 以 "s-" 开头）和特定菜单项显示数量
         const isAllArticles = link.key === ALL
         const isTodayArticles = link.key === ALL_TODAY
         const isStarred = link.key === ALL_TOTAL
-        const shouldShowCount = !isStarred && count && (isAllArticles || isTodayArticles || count !== "0")
+        const isSource = link.key && link.key.startsWith("s-")
+        const isSearchOrAIFeature = link.key === "search" || link.key === "ai-features" || link.key === "alphaxiv"
+        const shouldShowCount = !isStarred && !isSearchOrAIFeature && isNumericCount && (isAllArticles || isTodayArticles || isSource || (count !== "0" && count !== "0+"))
 
         return (
             <Stack

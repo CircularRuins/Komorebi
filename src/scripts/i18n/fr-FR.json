@@ -228,5 +228,25 @@
         "pacHint": "Pour les proxies Sockets, il est recommandé que le PAC retourne \"SOCKS5\" pour le DNS côté proxies. La désactivation du proxy nécessite un redémarrage.",
         "fetchInterval": "Intervalle de récupération automatique",
         "never": "Jamais"
+    },
+    "transcript": {
+        "tab": {
+            "transcript": "Transcription",
+            "aiSummary": "Résumé IA",
+            "quotes": "Citations"
+        },
+        "loading": "Chargement de la transcription...",
+        "notAvailable": "Transcription non disponible pour cette vidéo.",
+        "reload": "Recharger",
+        "showOriginal": "Afficher la transcription originale",
+        "translating": "Traduction de la transcription...",
+        "translationFailed": "Échec de la traduction : {error}",
+        "translationConfigIncomplete": "Configuration de traduction incomplète",
+        "translationConfigIncompleteMessage": "Veuillez d'abord configurer les paramètres de l'API Chat.",
+        "openConfig": "Ouvrir la configuration",
+        "cancel": "Annuler",
+        "noQuotesAvailable": "Aucune citation disponible.",
+        "extractQuotes": "Extraire les citations",
+        "interpretation": "Interprétation : "
     }
 }

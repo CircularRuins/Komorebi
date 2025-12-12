@@ -2,11 +2,6 @@
     {
         "groupName": "Twitter",
         "feeds": [
-            
-            {
-                "name": "OpenAI Developers",
-                "url": "https://api.xgo.ing/rss/user/971dc1fc90da449bac23e5fad8a33d55"
-            },
             {
                 "name": "Sam Altman",
                 "url": "https://api.xgo.ing/rss/user/e30d4cd223f44bed9d404807105c8927"
@@ -269,10 +264,6 @@
                 "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6YYHJzM6PhZ2Yey9BQiUaw"
             },
             {
-                "name": "a16z",
-                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC9cn0TuPq4dnbTY-CBsm8XA"
-            },
-            {
                 "name": "Last Week in AI",
                 "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCKARTq-t5SPMzwtft8FWwnA"
             },
@@ -330,15 +321,6 @@
             {
                 "name": "BestBlogs",
                 "url": "https://www.bestblogs.dev/zh/feeds/rss/newsletter"
-            }
-        ]
-    },
-    {
-        "groupName": "Podcasts",
-        "feeds": [
-            {
-                "name": "Latent.Space",
-                "url": "https://rss.flightcast.com/vgnxzgiwwzwke85ym53fjnzu.xml"
             }
         ]
     },

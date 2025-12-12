@@ -242,5 +242,25 @@
         "pacHint": "Sockプロキシの場合にPACが“SOCKS5”を返すことをお勧めします。プロキシを停止してから再起動する必要があります。",
         "fetchInterval": "フェッチ間隔",
         "never": "しない"
+    },
+    "transcript": {
+        "tab": {
+            "transcript": "字幕",
+            "aiSummary": "AI要約",
+            "quotes": "引用"
+        },
+        "loading": "字幕を読み込み中...",
+        "notAvailable": "この動画には字幕がありません。",
+        "reload": "再読み込み",
+        "showOriginal": "元の字幕を表示",
+        "translating": "字幕を翻訳中...",
+        "translationFailed": "翻訳に失敗しました：{error}",
+        "translationConfigIncomplete": "翻訳設定が不完全です",
+        "translationConfigIncompleteMessage": "まずChat API設定を構成してください。",
+        "openConfig": "設定を開く",
+        "cancel": "キャンセル",
+        "noQuotesAvailable": "利用可能な引用がありません。",
+        "extractQuotes": "引用を抽出",
+        "interpretation": "解釈："
     }
 }

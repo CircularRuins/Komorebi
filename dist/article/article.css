@@ -352,6 +352,26 @@ article blockquote {
     color: #dc2626;
 }
 
+.youtube-transcript-error > div {
+    margin-bottom: 12px;
+}
+
+.youtube-transcript-reload {
+    padding: 8px 16px;
+    background-color: var(--primary);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.youtube-transcript-reload:hover {
+    background-color: var(--primary-alt);
+}
+
 /* Summary UI Styles */
 .youtube-transcript-summary {
     display: flex;

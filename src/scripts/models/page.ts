@@ -164,23 +164,20 @@ export function selectSmartSearch(): AppThunk<Promise<void>> {
     return async (dispatch, getState) => {
         const aiModeState = getState().aiMode
         
-        // 检查所有必需的AI功能配置项是否已填写
+        // 只检查Chat API配置项是否已填写
         const chatApiEndpoint = (aiModeState.chatApiEndpoint || '').trim()
         const chatApiKey = (aiModeState.chatApiKey || '').trim()
         const model = (aiModeState.model || '').trim()
-        const embeddingApiEndpoint = (aiModeState.embeddingApiEndpoint || '').trim()
-        const embeddingApiKey = (aiModeState.embeddingApiKey || '').trim()
-        const embeddingModel = (aiModeState.embeddingModel || '').trim()
         
-        // 如果任何必需项未填写，显示弹窗提示
-        if (!chatApiEndpoint || !chatApiKey || !model || !embeddingApiEndpoint || !embeddingApiKey || !embeddingModel) {
+        // 如果Chat API配置未填写，显示弹窗提示
+        if (!chatApiEndpoint || !chatApiKey || !model) {
             // 显示错误提示并提供打开配置的选项
             try {
                 // 检查 window.utils 是否可用
                 if (typeof window !== 'undefined' && window.utils && typeof window.utils.showMessageBox === 'function') {
                     // 确保 intl 已初始化
                     const configNotSet = intl.get("settings.aiMode.errors.configNotSet") || "AI配置未设置"
-                    const configIncomplete = intl.get("settings.aiMode.errors.configIncomplete") || "请先完成AI配置（在设置中配置）"
+                    const configIncomplete = intl.get("settings.aiMode.errors.configIncomplete") || "请先完成Chat API配置（在设置中配置）"
                     const openConfigText = intl.get("settings.aiMode.errors.openConfig") || "打开配置"
                     const cancelText = intl.get("cancel") || "取消"
                     

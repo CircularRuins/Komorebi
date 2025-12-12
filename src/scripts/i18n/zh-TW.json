@@ -46,12 +46,12 @@
         "settings": "選項",
         "minimize": "最小化",
         "maximize": "最大化",
-        "aiMode": "AI功能"
+        "aiMode": "AI搜尋"
     },
     "menu": {
         "close": "關閉選單",
         "subscriptions": "訂閱源",
-        "aiFeature": "智能搜索",
+        "aiFeature": "AI搜尋",
         "smartFilter": "智能篩選",
         "hotTopics": "熱點話題",
         "smartFilterPlaceholder": "智能篩選功能開發中...",
@@ -255,5 +255,25 @@
         "pacHint": "對於Socks代理建議PAC返回“SOCKS5”以啟用代理端解析。關閉代理需重啟應用後生效。",
         "fetchInterval": "自動抓取頻率",
         "never": "從不"
+    },
+    "transcript": {
+        "tab": {
+            "transcript": "字幕",
+            "aiSummary": "AI摘要",
+            "quotes": "引用"
+        },
+        "loading": "正在載入字幕...",
+        "notAvailable": "此影片沒有字幕。",
+        "reload": "重新載入",
+        "showOriginal": "顯示原始字幕",
+        "translating": "正在翻譯字幕...",
+        "translationFailed": "翻譯失敗：{error}",
+        "translationConfigIncomplete": "翻譯配置不完整",
+        "translationConfigIncompleteMessage": "請先配置Chat API設定。",
+        "openConfig": "開啟配置",
+        "cancel": "取消",
+        "noQuotesAvailable": "沒有可用的引用。",
+        "extractQuotes": "提取引用",
+        "interpretation": "解讀："
     }
 }

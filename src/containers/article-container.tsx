@@ -47,12 +47,12 @@ const getSource = (state: RootState, props: ArticleContainerProps) => {
     return source
 }
 const getLocale = (state: RootState) => state.app.locale
-const getTranslation = (state: RootState) => state.translation
+const getAIMode = (state: RootState) => state.aiMode
 
 const makeMapStateToProps = () => {
     return createSelector(
-        [getItem, getSource, getLocale, getTranslation],
-        (item, source, locale, translation) => {
+        [getItem, getSource, getLocale, getAIMode],
+        (item, source, locale, aiMode) => {
             // 调试日志
             if (!item || !source) {
                 console.warn('ArticleContainer mapStateToProps: 缺少数据', {
@@ -62,10 +62,11 @@ const makeMapStateToProps = () => {
                     sourceId: source?.sid
                 })
             }
+            // 统一使用Chat API配置进行翻译
             const translationConfig = {
-                apiEndpoint: translation.translationApiEndpoint,
-                apiKey: translation.translationApiKey,
-                model: translation.translationModel,
+                apiEndpoint: aiMode.chatApiEndpoint,
+                apiKey: aiMode.chatApiKey,
+                model: aiMode.model,
             }
             return {
                 item: item,

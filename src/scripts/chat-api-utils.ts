@@ -441,15 +441,15 @@ ${snippetSection}
   <item>Each quote must highlight memorable language, strong emotion, or critical insights.</item>
   <item>Each quote must include the exact timestamp (MM:SS or HH:MM:SS) where it appears in the transcript, pointing to where the quote begins.</item>
   <item>Identify the speaker: Extract the speaker name if it's explicitly mentioned in the transcript (e.g., "John:", "Speaker 1:", "Interviewer:", labels, or speaker tags). If not explicitly mentioned, you may reasonably infer the speaker from context clues in the transcript or article summary (e.g., dialogue patterns, role indicators like "Host" or "Guest", or consistent speaking patterns). Use the article summary above to help identify speakers when available. However, NEVER invent or fabricate speaker names that don't exist in the transcript or cannot be reasonably inferred from it. If you cannot determine or reasonably infer the speaker, leave the "speaker" field empty.</item>
-  <item>For each quote, provide a brief interpretation (1-2 sentences) that explains what the quote means in context. The interpretation should help readers understand the significance or meaning of the quote within the video's narrative.</item>
+  <item>For each quote, provide a brief interpretation (1-2 sentences) that explains what the quote means in context. The interpretation should help readers understand the significance or meaning of the quote within the video's narrative. CRITICAL: The "interpretation" field MUST be written STRICTLY in ${targetLanguage}. This is mandatory and non-negotiable.</item>
   <item>Order the quotes from most to least impactful.</item>
-  <item>IMPORTANT: You MUST respond in ${targetLanguage}. The "quote" field must be in the original language of the transcript. The "interpretation" field MUST be written in ${targetLanguage}.</item>
+  <item>CRITICAL LANGUAGE REQUIREMENT: The "quote" field must be in the original language of the transcript (as it appears verbatim). The "interpretation" field MUST be written STRICTLY in ${targetLanguage}. Do NOT use any other language for the interpretation field. Every word in the interpretation must be in ${targetLanguage}.</item>
 </instructions>
 <qualityControl>
   <item>Do not fabricate quotes or timestamps.</item>
   <item>If fewer than five strong quotes exist, return the best available and respect schema limits.</item>
 </qualityControl>
-<outputFormat>Return strict JSON with up to 5 objects: [{"quote":"string","timestamp":"MM:SS","speaker":"string (optional)","interpretation":"string (optional)"}]. The "quote" field must be the exact verbatim text from the transcript. The "speaker" field should contain the name or identifier of who said the quote if available in the transcript. The "interpretation" field should be a brief explanation (1-2 sentences) of what the quote means in context, written in ${targetLanguage}. Order quotes from most to least impactful. Do not include markdown or commentary.</outputFormat>
+<outputFormat>Return strict JSON with up to 5 objects: [{"quote":"string","timestamp":"MM:SS","speaker":"string (optional)","interpretation":"string (optional)"}]. The "quote" field must be the exact verbatim text from the transcript (in its original language). The "speaker" field should contain the name or identifier of who said the quote if available in the transcript. CRITICAL: The "interpretation" field MUST be a brief explanation (1-2 sentences) of what the quote means in context, and it MUST be written STRICTLY in ${targetLanguage}. Do NOT use English or any other language for the interpretation field. Order quotes from most to least impactful. Do not include markdown or commentary.</outputFormat>
 <transcript><![CDATA[
 ${transcriptWithTimestamps}
 ]]></transcript>
@@ -468,7 +468,7 @@ ${transcriptWithTimestamps}
         messages: [
             {
                 role: 'system',
-                content: `You are a helpful assistant that extracts memorable quotes from video transcripts. You must always respond in ${targetLanguage} language. Never use any other language.`
+                content: `You are a helpful assistant that extracts memorable quotes from video transcripts. CRITICAL: The "interpretation" field in your JSON response MUST be written STRICTLY in ${targetLanguage}. The "quote" field should remain in the original language of the transcript. Never use English or any other language for the interpretation field when the target language is ${targetLanguage}.`
             },
             {
                 role: 'user',

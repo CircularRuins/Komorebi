@@ -176,5 +176,25 @@
         "pac": "Dirección PAC",
         "setPac": "Establecer PAC",
         "pacHint": "Para proxies de tipo Socks proxies, se recomienda que PAC devuelva \"SOCKS5\" respecto del DNS del proxy. Desactivar el proxy requiere reiniciar."
+    },
+    "transcript": {
+        "tab": {
+            "transcript": "Transcripción",
+            "aiSummary": "Resumen IA",
+            "quotes": "Citas"
+        },
+        "loading": "Cargando transcripción...",
+        "notAvailable": "Transcripción no disponible para este video.",
+        "reload": "Recargar",
+        "showOriginal": "Mostrar transcripción original",
+        "translating": "Traduciendo transcripción...",
+        "translationFailed": "Error en la traducción: {error}",
+        "translationConfigIncomplete": "Configuración de traducción incompleta",
+        "translationConfigIncompleteMessage": "Por favor configure primero la configuración de Chat API.",
+        "openConfig": "Abrir configuración",
+        "cancel": "Cancelar",
+        "noQuotesAvailable": "No hay citas disponibles.",
+        "extractQuotes": "Extraer citas",
+        "interpretation": "Interpretación: "
     }
 }

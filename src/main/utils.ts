@@ -694,13 +694,13 @@ export function setUtilsListeners(manager: WindowManager) {
 
     ipcMain.handle("translate-transcript", async (_, texts: string[], targetLanguageCode: string) => {
         try {
-            // Get translation config from store
-            const apiEndpoint = store.get("aiTranslationApiEndpoint", "") as string
-            const apiKey = store.get("aiTranslationApiKey", "") as string
-            const model = store.get("aiTranslationModel", "") as string
+            // Get Chat API config from store (统一使用Chat API配置)
+            const apiEndpoint = store.get("aiChatApiEndpoint", "") as string
+            const apiKey = store.get("aiChatApiKey", "") as string
+            const model = store.get("aiModel", "") as string
 
             if (!apiEndpoint || !apiKey || !model) {
-                throw new Error("翻译配置不完整，请先设置翻译API配置")
+                throw new Error("翻译配置不完整，请先设置Chat API配置")
             }
 
             if (!texts || texts.length === 0) {
@@ -721,9 +721,9 @@ export function setUtilsListeners(manager: WindowManager) {
             if (error instanceof OpenAI.APIError) {
                 let errorMessage = error.message
                 if (error.status === 404) {
-                    errorMessage = `404错误: 请求的URL不存在\n${error.message}\n\n请检查Translation API Endpoint是否正确`
+                    errorMessage = `404错误: 请求的URL不存在\n${error.message}\n\n请检查Chat API Endpoint是否正确`
                 } else if (error.status === 401) {
-                    errorMessage = `401错误: API密钥无效\n${error.message}\n\n请检查Translation API Key是否正确`
+                    errorMessage = `401错误: API密钥无效\n${error.message}\n\n请检查Chat API Key是否正确`
                 } else if (error.status === 429) {
                     errorMessage = `429错误: 请求频率过高\n${error.message}\n\n请稍后再试`
                 }
