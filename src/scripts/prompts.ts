@@ -401,6 +401,59 @@ The classification guidance should be a clear, detailed description (typically 5
 Return the JSON result:`
 }
 
+// ==================== LLM初筛 ====================
+
+export const LLM_PRELIMINARY_FILTER_SYSTEM_MESSAGE = `You are a professional article title filtering assistant, skilled at quickly judging whether article titles match the intent recognition guidance. You only filter out articles whose titles are clearly unrelated to the topic. For articles whose titles match the topic or are uncertain, you should keep them for further detailed analysis. Return results strictly in JSON format, only return JSON objects, do not include any other text.`
+
+export function getLLMPreliminaryFilterPrompt(intentGuidance: string, titlesText: string): string {
+    return `You are tasked with preliminarily filtering articles based on their titles only. This is a quick filtering step to remove articles whose titles are clearly unrelated to the topic.
+
+## Intent Recognition Guidance
+${intentGuidance}
+
+## Task
+Analyze each article title and determine if it should be kept for further detailed analysis. You should:
+- **KEEP** articles whose titles match the topic or are related to the topic
+- **KEEP** articles whose titles are uncertain or ambiguous (when in doubt, keep it)
+- **FILTER OUT** only articles whose titles are clearly and obviously unrelated to the topic
+
+## Decision Criteria
+
+**CRITICAL: Conservative Filtering**
+- This is a preliminary filter based on titles only - be conservative
+- Only filter out titles that are **clearly and obviously** unrelated to the topic
+- When in doubt, keep the article for further analysis
+- Remember: titles may not fully represent article content, so err on the side of keeping articles
+
+**For Broad Queries (general topics):**
+- Keep articles whose titles mention any aspect related to the topic
+- Only filter out titles that are completely unrelated to the topic
+
+**For Specific Queries (narrow topics):**
+- Keep articles whose titles mention the specific combination of concepts
+- Keep articles whose titles are ambiguous or could potentially relate to the topic
+- Only filter out titles that are clearly about different topics
+
+## Important Rules
+1. **Conservative approach**: When uncertain, always keep the article
+2. **Title-only analysis**: You only see titles, not content - be lenient
+3. **Clear filtering**: Only filter out titles that are obviously unrelated
+4. **Follow the guidance**: Use the intent recognition guidance to understand what should be included
+
+## Output Format
+Return a JSON object with the indices (0-based) of articles whose titles should be kept (not filtered out):
+{
+  "relatedArticleIndices": [0, 2, 5, 7]
+}
+
+If all titles should be kept, return all indices. If some titles are clearly unrelated, exclude their indices.
+
+## Article Titles to Analyze
+${titlesText}
+
+Return the JSON result:`
+}
+
 // ==================== LLM精选 ====================
 
 export const LLM_REFINE_SYSTEM_MESSAGE = `You are a professional article filtering assistant, skilled at judging whether articles match the intent recognition guidance with high relevance. You carefully follow the inclusion and exclusion criteria specified in the guidance, paying special attention to query granularity (broad vs specific). You only select articles that have high relevance to the topic or provide important information related to the topic. Return results strictly in JSON format, only return JSON objects, do not include any other text.`

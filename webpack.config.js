@@ -61,6 +61,11 @@ module.exports = [
         experiments: {
             asyncWebAssembly: true,
         },
+        resolve: {
+            alias: {
+                "react/jsx-runtime": path.resolve(__dirname, "src/react/jsx-runtime.ts"),
+            },
+        },
         module: {
             rules: [
                 {

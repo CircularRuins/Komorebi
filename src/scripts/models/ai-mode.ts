@@ -50,9 +50,6 @@ export class AIModeState {
     topic: string = ''
     topicInput: string = ''
     recentTopics: string[] = []
-    classificationStandard: string = ''
-    classificationStandardInput: string = ''
-    recentClassificationStandards: string[] = []
     isComposing: boolean = false
     summary: string = ''
     isLoading: boolean = false
@@ -104,9 +101,6 @@ export const UPDATE_AI_MODE_TOPIC = "UPDATE_AI_MODE_TOPIC"
 export const UPDATE_AI_MODE_TOPIC_INPUT = "UPDATE_AI_MODE_TOPIC_INPUT"
 export const SET_AI_MODE_IS_COMPOSING = "SET_AI_MODE_IS_COMPOSING"
 export const UPDATE_AI_MODE_RECENT_TOPICS = "UPDATE_AI_MODE_RECENT_TOPICS"
-export const UPDATE_AI_MODE_CLASSIFICATION_STANDARD = "UPDATE_AI_MODE_CLASSIFICATION_STANDARD"
-export const UPDATE_AI_MODE_CLASSIFICATION_STANDARD_INPUT = "UPDATE_AI_MODE_CLASSIFICATION_STANDARD_INPUT"
-export const UPDATE_AI_MODE_RECENT_CLASSIFICATION_STANDARDS = "UPDATE_AI_MODE_RECENT_CLASSIFICATION_STANDARDS"
 export const SET_AI_MODE_SUMMARY = "SET_AI_MODE_SUMMARY"
 export const SET_AI_MODE_LOADING = "SET_AI_MODE_LOADING"
 export const SET_AI_MODE_CLUSTERING = "SET_AI_MODE_CLUSTERING"
@@ -176,21 +170,6 @@ export interface SetAIModeIsComposingAction {
 export interface UpdateAIModeRecentTopicsAction {
     type: typeof UPDATE_AI_MODE_RECENT_TOPICS
     recentTopics: string[]
-}
-
-export interface UpdateAIModeClassificationStandardAction {
-    type: typeof UPDATE_AI_MODE_CLASSIFICATION_STANDARD
-    classificationStandard: string
-}
-
-export interface UpdateAIModeClassificationStandardInputAction {
-    type: typeof UPDATE_AI_MODE_CLASSIFICATION_STANDARD_INPUT
-    classificationStandardInput: string
-}
-
-export interface UpdateAIModeRecentClassificationStandardsAction {
-    type: typeof UPDATE_AI_MODE_RECENT_CLASSIFICATION_STANDARDS
-    recentClassificationStandards: string[]
 }
 
 export interface SetAIModeSummaryAction {
@@ -416,9 +395,6 @@ export type AIModeActionTypes =
     | UpdateAIModeTopicInputAction
     | SetAIModeIsComposingAction
     | UpdateAIModeRecentTopicsAction
-    | UpdateAIModeClassificationStandardAction
-    | UpdateAIModeClassificationStandardInputAction
-    | UpdateAIModeRecentClassificationStandardsAction
     | SetAIModeSummaryAction
     | SetAIModeLoadingAction
     | SetAIModeClusteringAction
@@ -497,27 +473,6 @@ export function updateAIModeRecentTopics(recentTopics: string[]): AIModeActionTy
     return {
         type: UPDATE_AI_MODE_RECENT_TOPICS,
         recentTopics
-    }
-}
-
-export function updateAIModeClassificationStandard(classificationStandard: string): AIModeActionTypes {
-    return {
-        type: UPDATE_AI_MODE_CLASSIFICATION_STANDARD,
-        classificationStandard
-    }
-}
-
-export function updateAIModeClassificationStandardInput(classificationStandardInput: string): AIModeActionTypes {
-    return {
-        type: UPDATE_AI_MODE_CLASSIFICATION_STANDARD_INPUT,
-        classificationStandardInput
-    }
-}
-
-export function updateAIModeRecentClassificationStandards(recentClassificationStandards: string[]): AIModeActionTypes {
-    return {
-        type: UPDATE_AI_MODE_RECENT_CLASSIFICATION_STANDARDS,
-        recentClassificationStandards
     }
 }
 
@@ -845,8 +800,6 @@ function getInitialState(): AIModeState {
     // 从 localStorage 读取其他配置（recent topics 等）
     const savedRecentTopics = localStorage.getItem('ai-recent-topics')
     const recentTopics = savedRecentTopics ? JSON.parse(savedRecentTopics) : []
-    const savedRecentClassificationStandards = localStorage.getItem('ai-recent-classification-standards')
-    const recentClassificationStandards = savedRecentClassificationStandards ? JSON.parse(savedRecentClassificationStandards) : []
     
     // 不设置默认值，保持为空字符串
     // 只对数字字段设置默认值（如果未设置）
@@ -871,7 +824,6 @@ function getInitialState(): AIModeState {
     state.embeddingQPS = embeddingQPS
     state.topk = topk
     state.recentTopics = recentTopics
-    state.recentClassificationStandards = recentClassificationStandards
     // 临时字段
     state.tempApiEndpoint = oldEndpoint
     state.tempApiKey = oldKey
@@ -914,17 +866,6 @@ export function aiModeReducer(
             // 同步到 localStorage
             localStorage.setItem('ai-recent-topics', JSON.stringify(action.recentTopics))
             return { ...state, recentTopics: action.recentTopics }
-
-        case UPDATE_AI_MODE_CLASSIFICATION_STANDARD:
-            return { ...state, classificationStandard: action.classificationStandard }
-
-        case UPDATE_AI_MODE_CLASSIFICATION_STANDARD_INPUT:
-            return { ...state, classificationStandardInput: action.classificationStandardInput }
-
-        case UPDATE_AI_MODE_RECENT_CLASSIFICATION_STANDARDS:
-            // 同步到 localStorage
-            localStorage.setItem('ai-recent-classification-standards', JSON.stringify(action.recentClassificationStandards))
-            return { ...state, recentClassificationStandards: action.recentClassificationStandards }
 
         case SET_AI_MODE_SUMMARY:
             return { ...state, summary: action.summary }

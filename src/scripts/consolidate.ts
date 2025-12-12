@@ -7,16 +7,10 @@ import type { QueryProgressStep, QueryProgress, ArticleCluster, TokenStatistics,
 import {
     TOPIC_INTENT_RECOGNITION_SYSTEM_MESSAGE,
     getTopicIntentRecognitionPrompt,
-    CLASSIFICATION_INTENT_RECOGNITION_SYSTEM_MESSAGE,
-    getClassificationIntentRecognitionPrompt,
+    LLM_PRELIMINARY_FILTER_SYSTEM_MESSAGE,
+    getLLMPreliminaryFilterPrompt,
     LLM_REFINE_SYSTEM_MESSAGE,
-    getLLMRefinePrompt,
-    CLASSIFY_ARTICLES_SYSTEM_MESSAGE,
-    getClassifyArticlesPrompt,
-    CLASSIFICATION_DEDUPLICATION_SYSTEM_MESSAGE,
-    getClassificationDeduplicationPrompt,
-    HYDE_SYSTEM_MESSAGE,
-    getHyDEPrompt
+    getLLMRefinePrompt
 } from "./prompts"
 
 // ==================== 配置和回调接口 ====================
@@ -434,244 +428,6 @@ export async function stepQueryDatabase(
     return items
 }
 
-// 子步骤: 计算话题向量
-async function stepComputeTopicEmbedding(
-    textToVectorize: string,
-    originalTopic: string,
-    config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks,
-    isHyDE: boolean = false,
-    tokenStatistics?: TokenStatistics
-): Promise<number[]> {
-    const trimmedText = textToVectorize.trim()
-    // 如果使用HyDE，显示原始主题；否则显示实际文本
-    const displayTopic = isHyDE ? originalTopic.substring(0, 50) : trimmedText.substring(0, 50)
-    callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.computingTopicEmbedding", { topic: displayTopic }))
-    
-    try {
-        // 直接调用API计算embedding（不缓存）
-        const topicEmbedding = await computeTopicEmbedding(trimmedText, config, callbacks, tokenStatistics)
-        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.topicEmbeddingCompleted"))
-        return topicEmbedding
-    } catch (error) {
-        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.topicEmbeddingFailed"))
-        throw error
-    }
-}
-
-// 子步骤: 加载已有文章向量
-async function stepLoadEmbeddings(
-    items: RSSItem[],
-    callbacks: ConsolidateCallbacks
-): Promise<number> {
-    callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.loadingEmbeddings"))
-    
-    const itemIds = items.map(item => item._id)
-    if (itemIds.length === 0) {
-        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.noArticlesToLoad"))
-        return 0
-    }
-
-    try {
-        // 批量查询所有文章的embedding
-        const dbItems = await db.itemsDB
-            .select(db.items._id, db.items.embedding)
-            .from(db.items)
-            .where(db.items._id.in(itemIds))
-            .exec() as Array<{ _id: number, embedding?: number[] }>
-        
-        // 创建embedding映射
-        const embeddingMap = new Map<number, number[]>()
-        for (const dbItem of dbItems) {
-            if (dbItem.embedding && Array.isArray(dbItem.embedding) && dbItem.embedding.length > 0) {
-                embeddingMap.set(dbItem._id, dbItem.embedding)
-            }
-        }
-        
-        // 更新内存中的embedding
-        let loadedCount = 0
-        for (const item of items) {
-            const embedding = embeddingMap.get(item._id)
-            if (embedding) {
-                item.embedding = embedding
-                loadedCount++
-            }
-        }
-        
-        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.embeddingsLoaded", { count: loadedCount }))
-        return loadedCount
-    } catch (error) {
-        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.loadEmbeddingsFailed"))
-        return 0
-    }
-}
-
-// 子步骤: 计算新文章向量
-async function stepComputeEmbeddings(
-    items: RSSItem[],
-    config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks,
-    tokenStatistics?: TokenStatistics
-): Promise<number> {
-    // 过滤出还没有embedding的文章
-    const articlesNeedingEmbedding = items.filter(item => {
-        const embedding = item.embedding
-        const hasEmbedding = embedding && Array.isArray(embedding) && embedding.length > 0
-        return !hasEmbedding
-    })
-
-    if (articlesNeedingEmbedding.length === 0) {
-        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.allArticlesHaveEmbeddings"), 100)
-        return 0
-    }
-
-    callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.needComputeEmbeddings", { count: articlesNeedingEmbedding.length }), 0)
-    
-    try {
-        await computeAndStoreEmbeddings(articlesNeedingEmbedding, config, callbacks, tokenStatistics)
-        
-        // 计算完成后，批量重新加载这些文章的embedding
-        const computedIds = articlesNeedingEmbedding.map(a => a._id)
-        let computedCount = 0
-        if (computedIds.length > 0) {
-            try {
-                const dbItems = await db.itemsDB
-                    .select(db.items._id, db.items.embedding)
-                    .from(db.items)
-                    .where(db.items._id.in(computedIds))
-                    .exec() as Array<{ _id: number, embedding?: number[] }>
-                
-                const embeddingMap = new Map<number, number[]>()
-                for (const dbItem of dbItems) {
-                    if (dbItem.embedding && Array.isArray(dbItem.embedding) && dbItem.embedding.length > 0) {
-                        embeddingMap.set(dbItem._id, dbItem.embedding)
-                    }
-                }
-                
-                for (const article of articlesNeedingEmbedding) {
-                    const embedding = embeddingMap.get(article._id)
-                    if (embedding) {
-                        article.embedding = embedding
-                        computedCount++
-                    }
-                }
-            } catch (error) {
-                // 重新加载失败，抛出错误（严格模式）
-                callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.computeEmbeddingsFailed"))
-                if (error instanceof Error) {
-                    throw new Error(`重新加载文章embedding失败: ${error.message}`)
-                } else {
-                    throw new Error(`重新加载文章embedding失败: ${String(error)}`)
-                }
-            }
-        }
-        
-        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.embeddingsComputed", { count: articlesNeedingEmbedding.length }), 100)
-        return computedCount
-    } catch (error) {
-        // 计算embedding失败，更新状态并抛出错误（严格模式）
-        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.computeEmbeddingsFailed"))
-        if (error instanceof Error) {
-            throw error
-        } else {
-            throw new Error(`计算文章embedding失败: ${String(error)}`)
-        }
-    }
-}
-
-// 步骤2: 向量检索（包含向量计算和相似度筛选）
-export async function stepVectorRetrieval(
-    topic: string,
-    items: RSSItem[],
-    topk: number,
-    config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks,
-    tokenStatistics?: TokenStatistics
-): Promise<RSSItem[]> {
-    callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.startVectorRetrieval"))
-    
-    const trimmedTopic = topic.trim()
-    
-    try {
-        // 子步骤0: 生成HyDE假设文章（失败时直接抛出错误）
-        const hypotheticalArticle = await stepGenerateHyDE(trimmedTopic, config, callbacks, tokenStatistics)
-        
-        // 子步骤1: 计算话题向量（使用假设文章）
-        // 传入原始topic作为缓存key，但实际计算使用假设文章
-        const topicEmbedding = await stepComputeTopicEmbedding(hypotheticalArticle, trimmedTopic, config, callbacks, true, tokenStatistics)
-        
-        // 子步骤2: 加载已有文章向量
-        const loadedCount = await stepLoadEmbeddings(items, callbacks)
-        
-        // 子步骤3: 计算新文章向量
-        const computedCount = await stepComputeEmbeddings(items, config, callbacks, tokenStatistics)
-        
-        
-        // 子步骤4: 计算相似度并筛选
-        callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.calculatingSimilarity"), 0)
-        
-        // 过滤出有embedding的文章
-        const articlesWithEmbedding = items.filter(item => 
-            item.embedding && Array.isArray(item.embedding) && item.embedding.length > 0
-        )
-        
-        if (articlesWithEmbedding.length === 0) {
-            callbacks.updateStepStatus('vector-retrieval', 'completed', intl.get("settings.aiMode.progress.messages.noArticlesForSimilarity"))
-            return []
-        }
-        
-        const totalItems = articlesWithEmbedding.length
-        const batchSize = 50 // 每批处理50篇文章
-        const articlesWithSimilarity: Array<{ article: RSSItem, similarity: number }> = []
-        
-        // 分批并行计算相似度
-        for (let i = 0; i < articlesWithEmbedding.length; i += batchSize) {
-            const batch = articlesWithEmbedding.slice(i, i + batchSize)
-            
-            // 并行计算当前批次的相似度
-            const batchResults = await Promise.all(
-                batch.map(item => {
-                    return new Promise<{ article: RSSItem, similarity: number } | null>((resolve) => {
-                        try {
-                            const similarity = cosineSimilarity(topicEmbedding, item.embedding!)
-                            resolve({ article: item, similarity })
-                        } catch (error) {
-                            // 忽略单个文章的计算错误
-                            resolve(null)
-                        }
-                    })
-                })
-            )
-            
-            // 过滤掉null结果并添加到总结果中
-            for (const result of batchResults) {
-                if (result !== null) {
-                    articlesWithSimilarity.push(result)
-                }
-            }
-            
-            // 更新进度
-            const processedCount = Math.min(i + batchSize, totalItems)
-            const progress = Math.floor((processedCount / totalItems) * 100)
-            callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.calculatingSimilarityProgress", { processed: processedCount, total: totalItems }), progress)
-        }
-
-        // 按相似度降序排序
-        articlesWithSimilarity.sort((a, b) => b.similarity - a.similarity)
-
-        // 选择相似度最高的topk篇
-        const selectedArticles = articlesWithSimilarity
-            .slice(0, topk)
-            .map(item => item.article)
-
-        callbacks.updateStepStatus('vector-retrieval', 'completed', intl.get("settings.aiMode.progress.messages.similarityCalculated", { total: articlesWithSimilarity.length, selected: selectedArticles.length }))
-        
-        return selectedArticles
-    } catch (error) {
-        callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.vectorRetrievalFailed"))
-        throw error
-    }
-}
 
 // 子步骤: 主题意图识别（识别用户意图并确定查询的精细程度）
 async function stepRecognizeTopicIntent(
@@ -779,218 +535,197 @@ async function stepRecognizeTopicIntent(
     }
 }
 
-// 子步骤: 分类标准意图识别（使用LLM理解如何分类）
-async function stepRecognizeClassificationIntent(
-    topic: string,
-    classificationStandard: string,
+
+
+// 步骤3: LLM初筛（基于标题快速过滤明显不符合主题的文章）
+// 注意：此函数仅在文章数量 > 100 时被调用
+export async function stepLLMPreliminaryFilter(
+    articles: RSSItem[],
+    intentGuidance: string,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks,
     tokenStatistics?: TokenStatistics
-): Promise<string> {
+): Promise<RSSItem[]> {
     const { chatApiKey, model, chatApiBaseURL } = config
 
     if (!chatApiBaseURL) {
         throw new Error('chatApiBaseURL未设置')
     }
 
-    const trimmedTopic = topic.trim()
-    const trimmedStandard = classificationStandard.trim()
+    // 如果文章数量 <= 100，直接返回所有文章
+    if (articles.length <= 100) {
+        callbacks.updateStepStatus('llm-preliminary-filter', 'completed', intl.get("settings.aiMode.progress.messages.skippingPreliminaryFilter", { count: articles.length }))
+        return articles
+    }
 
-    callbacks.updateStepStatus('intent-recognition-classification', 'in_progress', intl.get("settings.aiMode.progress.messages.recognizingClassificationIntent", { standard: trimmedStandard }))
+    callbacks.updateStepStatus('llm-preliminary-filter', 'in_progress', intl.get("settings.aiMode.progress.messages.llmPreliminaryFiltering", { count: articles.length }), 0)
 
-    try {
-        const openai = new OpenAI({
-            apiKey: chatApiKey,
-            baseURL: chatApiBaseURL,
-            dangerouslyAllowBrowser: true
-        })
-
-        const prompt = getClassificationIntentRecognitionPrompt(trimmedTopic, trimmedStandard)
-
-        const completionParams: any = {
-            model: model,
-            messages: [
-                {
-                    role: 'system',
-                    content: CLASSIFICATION_INTENT_RECOGNITION_SYSTEM_MESSAGE
-                },
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            temperature: 0.3,
-            max_tokens: 500
-        }
-
-        // 某些模型可能不支持response_format，尝试添加但不强制
+    const batchSize = 50 // 每批最多50篇文章（只分析标题，可以处理更多）
+    const totalArticles = articles.length
+    const totalBatches = Math.ceil(totalArticles / batchSize)
+    
+    // 创建所有批次
+    const batches: Array<{ batch: RSSItem[], batchNumber: number, batchStart: number }> = []
+    for (let batchStart = 0; batchStart < articles.length; batchStart += batchSize) {
+        const batchEnd = Math.min(batchStart + batchSize, articles.length)
+        const batch = articles.slice(batchStart, batchEnd)
+        const batchNumber = Math.floor(batchStart / batchSize) + 1
+        batches.push({ batch, batchNumber, batchStart })
+    }
+    
+    // 用于跟踪已完成的批次数量
+    let completedCount = 0
+    const allRelatedIndices = new Set<number>()
+    
+    // 更新进度的辅助函数（带节流）
+    const updateProgress = () => {
+        completedCount++
+        const progress = Math.floor((completedCount / totalBatches) * 100)
+        callbacks.updateStepStatus('llm-preliminary-filter', 'in_progress', 
+            intl.get("settings.aiMode.progress.messages.llmPreliminaryFilteringInParallel", { 
+                completed: completedCount, 
+                total: totalBatches, 
+                processed: Math.min(completedCount * batchSize, totalArticles), 
+                totalArticles: totalArticles 
+            }), 
+            progress)
+    }
+    
+    // 处理单个批次的函数
+    const processBatch = async (batchInfo: { batch: RSSItem[], batchNumber: number, batchStart: number }) => {
+        const { batch, batchNumber, batchStart } = batchInfo
+        
         try {
-            completionParams.response_format = { type: "json_object" }
-        } catch (e) {
-            // 忽略错误，继续使用普通格式
-        }
+            // 准备当前批次的文章标题（只提取标题）
+            const titlesText = batch.map((article, index) => {
+                return `Title ${index}: ${article.title || ''}`
+            }).join('\n')
 
-        const completion = await openai.chat.completions.create(completionParams)
+            const prompt = getLLMPreliminaryFilterPrompt(intentGuidance, titlesText)
 
-        // 收集token使用量
-        if (completion.usage && callbacks.updateTokenStatistics && tokenStatistics) {
-            addTokenUsage(tokenStatistics, completion.usage, true)
-            callbacks.updateTokenStatistics(tokenStatistics)
-        }
+            const openai = new OpenAI({
+                apiKey: chatApiKey,
+                baseURL: chatApiBaseURL,
+                dangerouslyAllowBrowser: true
+            })
 
-        if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
-            const responseText = completion.choices[0].message.content || ''
+            // 尝试使用JSON格式，如果不支持则回退到普通格式
+            const completionParams: any = {
+                model: model,
+                messages: [
+                    {
+                        role: 'system',
+                        content: LLM_PRELIMINARY_FILTER_SYSTEM_MESSAGE
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.3,
+                max_tokens: 2000
+            }
             
-            // 解析JSON响应
-            let responseData
+            // 某些模型可能不支持response_format，尝试添加但不强制
             try {
-                // 尝试提取JSON（可能包含markdown代码块）
-                const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
-                const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
-                responseData = JSON.parse(jsonText)
-            } catch (parseError) {
-                // 解析失败，抛出错误（严格模式）
-                callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
-                throw new Error('分类标准意图识别失败：无法解析LLM返回的JSON响应')
+                completionParams.response_format = { type: "json_object" }
+            } catch (e) {
+                // 忽略错误，继续使用普通格式
             }
-
-            // 提取分类指导信息
-            if (responseData.classificationGuidance && typeof responseData.classificationGuidance === 'string') {
-                const classificationGuidance = responseData.classificationGuidance.trim()
-                if (classificationGuidance.length > 0) {
-                    callbacks.updateStepStatus('intent-recognition-classification', 'completed', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionCompleted"))
-                    return classificationGuidance
+            
+            const completion = await openai.chat.completions.create(completionParams)
+            
+            // 收集token使用量
+            if (completion.usage && callbacks.updateTokenStatistics && tokenStatistics) {
+                addTokenUsage(tokenStatistics, completion.usage, true)
+                callbacks.updateTokenStatistics(tokenStatistics)
+            }
+            
+            if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
+                const responseText = completion.choices[0].message.content || ''
+                
+                // 解析JSON响应
+                let responseData
+                try {
+                    // 尝试提取JSON（可能包含markdown代码块）
+                    const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
+                    const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
+                    responseData = JSON.parse(jsonText)
+                } catch (parseError) {
+                    // 解析失败，抛出错误（严格模式）
+                    updateProgress()
+                    throw new Error(`LLM初筛失败：批次 ${batchNumber} 无法解析LLM返回的JSON响应`)
                 }
-            }
-        }
 
-        // 如果无法获取分类指导信息，抛出错误（严格模式）
-        callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
-        throw new Error('分类标准意图识别失败：LLM返回的响应中缺少classificationGuidance字段')
-    } catch (error) {
-        // API调用失败，抛出错误（严格模式）
-        if (error instanceof Error && error.message.includes('分类标准意图识别失败')) {
-            // 已经是我们抛出的错误，直接重新抛出
-            callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
-            throw error
-        } else {
-            // API调用失败
-            callbacks.updateStepStatus('intent-recognition-classification', 'error', intl.get("settings.aiMode.progress.messages.classificationIntentRecognitionFailed"))
-            if (error instanceof OpenAI.APIError) {
-                throw new Error(`分类标准意图识别失败: ${error.message}`)
-            } else if (error instanceof Error) {
-                throw new Error(`分类标准意图识别失败: ${error.message}`)
+                // 提取相关文章索引
+                if (responseData.relatedArticleIndices && Array.isArray(responseData.relatedArticleIndices)) {
+                    responseData.relatedArticleIndices.forEach((idx: number) => {
+                        if (typeof idx === 'number' && idx >= 0 && idx < batch.length) {
+                            // 将批次内的索引转换为全局索引
+                            const globalIndex = batchStart + idx
+                            if (globalIndex >= 0 && globalIndex < articles.length) {
+                                allRelatedIndices.add(globalIndex)
+                            }
+                        }
+                    })
+                } else {
+                    // 如果响应格式不正确，抛出错误（严格模式）
+                    updateProgress()
+                    throw new Error(`LLM初筛失败：批次 ${batchNumber} LLM返回的响应中缺少relatedArticleIndices字段`)
+                }
             } else {
-                throw new Error(`分类标准意图识别失败: ${String(error)}`)
-            }
-        }
-    }
-}
-
-
-// 子步骤: HyDE生成（根据主题生成假设文章）
-async function stepGenerateHyDE(
-    topic: string,
-    config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks,
-    tokenStatistics?: TokenStatistics
-): Promise<string> {
-    const { chatApiKey, model, chatApiBaseURL } = config
-
-    if (!chatApiBaseURL) {
-        throw new Error('chatApiBaseURL未设置')
-    }
-
-    const trimmedTopic = topic.trim()
-
-    callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.generatingHyDE", { topic: trimmedTopic }))
-
-    try {
-        const openai = new OpenAI({
-            apiKey: chatApiKey,
-            baseURL: chatApiBaseURL,
-            dangerouslyAllowBrowser: true
-        })
-
-        const prompt = getHyDEPrompt(trimmedTopic)
-
-        const completionParams: any = {
-            model: model,
-            messages: [
-                {
-                    role: 'system',
-                    content: HYDE_SYSTEM_MESSAGE
-                },
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            temperature: 0.7,
-            max_tokens: 1000
-        }
-
-        // 某些模型可能不支持response_format，尝试添加但不强制
-        try {
-            completionParams.response_format = { type: "json_object" }
-        } catch (e) {
-            // 忽略错误，继续使用普通格式
-        }
-
-        const completion = await openai.chat.completions.create(completionParams)
-
-        // 收集token使用量
-        if (completion.usage && callbacks.updateTokenStatistics && tokenStatistics) {
-            addTokenUsage(tokenStatistics, completion.usage, true)
-            callbacks.updateTokenStatistics(tokenStatistics)
-        }
-
-        if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
-            const responseText = completion.choices[0].message.content || ''
-
-            // 解析JSON响应
-            let responseData
-            try {
-                // 尝试提取JSON（可能包含markdown代码块）
-                const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
-                const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
-                responseData = JSON.parse(jsonText)
-            } catch (parseError) {
-                // 解析失败，抛出错误
-                callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.hydeGenerationFailed"))
-                throw new Error('HyDE生成失败：无法解析LLM返回的JSON响应')
-            }
-
-            // 提取生成的假设文章（RSS格式：title和snippet）
-            if (responseData.title && responseData.snippet && typeof responseData.title === 'string' && typeof responseData.snippet === 'string') {
-                // 使用与RSS文章向量化相同的格式：title\nsnippet
-                const hypotheticalArticle = `${responseData.title.trim()}\n${responseData.snippet.trim()}`.trim()
-                if (hypotheticalArticle.length > 0) {
-                    // HyDE 生成完成，更新向量检索步骤的消息，然后继续执行向量检索的其他子步骤
-                    callbacks.updateStepStatus('vector-retrieval', 'in_progress', intl.get("settings.aiMode.progress.messages.hydeGenerationCompleted"))
-                    return hypotheticalArticle
-                }
+                // 如果API调用失败或没有响应，抛出错误（严格模式）
+                updateProgress()
+                throw new Error(`LLM初筛失败：批次 ${batchNumber} LLM API没有返回有效响应`)
             }
             
-            // 如果响应格式不正确，抛出错误
-            callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.hydeGenerationFailed"))
-            throw new Error('HyDE生成失败：LLM返回的响应格式不正确（缺少title或snippet字段）')
-        } else {
-            // 如果API没有返回有效响应，抛出错误
-            callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.hydeGenerationFailed"))
-            throw new Error('HyDE生成失败：LLM API没有返回有效响应')
-        }
-    } catch (error) {
-        // API调用失败，抛出错误
-        if (error instanceof Error) {
-            callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.hydeGenerationFailed"))
-            throw error
-        } else {
-            callbacks.updateStepStatus('vector-retrieval', 'error', intl.get("settings.aiMode.progress.messages.hydeGenerationFailed"))
-            throw new Error(`HyDE生成失败: ${String(error)}`)
+            // 更新进度
+            updateProgress()
+        } catch (error) {
+            // 批次处理失败，抛出错误（严格模式）
+            updateProgress()
+            if (error instanceof Error && error.message.includes('LLM初筛失败')) {
+                // 已经是我们抛出的错误，直接重新抛出
+                throw error
+            } else {
+                // API调用失败或其他错误
+                if (error instanceof OpenAI.APIError) {
+                    throw new Error(`LLM初筛失败：批次 ${batchInfo.batchNumber} API调用失败: ${error.message}`)
+                } else if (error instanceof Error) {
+                    throw new Error(`LLM初筛失败：批次 ${batchInfo.batchNumber} ${error.message}`)
+                } else {
+                    throw new Error(`LLM初筛失败：批次 ${batchInfo.batchNumber} ${String(error)}`)
+                }
+            }
         }
     }
+    
+    try {
+        // 并行处理所有批次（严格模式：任何批次失败都会立即失败）
+        await Promise.all(batches.map(batchInfo => processBatch(batchInfo)))
+    } catch (error) {
+        // 并行处理失败，更新状态并抛出错误（严格模式）
+        callbacks.updateStepStatus('llm-preliminary-filter', 'error', intl.get("settings.aiMode.progress.messages.llmPreliminaryFilteringFailed"))
+        if (error instanceof Error) {
+            throw error
+        } else {
+            throw new Error(`LLM初筛失败: ${String(error)}`)
+        }
+    }
+
+    // 根据筛选结果返回相关文章
+    const filteredArticles = articles.filter((_, index) => allRelatedIndices.has(index))
+    
+    // 如果筛选后没有文章，返回空数组
+    if (filteredArticles.length === 0) {
+        callbacks.updateStepStatus('llm-preliminary-filter', 'completed', intl.get("settings.aiMode.progress.messages.noRelatedArticlesAfterPreliminaryFilter"))
+        return []
+    }
+    
+    callbacks.updateStepStatus('llm-preliminary-filter', 'completed', intl.get("settings.aiMode.progress.messages.llmPreliminaryFilteringCompleted", { total: articles.length, filtered: filteredArticles.length }))
+    return filteredArticles
 }
+
 
 // 步骤4: LLM精选（使用LLM严格判断文章是否真正讨论用户关注的主题）
 // 注意：此函数使用意图识别后的指导（intentGuidance）而不是原始topic
@@ -1195,9 +930,14 @@ export async function consolidate(
     classificationStandard: string | null,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
-): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, classificationGuidance: string | null, tokenStatistics: TokenStatistics }> {
+): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, tokenStatistics: TokenStatistics }> {
     // 初始化token统计
     const tokenStatistics = createInitialTokenStatistics()
+    
+    // 立即初始化token统计，让前端从一开始就显示token统计组件
+    if (callbacks.updateTokenStatistics) {
+        callbacks.updateTokenStatistics(tokenStatistics)
+    }
     
     // 在开始之前统一验证所有配置并规范化 URL
     // 验证 Chat API 配置
@@ -1287,7 +1027,7 @@ export async function consolidate(
         if (callbacks.updateTokenStatistics) {
             callbacks.updateTokenStatistics(tokenStatistics)
         }
-        return { articles: [], timeRangeHasArticles: false, topicGuidance: null, classificationGuidance: null, tokenStatistics }
+        return { articles: [], timeRangeHasArticles: false, topicGuidance: null, tokenStatistics }
     }
 
     // 如果没有话题，直接返回所有文章
@@ -1296,134 +1036,123 @@ export async function consolidate(
         if (callbacks.updateTokenStatistics) {
             callbacks.updateTokenStatistics(tokenStatistics)
         }
-        return { articles: items, timeRangeHasArticles: true, topicGuidance: null, classificationGuidance: null, tokenStatistics }
+        return { articles: items, timeRangeHasArticles: true, topicGuidance: null, tokenStatistics }
     }
 
     const trimmedTopic = topic.trim()
-    const { topk } = config
 
-    // 步骤1.5: 主题意图识别和分类标准意图识别（并行执行）
-    // 使用原始topic而不是话题意图识别后的指导（topicGuidance）
-    let topicGuidance: string
-    let classificationGuidance: string | null = null
-    if (classificationStandard && classificationStandard.trim()) {
-        // 并行执行两个意图识别步骤
-        const [topicGuidanceResult, classificationGuidanceResult] = await Promise.all([
-            stepRecognizeTopicIntent(trimmedTopic, normalizedConfig, callbacks, tokenStatistics),
-            stepRecognizeClassificationIntent(trimmedTopic, classificationStandard, normalizedConfig, callbacks, tokenStatistics)
-        ])
-        topicGuidance = topicGuidanceResult
-        classificationGuidance = classificationGuidanceResult
-    } else {
-        // 只有主题意图识别
-        topicGuidance = await stepRecognizeTopicIntent(trimmedTopic, normalizedConfig, callbacks, tokenStatistics)
-    }
+    // 步骤1.5: 主题意图识别
+    const topicGuidance = await stepRecognizeTopicIntent(trimmedTopic, normalizedConfig, callbacks, tokenStatistics)
 
-    // 如果文章数量小于等于topk，不需要计算embedding和相似度，直接进行LLM精选
-    if (items.length <= topk) {
-        // 更新queryProgress，移除embedding相关步骤，只保留步骤1、意图识别和LLM精选
-        // 注意：分类步骤由调用方根据是否有分类依据决定是否添加
+    // 步骤1.6: LLM初筛（仅在文章数量 > 100 时执行）
+    let articlesToRefine = items
+    const shouldPerformPreliminaryFilter = items.length > 100
+    
+    if (shouldPerformPreliminaryFilter) {
+        // 更新queryProgress，添加LLM初筛步骤
         if (callbacks.updateQueryProgress) {
-            const intentSteps: QueryProgressStep[] = [
-                { id: 'intent-recognition-topic', title: intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"), status: 'completed', visible: true }
-            ]
-            if (classificationStandard && classificationStandard.trim()) {
-                intentSteps.push({ id: 'intent-recognition-classification', title: intl.get("settings.aiMode.progress.steps.intentRecognitionClassification"), status: 'completed', visible: true })
-            }
             const steps: QueryProgressStep[] = [
                 { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
-                ...intentSteps,
+                { id: 'intent-recognition-topic', title: intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"), status: 'completed', visible: true },
+                { id: 'llm-preliminary-filter', title: intl.get("settings.aiMode.progress.steps.llmPreliminaryFilter"), status: 'pending', visible: true },
                 { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'pending', visible: true }
             ]
             
             callbacks.updateQueryProgress({
                 steps,
-                currentStepIndex: intentSteps.length + 1, // 指向LLM精选步骤
-                currentMessage: intl.get("settings.aiMode.progress.messages.skipSimilarityCalculation", { count: items.length, topk: topk })
+                currentStepIndex: 2, // 指向LLM初筛步骤
+                currentMessage: intl.get("settings.aiMode.progress.messages.startLLMPreliminaryFilter")
             })
         }
         
-        // 步骤2: LLM精选（使用改写后的查询）
-        const refinedArticles = await stepLLMRefine(items, topicGuidance, normalizedConfig, callbacks, tokenStatistics)
+        articlesToRefine = await stepLLMPreliminaryFilter(items, topicGuidance, normalizedConfig, callbacks, tokenStatistics)
         
-        // 如果LLM精选后没有文章，更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤
-        if (refinedArticles.length === 0) {
+        // 如果初筛后没有文章，提前返回
+        if (articlesToRefine.length === 0) {
             if (callbacks.updateQueryProgress) {
-                const intentSteps: QueryProgressStep[] = [
-                    { id: 'intent-recognition-topic', title: intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"), status: 'completed', visible: true }
-                ]
-                if (classificationStandard && classificationStandard.trim()) {
-                    intentSteps.push({ id: 'intent-recognition-classification', title: intl.get("settings.aiMode.progress.steps.intentRecognitionClassification"), status: 'completed', visible: true })
-                }
                 const steps: QueryProgressStep[] = [
                     { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
-                    ...intentSteps,
-                    { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.noRelatedArticlesAfterLLM"), visible: true }
+                    { id: 'intent-recognition-topic', title: intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"), status: 'completed', visible: true },
+                    { id: 'llm-preliminary-filter', title: intl.get("settings.aiMode.progress.steps.llmPreliminaryFilter"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.noRelatedArticlesAfterPreliminaryFilter"), visible: true }
                 ]
                 
                 callbacks.updateQueryProgress({
                     steps,
-                    currentStepIndex: intentSteps.length + 1,
+                    currentStepIndex: 2,
                     overallProgress: 100,
                     currentMessage: intl.get("settings.aiMode.progress.messages.completed")
                 })
             }
-            return { articles: [], timeRangeHasArticles: true, topicGuidance, classificationGuidance, tokenStatistics }
+            return { articles: [], timeRangeHasArticles: true, topicGuidance, tokenStatistics }
         }
         
-        return { articles: refinedArticles, timeRangeHasArticles: true, topicGuidance, classificationGuidance, tokenStatistics }
-    }
-
-    try {
-        // 步骤2: 向量检索（包含向量计算和相似度筛选）
-        const selectedArticles = await stepVectorRetrieval(trimmedTopic, items, topk, normalizedConfig, callbacks, tokenStatistics)
-        
-        // 步骤3: LLM精选（使用改写后的查询）
-        const refinedArticles = await stepLLMRefine(selectedArticles, topicGuidance, normalizedConfig, callbacks, tokenStatistics)
-        
-        // 如果LLM精选后没有文章，立即更新 queryProgress，只保留已执行的步骤，移除所有未执行的步骤（包括 classify-articles）
-        if (refinedArticles.length === 0) {
-            if (callbacks.updateQueryProgress && callbacks.getCurrentQueryProgress) {
-                const currentProgress = callbacks.getCurrentQueryProgress()
-                if (currentProgress) {
-                    // 只保留已执行的步骤（query-db, intent-recognition-topic, intent-recognition-classification, vector-retrieval, llm-refine）
-                    // 注意：hyde-generation 和 calculate-similarity 不再作为独立步骤，它们现在是 vector-retrieval 的子步骤
-                    // 明确排除 classify-articles 和其他未执行的步骤
-                    const executedStepIds = ['query-db', 'intent-recognition-topic', 'vector-retrieval', 'llm-refine']
-                    if (classificationStandard && classificationStandard.trim()) {
-                        executedStepIds.splice(2, 0, 'intent-recognition-classification')
-                    }
-                    const executedSteps = currentProgress.steps
-                        .filter(step => executedStepIds.includes(step.id))
-                        .map(step => ({
-                            ...step,
-                            status: 'completed' as const,
-                            visible: true
-                        }))
-                    
-                    // 完全替换 steps，确保移除所有未执行的步骤（包括 classify-articles）
-                    // 使用完整的 QueryProgress 对象，确保 reducer 不会重新计算可见性
-                    const finalProgress: QueryProgress = {
-                        steps: executedSteps,
-                        currentStepIndex: executedSteps.length - 1,
-                        overallProgress: 100,
-                        currentMessage: intl.get("settings.aiMode.progress.messages.completed")
-                    }
-                    callbacks.updateQueryProgress(finalProgress)
-                }
-            }
-            return { articles: [], timeRangeHasArticles: true, topicGuidance, classificationGuidance, tokenStatistics }
+        // 更新queryProgress，标记初筛完成，准备LLM精选
+        if (callbacks.updateQueryProgress) {
+            const steps: QueryProgressStep[] = [
+                { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
+                { id: 'intent-recognition-topic', title: intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"), status: 'completed', visible: true },
+                { id: 'llm-preliminary-filter', title: intl.get("settings.aiMode.progress.steps.llmPreliminaryFilter"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.llmPreliminaryFilteringCompleted", { total: items.length, filtered: articlesToRefine.length }), visible: true },
+                { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'pending', visible: true }
+            ]
+            
+            callbacks.updateQueryProgress({
+                steps,
+                currentStepIndex: 3, // 指向LLM精选步骤
+                currentMessage: intl.get("settings.aiMode.progress.messages.startLLMRefine")
+            })
         }
-        
-        return { articles: refinedArticles, timeRangeHasArticles: true, topicGuidance, classificationGuidance, tokenStatistics }
-    } catch (error) {
-        throw error
+    } else {
+        // 文章数量 <= 100，跳过初筛，直接进行LLM精选
+        // 更新queryProgress，只保留步骤1、意图识别和LLM精选
+        if (callbacks.updateQueryProgress) {
+            const steps: QueryProgressStep[] = [
+                { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
+                { id: 'intent-recognition-topic', title: intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"), status: 'completed', visible: true },
+                { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'pending', visible: true }
+            ]
+            
+            callbacks.updateQueryProgress({
+                steps,
+                currentStepIndex: 2, // 指向LLM精选步骤
+                currentMessage: intl.get("settings.aiMode.progress.messages.startLLMRefine")
+            })
+        }
     }
+    
+    // 步骤2: LLM精选（使用改写后的查询，对文章进行筛选）
+    const refinedArticles = await stepLLMRefine(articlesToRefine, topicGuidance, normalizedConfig, callbacks, tokenStatistics)
+    
+    // 如果LLM精选后没有文章，更新 queryProgress，只保留已执行的步骤
+    if (refinedArticles.length === 0) {
+        if (callbacks.updateQueryProgress) {
+            const steps: QueryProgressStep[] = shouldPerformPreliminaryFilter
+                ? [
+                    { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
+                    { id: 'intent-recognition-topic', title: intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"), status: 'completed', visible: true },
+                    { id: 'llm-preliminary-filter', title: intl.get("settings.aiMode.progress.steps.llmPreliminaryFilter"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.llmPreliminaryFilteringCompleted", { total: items.length, filtered: articlesToRefine.length }), visible: true },
+                    { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.noRelatedArticlesAfterLLM"), visible: true }
+                ]
+                : [
+                    { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
+                    { id: 'intent-recognition-topic', title: intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"), status: 'completed', visible: true },
+                    { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'completed', message: intl.get("settings.aiMode.progress.messages.noRelatedArticlesAfterLLM"), visible: true }
+                ]
+            
+            callbacks.updateQueryProgress({
+                steps,
+                currentStepIndex: shouldPerformPreliminaryFilter ? 3 : 2,
+                overallProgress: 100,
+                currentMessage: intl.get("settings.aiMode.progress.messages.completed")
+            })
+        }
+        return { articles: [], timeRangeHasArticles: true, topicGuidance, tokenStatistics }
+    }
+    
+    return { articles: refinedArticles, timeRangeHasArticles: true, topicGuidance, tokenStatistics }
 }
 
 // ==================== 分类函数 ====================
-
-// 对文章进行分类分析
+// 注意：分类功能已移除，此函数保留仅为向后兼容，实际不会被调用
 export async function classifyArticles(
     articles: RSSItem[],
     topicGuidance: string | null,
@@ -1432,342 +1161,7 @@ export async function classifyArticles(
     callbacks: ConsolidateCallbacks,
     tokenStatistics?: TokenStatistics
 ): Promise<ArticleCluster[]> {
-    const { chatApiKey, model, chatApiBaseURL } = config
-
-    // 如果没有传入 tokenStatistics，创建一个新的（用于单独调用 classifyArticles 的情况）
-    const stats = tokenStatistics || createInitialTokenStatistics()
-
-    if (articles.length === 0) {
-        return []
-    }
-
-    if (!chatApiBaseURL) {
-        throw new Error('chatApiBaseURL未设置')
-    }
-
-    // 更新进度：开始分类
-    callbacks.updateStepStatus('classify-articles', 'in_progress', intl.get("settings.aiMode.progress.messages.analyzingAndClassifying", { count: articles.length }))
-
-    // 准备文章内容
-    const articlesToAnalyze = articles  // 分析所有文章
-    const batchSize = 5  // 每批5篇文章
-    const totalArticles = articlesToAnalyze.length
-    const totalBatches = Math.ceil(totalArticles / batchSize)
-
-    // 创建所有批次
-    const batches: Array<{ batch: RSSItem[], batchNumber: number, batchStart: number }> = []
-    for (let batchStart = 0; batchStart < articlesToAnalyze.length; batchStart += batchSize) {
-        const batchEnd = Math.min(batchStart + batchSize, articlesToAnalyze.length)
-        const batch = articlesToAnalyze.slice(batchStart, batchEnd)
-        const batchNumber = Math.floor(batchStart / batchSize) + 1
-        batches.push({ batch, batchNumber, batchStart })
-    }
-
-    // 用于跟踪已完成的批次数量
-    let completedCount = 0
-    const allClassifications: Array<{ articleIndex: number, category: string }> = []
-
-    // 更新进度的辅助函数
-    const updateProgress = () => {
-        completedCount++
-        const progress = Math.floor((completedCount / totalBatches) * 100)
-            callbacks.updateStepStatus('classify-articles', 'in_progress', 
-            intl.get("settings.aiMode.progress.messages.classifyingInParallel", { 
-                completed: completedCount, 
-                total: totalBatches, 
-                processed: Math.min(completedCount * batchSize, totalArticles), 
-                totalArticles: totalArticles 
-            }), 
-            progress)
-    }
-
-    // 提示词将在 processBatch 中动态生成
-
-    // 处理单个批次的函数
-    const processBatch = async (batchInfo: { batch: RSSItem[], batchNumber: number, batchStart: number }) => {
-        const { batch, batchNumber, batchStart } = batchInfo
-
-        try {
-            // 准备当前批次的文章文本
-            const articlesText = batch.map((article, index) => {
-                const dateStr = article.date.toLocaleDateString('en-US')
-                const snippet = ((article.snippet || '') + ' ' + (article.content ? article.content.substring(0, 500) : '')).trim()
-                return `Article ${index}:
-Title: ${article.title}
-Published Date: ${dateStr}
-Summary: ${snippet}`
-            }).join('\n\n')
-
-            const prompt = getClassifyArticlesPrompt(classificationGuidance, articlesText)
-
-            const openai = new OpenAI({
-                apiKey: chatApiKey,
-                baseURL: chatApiBaseURL,
-                dangerouslyAllowBrowser: true
-            })
-
-            // 尝试使用JSON格式，如果不支持则回退到普通格式
-            const completionParams: any = {
-                model: model,
-                messages: [
-                    {
-                        role: 'system',
-                        content: CLASSIFY_ARTICLES_SYSTEM_MESSAGE
-                    },
-                    {
-                        role: 'user',
-                        content: prompt
-                    }
-                ],
-                temperature: 0.3,
-                max_tokens: 2000
-            }
-
-            // 某些模型可能不支持response_format，尝试添加但不强制
-            try {
-                completionParams.response_format = { type: "json_object" }
-            } catch (e) {
-                // 忽略错误，继续使用普通格式
-            }
-
-            const completion = await openai.chat.completions.create(completionParams)
-
-            // 收集token使用量
-            if (completion.usage && callbacks.updateTokenStatistics) {
-                addTokenUsage(stats, completion.usage, true)
-                callbacks.updateTokenStatistics(stats)
-            }
-
-            if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
-                const responseText = completion.choices[0].message.content || ''
-                
-                // 解析JSON响应
-                let responseData
-                try {
-                    // 尝试提取JSON（可能包含markdown代码块）
-                    const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
-                    const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
-                    responseData = JSON.parse(jsonText)
-                } catch (parseError) {
-                    // 解析失败，抛出错误（严格模式）
-                    updateProgress()
-                    throw new Error(`文章分类失败：批次 ${batchNumber} 无法解析LLM返回的JSON响应`)
-                }
-
-                // 提取分类结果
-                if (responseData.classifications && Array.isArray(responseData.classifications)) {
-                    responseData.classifications.forEach((item: any) => {
-                        if (typeof item.articleIndex === 'number' && item.category && typeof item.category === 'string') {
-                            if (item.articleIndex >= 0 && item.articleIndex < batch.length) {
-                                // 将批次内索引转换为全局索引
-                                const globalIndex = batchStart + item.articleIndex
-                                if (globalIndex >= 0 && globalIndex < articlesToAnalyze.length) {
-                                    allClassifications.push({
-                                        articleIndex: globalIndex,
-                                        category: item.category.trim()
-                                    })
-                                }
-                            }
-                        }
-                    })
-                } else {
-                    // 如果响应格式不正确，抛出错误（严格模式）
-                    updateProgress()
-                    throw new Error(`文章分类失败：批次 ${batchNumber} LLM返回的响应中缺少classifications字段`)
-                }
-            } else {
-                // 如果API调用失败或没有响应，抛出错误（严格模式）
-                updateProgress()
-                throw new Error(`文章分类失败：批次 ${batchNumber} LLM API没有返回有效响应`)
-            }
-
-            // 更新进度
-            updateProgress()
-        } catch (error) {
-            // 批次处理失败，抛出错误（严格模式）
-            updateProgress()
-            if (error instanceof Error && error.message.includes('文章分类失败')) {
-                // 已经是我们抛出的错误，直接重新抛出
-                throw error
-            } else {
-                // API调用失败或其他错误
-                if (error instanceof OpenAI.APIError) {
-                    throw new Error(`文章分类失败：批次 ${batchInfo.batchNumber} API调用失败: ${error.message}`)
-                } else if (error instanceof Error) {
-                    throw new Error(`文章分类失败：批次 ${batchInfo.batchNumber} ${error.message}`)
-                } else {
-                    throw new Error(`文章分类失败：批次 ${batchInfo.batchNumber} ${String(error)}`)
-                }
-            }
-        }
-    }
-    
-    try {
-        // 并行处理所有批次（严格模式：任何批次失败都会立即失败）
-        await Promise.all(batches.map(batchInfo => processBatch(batchInfo)))
-    } catch (error) {
-        // 并行处理失败，更新状态并抛出错误（严格模式）
-        callbacks.updateStepStatus('classify-articles', 'error', intl.get("settings.aiMode.progress.messages.classificationFailed"))
-        if (error instanceof Error) {
-            throw error
-        } else {
-            throw new Error(`文章分类失败: ${String(error)}`)
-        }
-    }
-
-    // 如果没有任何分类结果，返回空数组
-    if (allClassifications.length === 0) {
-        callbacks.updateStepStatus('classify-articles', 'completed', intl.get("settings.aiMode.progress.messages.classificationCompletedNoResults"))
-        return []
-    }
-
-    // 分类去重和合并（仅当有多批时执行）
-    let categoryMap = new Map<string, string>() // 原始分类名称 -> 标准分类名称
-
-    if (totalBatches > 1) {
-        // 收集所有唯一的分类名称
-        const uniqueCategories = Array.from(new Set(allClassifications.map(c => c.category)))
-        
-        if (uniqueCategories.length > 0) {
-            try {
-                callbacks.updateStepStatus('classify-articles', 'in_progress', intl.get("settings.aiMode.progress.messages.mergingDuplicateCategories"))
-
-                const openai = new OpenAI({
-                    apiKey: chatApiKey,
-                    baseURL: chatApiBaseURL,
-                    dangerouslyAllowBrowser: true
-                })
-
-                const deduplicationPrompt = getClassificationDeduplicationPrompt(uniqueCategories)
-
-                const completionParams: any = {
-                    model: model,
-                    messages: [
-                        {
-                            role: 'system',
-                            content: CLASSIFICATION_DEDUPLICATION_SYSTEM_MESSAGE
-                        },
-                        {
-                            role: 'user',
-                            content: deduplicationPrompt
-                        }
-                    ],
-                    temperature: 0.2,
-                    max_tokens: 2000
-                }
-
-                try {
-                    completionParams.response_format = { type: "json_object" }
-                } catch (e) {
-                    // 忽略错误
-                }
-
-                const completion = await openai.chat.completions.create(completionParams)
-
-                // 收集token使用量
-                if (completion.usage && callbacks.updateTokenStatistics) {
-                    addTokenUsage(stats, completion.usage, true)
-                    callbacks.updateTokenStatistics(stats)
-                }
-
-                if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
-                    const responseText = completion.choices[0].message.content || ''
-
-                    try {
-                        const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/\{[\s\S]*\}/)
-                        const jsonText = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseText
-                        const responseData = JSON.parse(jsonText)
-
-                        if (responseData.synonymGroups && Array.isArray(responseData.synonymGroups)) {
-                            responseData.synonymGroups.forEach((group: any) => {
-                                if (group.standardName && group.synonyms && Array.isArray(group.synonyms)) {
-                                    group.synonyms.forEach((synonym: string) => {
-                                        if (typeof synonym === 'string') {
-                                            categoryMap.set(synonym.trim(), group.standardName.trim())
-                                        }
-                                    })
-                                }
-                            })
-                        } else {
-                            // 如果响应格式不正确，抛出错误（严格模式）
-                            throw new Error('分类去重失败：LLM返回的响应中缺少synonymGroups字段')
-                        }
-                    } catch (parseError) {
-                        // 解析失败，抛出错误（严格模式）
-                        if (parseError instanceof Error && parseError.message.includes('分类去重失败')) {
-                            throw parseError
-                        } else {
-                            throw new Error('分类去重失败：无法解析LLM返回的JSON响应')
-                        }
-                    }
-                } else {
-                    // 如果API调用失败或没有响应，抛出错误（严格模式）
-                    throw new Error('分类去重失败：LLM API没有返回有效响应')
-                }
-            } catch (error) {
-                // 去重失败，抛出错误（严格模式）
-                callbacks.updateStepStatus('classify-articles', 'error', intl.get("settings.aiMode.progress.messages.classificationFailed"))
-                if (error instanceof Error && error.message.includes('分类去重失败')) {
-                    throw error
-                } else if (error instanceof OpenAI.APIError) {
-                    throw new Error(`分类去重失败: ${error.message}`)
-                } else if (error instanceof Error) {
-                    throw new Error(`分类去重失败: ${error.message}`)
-                } else {
-                    throw new Error(`分类去重失败: ${String(error)}`)
-                }
-            }
-        }
-    }
-
-    // 应用分类映射（如果有）
-    const mappedClassifications = allClassifications.map(c => ({
-        articleIndex: c.articleIndex,
-        category: categoryMap.get(c.category) || c.category
-    }))
-
-    // 按分类名称分组
-    const categoryGroups = new Map<string, number[]>()
-    mappedClassifications.forEach(c => {
-        if (!categoryGroups.has(c.category)) {
-            categoryGroups.set(c.category, [])
-        }
-        categoryGroups.get(c.category)!.push(c.articleIndex)
-    })
-
-    // 生成 ArticleCluster 数组
-    // 注意：允许一篇文章属于多个分类，但同一分类内去重
-    const clusters: ArticleCluster[] = Array.from(categoryGroups.entries()).map(([category, indices], index) => {
-        // 对同一分类内的索引去重（避免LLM错误返回重复条目）
-        const uniqueIndices = Array.from(new Set(indices))
-        return {
-            id: `cluster-${index}`,
-            title: category,
-            description: intl.get("settings.aiMode.results.clusterDescription", { count: uniqueIndices.length }),
-            articles: uniqueIndices.map(idx => articlesToAnalyze[idx])
-        }
-    })
-
-    // 处理未被分配的文章（如果有）
-    const assignedIndices = new Set(mappedClassifications.map(c => c.articleIndex))
-    const unassignedArticles: RSSItem[] = []
-    articlesToAnalyze.forEach((article, idx) => {
-        if (!assignedIndices.has(idx)) {
-            unassignedArticles.push(article)
-        }
-    })
-
-    // 如果有未分配的文章，创建一个"其他"分类
-    if (unassignedArticles.length > 0) {
-        clusters.push({
-            id: 'cluster-other',
-            title: intl.get("settings.aiMode.results.otherCategory"),
-            description: intl.get("settings.aiMode.results.unclassifiedDescription"),
-            articles: unassignedArticles
-        })
-    }
-
-    callbacks.updateStepStatus('classify-articles', 'completed', intl.get("settings.aiMode.progress.messages.classificationCompleted", { count: clusters.length }))
-    return clusters
+    // 分类功能已移除，返回空数组
+    return []
 }
 

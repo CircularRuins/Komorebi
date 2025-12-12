@@ -34,9 +34,6 @@ import {
     updateAIModeTopicInput,
     setAIModeIsComposing,
     updateAIModeRecentTopics,
-    updateAIModeClassificationStandard,
-    updateAIModeClassificationStandardInput,
-    updateAIModeRecentClassificationStandards,
     setAIModeSummary,
     setAIModeLoading,
     setAIModeClustering,
@@ -72,7 +69,6 @@ import {
 } from "../scripts/models/ai-mode"
 import {
     consolidate,
-    classifyArticles as consolidateClassifyArticles,
     ConsolidateConfig,
     ConsolidateCallbacks,
     normalizeApiEndpoint,
@@ -87,9 +83,6 @@ export type SmartSearchContextType = {
     topic: string  // 单个话题文本
     topicInput: string
     recentTopics: string[]  // 最近使用的话题（最多5个）
-    classificationStandard: string
-    classificationStandardInput: string
-    recentClassificationStandards: string[]
     isComposing: boolean
     isLoading: boolean
     isClustering: boolean  // 是否正在聚类
@@ -119,14 +112,6 @@ export type SmartSearchContextType = {
     handleTimeRangeChange: (event: React.FormEvent<HTMLDivElement>, option?: IDropdownOption) => void
     handleRecentTopicClick: (topic: string) => void
     topicInputRef: React.RefObject<ITextField>
-    setClassificationStandard: (standard: string) => void
-    setClassificationStandardInput: (input: string) => void
-    handleClassificationStandardInputChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
-    handleClassificationStandardInputKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
-    handleClassificationStandardInputCompositionStart: () => void
-    handleClassificationStandardInputCompositionEnd: () => void
-    handleRecentClassificationStandardClick: (standard: string) => void
-    classificationStandardInputRef: React.RefObject<ITextField>
 }
 
 type SmartSearchProps = {
@@ -146,9 +131,6 @@ type SmartSearchProps = {
     updateTopicInput: (topicInput: string) => void
     setIsComposing: (isComposing: boolean) => void
     updateRecentTopics: (recentTopics: string[]) => void
-    updateClassificationStandard: (classificationStandard: string) => void
-    updateClassificationStandardInput: (classificationStandardInput: string) => void
-    updateRecentClassificationStandards: (recentClassificationStandards: string[]) => void
     setSummary: (summary: string) => void
     setLoading: (isLoading: boolean) => void
     setClustering: (isClustering: boolean) => void
@@ -298,7 +280,6 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
     declare context: React.ContextType<typeof SmartSearchContext>
     private summaryContainerRef: React.RefObject<HTMLDivElement>
     private topicInputRef: React.RefObject<ITextField>
-    private classificationStandardInputRef: React.RefObject<ITextField>
     private updateTimeout: NodeJS.Timeout | null = null
 
     componentDidMount() {
@@ -319,7 +300,6 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
         super(props)
         this.summaryContainerRef = React.createRef()
         this.topicInputRef = React.createRef()
-        this.classificationStandardInputRef = React.createRef()
     }
 
     componentDidUpdate(prevProps: SmartSearchProps) {
@@ -329,8 +309,7 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
             const currentStepCount = aiMode.queryProgress.steps?.length || 0
             if (currentStepCount === 0) {
                 const hasTopic = !!(aiMode.topic && aiMode.topic.trim())
-                const hasClassificationStandard = !!(aiMode.classificationStandardInput && aiMode.classificationStandardInput.trim())
-                const queryProgress = this.initializeQueryProgress(hasTopic, hasClassificationStandard)
+                const queryProgress = this.initializeQueryProgress(hasTopic)
                 this.props.updateQueryProgress(queryProgress)
             }
         }
@@ -374,15 +353,12 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
 
     // Context value 生成器
     getContextValue = (): SmartSearchContextType => {
-        const { aiMode, updateTimeRange, updateTopic, updateTopicInput, setIsComposing, updateClassificationStandard, updateClassificationStandardInput } = this.props
+        const { aiMode, updateTimeRange, updateTopic, updateTopicInput, setIsComposing } = this.props
         return {
             timeRange: aiMode.timeRange,
             topic: aiMode.topic,
             topicInput: aiMode.topicInput,
             recentTopics: aiMode.recentTopics,
-            classificationStandard: aiMode.classificationStandard,
-            classificationStandardInput: aiMode.classificationStandardInput,
-            recentClassificationStandards: aiMode.recentClassificationStandards,
             isComposing: aiMode.isComposing,
             isLoading: aiMode.isLoading,
             isClustering: aiMode.isClustering,
@@ -411,15 +387,7 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
             handleTopicInputCompositionEnd: this.handleTopicInputCompositionEnd,
             handleTimeRangeChange: this.handleTimeRangeChange,
             handleRecentTopicClick: this.handleRecentTopicClick,
-            topicInputRef: this.topicInputRef,
-            setClassificationStandard: updateClassificationStandard,
-            setClassificationStandardInput: updateClassificationStandardInput,
-            handleClassificationStandardInputChange: this.handleClassificationStandardInputChange,
-            handleClassificationStandardInputKeyDown: this.handleClassificationStandardInputKeyDown,
-            handleClassificationStandardInputCompositionStart: this.handleClassificationStandardInputCompositionStart,
-            handleClassificationStandardInputCompositionEnd: this.handleClassificationStandardInputCompositionEnd,
-            handleRecentClassificationStandardClick: this.handleRecentClassificationStandardClick,
-            classificationStandardInputRef: this.classificationStandardInputRef
+            topicInputRef: this.topicInputRef
         }
     }
 
@@ -475,57 +443,6 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
         }
     }
 
-    handleClassificationStandardInputChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-        // 只更新Redux state，不触发Context更新事件
-        // Context更新由componentDidUpdate中的逻辑控制，避免频繁更新打断输入
-        this.props.updateClassificationStandardInput(newValue || '')
-    }
-
-    handleClassificationStandardInputCompositionStart = () => {
-        this.props.setIsComposing(true)
-    }
-
-    handleClassificationStandardInputCompositionEnd = () => {
-        this.props.setIsComposing(false)
-        // 输入法结束后更新Context
-        if (typeof window !== 'undefined') {
-            const event = new CustomEvent('smartSearchInputChanged')
-            window.dispatchEvent(event)
-        }
-    }
-
-    handleClassificationStandardInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-        // 处理Enter键确认分类标准
-        const { aiMode, updateClassificationStandard } = this.props
-        if (event.key === 'Enter' && !aiMode.isComposing) {
-            event.preventDefault()
-            const trimmed = aiMode.classificationStandardInput.trim()
-            if (trimmed) {
-                updateClassificationStandard(trimmed)
-            }
-        }
-    }
-
-    handleRecentClassificationStandardClick = (standard: string) => {
-        // 点击常用分类标准时填充到输入框和分类标准字段
-        const { updateClassificationStandardInput, updateClassificationStandard } = this.props
-        updateClassificationStandardInput(standard)
-        updateClassificationStandard(standard)
-        // 聚焦到输入框（通过ref）
-        if (this.classificationStandardInputRef.current) {
-            const inputElement = this.classificationStandardInputRef.current as any
-            inputElement.focus()
-        }
-        // 触发Context更新，让本地state同步
-        // 使用 requestAnimationFrame 确保在下一个渲染周期更新，此时 Redux state 已经同步
-        if (typeof window !== 'undefined') {
-            requestAnimationFrame(() => {
-                const event = new CustomEvent('smartSearchInputChanged')
-                window.dispatchEvent(event)
-            })
-        }
-    }
-
     // 保存话题到最近话题列表
     saveTopicToRecent = (topic: string) => {
         const trimmed = topic.trim()
@@ -541,20 +458,6 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
         // localStorage 同步在 reducer 中处理
     }
 
-    // 保存分类标准到最近分类标准列表
-    saveClassificationStandardToRecent = (standard: string) => {
-        const trimmed = standard.trim()
-        if (!trimmed) return
-
-        const { aiMode, updateRecentClassificationStandards } = this.props
-        // 移除已存在的相同分类标准
-        const filtered = aiMode.recentClassificationStandards.filter(s => s !== trimmed)
-        // 添加到最前面
-        const updated = [trimmed, ...filtered].slice(0, 5)  // 最多保留5个
-        
-        updateRecentClassificationStandards(updated)
-        // localStorage 同步在 reducer 中处理
-    }
 
     handleChatApiEndpointChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         const value = newValue || ''
@@ -672,7 +575,7 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
     }
 
     // 初始化查询进度（只添加第一步，后续步骤根据实际执行情况动态添加）
-    initializeQueryProgress = (hasTopic: boolean, hasClassificationStandard: boolean): QueryProgress => {
+    initializeQueryProgress = (hasTopic: boolean): QueryProgress => {
         // 只添加第一步，后续步骤根据实际执行情况动态添加
         // 如果按时间范围筛选后没有文章，流程会提前结束，不会有后续步骤
         const steps: QueryProgressStep[] = [
@@ -747,7 +650,7 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
 
 
     // ==================== 主函数: 查询符合条件的文章（使用consolidate函数）====================
-    queryArticles = async (timeRangeDays: number | null, topic: string | null, classificationStandard: string | null = null): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, classificationGuidance: string | null, tokenStatistics: TokenStatistics }> => {
+    queryArticles = async (timeRangeDays: number | null, topic: string | null): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, tokenStatistics: TokenStatistics }> => {
         const { aiMode, updateQueryProgress } = this.props
         
         const config: ConsolidateConfig = {
@@ -770,59 +673,7 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
             }
         }
         
-        return await consolidate(timeRangeDays, topic, classificationStandard, config, callbacks)
-    }
-
-
-    // 对文章进行分类分析
-    classifyArticles = async (articles: RSSItem[], topicGuidance: string | null = null, classificationGuidance: string | null = null, tokenStatistics?: TokenStatistics | null): Promise<ArticleCluster[]> => {
-        const { aiMode } = this.props
-        
-        // 验证配置
-        if (!aiMode.chatApiEndpoint || !aiMode.chatApiEndpoint.trim()) {
-            throw new Error('请先配置Chat API Endpoint（在设置中配置）')
-        }
-        if (!aiMode.chatApiKey || !aiMode.chatApiKey.trim()) {
-            throw new Error('请先配置Chat API Key（在设置中配置）')
-        }
-        if (!aiMode.model || !aiMode.model.trim()) {
-            throw new Error('请先配置模型名称（在设置中配置）')
-        }
-        
-        // 规范化 URL
-        let chatApiBaseURL: string
-        try {
-            chatApiBaseURL = normalizeApiEndpoint(aiMode.chatApiEndpoint)
-        } catch (error) {
-            if (error instanceof Error) {
-                throw new Error(`Chat API Endpoint配置错误: ${error.message}`)
-            }
-            throw error
-        }
-        
-        const config: ConsolidateConfig = {
-            chatApiEndpoint: aiMode.chatApiEndpoint,
-            chatApiKey: aiMode.chatApiKey,
-            embeddingApiEndpoint: aiMode.embeddingApiEndpoint,
-            embeddingApiKey: aiMode.embeddingApiKey,
-            embeddingModel: aiMode.embeddingModel,
-            embeddingQPS: aiMode.embeddingQPS,
-            model: aiMode.model,
-            topk: aiMode.topk || 100,
-            chatApiBaseURL,
-        }
-        
-        const callbacks: ConsolidateCallbacks = {
-            updateStepStatus: this.updateStepStatus,
-            updateTokenStatistics: (tokenStatistics) => {
-                this.props.setAIModeTokenStatistics(tokenStatistics)
-            }
-        }
-        
-        // 优先使用传入的tokenStatistics参数，如果没有传入则从props读取（保持向后兼容和独立调用支持）
-        const currentTokenStatistics = tokenStatistics !== undefined ? tokenStatistics : (aiMode.tokenStatistics || null)
-        
-        return await consolidateClassifyArticles(articles, topicGuidance, classificationGuidance, config, callbacks, currentTokenStatistics)
+        return await consolidate(timeRangeDays, topic, null, config, callbacks)
     }
 
     // 生成总结
@@ -920,7 +771,7 @@ ${articlesText}
     handleGenerateSummary = async () => {
         const { aiMode } = this.props
         const { timeRange, topicInput } = aiMode
-        const { updateTopic, updateTopicInput, updateClassificationStandard, updateClassificationStandardInput, setLoading, setClustering, setError, setSummary, setArticleCount, setFilteredArticles, setClusters, setTimeRangeHasArticles, updateQueryProgress, setShowResults, setShowErrorDialog, setErrorDialogMessage, setAIModeTokenStatistics } = this.props
+        const { updateTopic, updateTopicInput, setLoading, setClustering, setError, setSummary, setArticleCount, setFilteredArticles, setClusters, setTimeRangeHasArticles, updateQueryProgress, setShowResults, setShowErrorDialog, setErrorDialogMessage, setAIModeTokenStatistics } = this.props
 
         // 检查配置是否完整
         const chatApiEndpoint = (aiMode.chatApiEndpoint || '').trim()
@@ -967,23 +818,9 @@ ${articlesText}
         const currentTopic = trimmedTopic
         this.saveTopicToRecent(currentTopic)
         
-        // 获取分类标准（可选）- 只使用用户当前输入的值，不自动填充
-        const trimmedClassificationStandard = aiMode.classificationStandardInput.trim()
-        if (trimmedClassificationStandard) {
-            updateClassificationStandard(trimmedClassificationStandard)
-            // 确保 classificationStandardInput 和 classificationStandard 一致
-            updateClassificationStandardInput(trimmedClassificationStandard)
-            this.saveClassificationStandardToRecent(trimmedClassificationStandard)
-        } else {
-            // 如果用户清空了输入框，也应该清空 classificationStandard，避免使用旧值
-            updateClassificationStandard('')
-            updateClassificationStandardInput('')
-        }
-        
-        // 初始化查询进度（根据是否有话题和分类依据决定是否包含分类步骤）
+        // 初始化查询进度
         const hasTopic = !!currentTopic
-        const hasClassificationStandard = !!trimmedClassificationStandard
-        const queryProgress = this.initializeQueryProgress(hasTopic, hasClassificationStandard)
+        const queryProgress = this.initializeQueryProgress(hasTopic)
 
         // 更新状态
         updateTopic(currentTopic)
@@ -1009,8 +846,8 @@ ${articlesText}
             const timeRangeDays = this.parseTimeRange(timeRange)
 
             // 查询文章（根据时间范围和话题）
-            const result = await this.queryArticles(timeRangeDays, currentTopic, trimmedClassificationStandard)
-            const { articles, timeRangeHasArticles, topicGuidance, classificationGuidance, tokenStatistics } = result
+            const result = await this.queryArticles(timeRangeDays, currentTopic)
+            const { articles, timeRangeHasArticles, topicGuidance, tokenStatistics } = result
             
             // 保存时间范围内是否有文章的信息
             setTimeRangeHasArticles(timeRangeHasArticles)
@@ -1114,72 +951,12 @@ ${articlesText}
                 return
             }
             
-            // 检查是否有话题和分类依据
-            const hasTopic = currentTopic && currentTopic.trim()
-            const currentClassificationStandard = aiMode.classificationStandardInput.trim() || null
-            
-            // 如果没有话题或没有分类依据，不执行分类步骤，直接展示所有文章
-            if (!hasTopic || !currentClassificationStandard) {
-                setClustering(false)
-                setShowResults(false)  // 不自动显示结果，等待用户点击按钮
-                if (typeof window !== 'undefined') {
-                    const event = new CustomEvent('smartSearchUpdated')
-                    window.dispatchEvent(event)
-                }
-                return
-            }
-            
-            // 有分类依据，执行分类步骤
-            // 只有在真正需要执行分类时，才添加 classify-articles 步骤
-            if (aiMode.queryProgress) {
-                // 检查是否已经有 classify-articles 步骤
-                const hasClassifyStep = aiMode.queryProgress.steps.some(step => step.id === 'classify-articles')
-                if (!hasClassifyStep) {
-                    // 添加 classify-articles 步骤
-                    const updatedSteps: QueryProgressStep[] = [
-                        ...aiMode.queryProgress.steps,
-                        { id: 'classify-articles', title: intl.get("settings.aiMode.progress.steps.classifyArticles"), status: 'pending' as const, visible: false }
-                    ]
-                    updateQueryProgress({
-                        steps: updatedSteps,
-                        currentStepIndex: aiMode.queryProgress.currentStepIndex,
-                        overallProgress: aiMode.queryProgress.overallProgress,
-                        currentMessage: aiMode.queryProgress.currentMessage
-                    })
-                }
-            }
-            
-            setClustering(true)
+            // 不执行分类步骤，直接展示所有文章
+            setClustering(false)
+            setShowResults(false)  // 不自动显示结果，等待用户点击按钮
             if (typeof window !== 'undefined') {
                 const event = new CustomEvent('smartSearchUpdated')
                 window.dispatchEvent(event)
-            }
-
-            // 使用LLM对文章进行分类分析
-            try {
-                // 使用 consolidate 函数返回的 tokenStatistics（这是最新的，不依赖可能过时的 props）
-                const clusters = await this.classifyArticles(articlesWithValidSources, topicGuidance, classificationGuidance, tokenStatistics)
-                
-                setClusters(clusters)
-                setClustering(false)
-                setLoading(false)
-                setShowResults(false)  // 不自动显示结果，等待用户点击按钮
-                if (typeof window !== 'undefined') {
-                    const event = new CustomEvent('smartSearchUpdated')
-                    window.dispatchEvent(event)
-                }
-            } catch (clusterError) {
-                const errorMsg = clusterError instanceof Error ? clusterError.message : intl.get("settings.aiMode.errors.clusterFailed")
-                // 分类失败时仍然显示文章列表，但不进行分组
-                setClusters([])
-                setClustering(false)
-                setLoading(false)
-                setError(errorMsg)
-                setShowResults(false)  // 不自动显示结果
-                if (typeof window !== 'undefined') {
-                    const event = new CustomEvent('smartSearchUpdated')
-                    window.dispatchEvent(event)
-                }
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : intl.get("settings.aiMode.errors.queryFailed")
@@ -1229,19 +1006,12 @@ ${articlesText}
     }
 
     handleInputDialogConfirm = async (timeRange: string, topic: string, classificationStandard: string) => {
-        const { updateTimeRange, updateTopic, updateTopicInput, updateClassificationStandard, updateClassificationStandardInput, setShowInputDialog, dispatch } = this.props
+        const { updateTimeRange, updateTopic, updateTopicInput, setShowInputDialog, dispatch } = this.props
         
         // 更新输入值
         updateTimeRange(timeRange)
         updateTopic(topic)
         updateTopicInput(topic)
-        if (classificationStandard) {
-            updateClassificationStandard(classificationStandard)
-            updateClassificationStandardInput(classificationStandard)
-        } else {
-            updateClassificationStandard('')
-            updateClassificationStandardInput('')
-        }
         
         // 关闭弹窗
         setShowInputDialog(false)
@@ -1614,12 +1384,12 @@ ${articlesText}
                                 borderRadius: '8px',
                                 padding: '20px',
                                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                                flex: 1,
-                                minHeight: 0,
+                                flexShrink: 0,
+                                maxHeight: 'calc(100vh - 220px)', // 限制最大高度，为token统计和其他组件留出空间
                                 display: 'flex',
                                 flexDirection: 'column',
                                 gap: '12px',
-                                overflow: 'auto'
+                                overflow: 'hidden' // 外层容器不滚动
                             }}>
                                 <div style={{
                                     fontSize: '13px',
@@ -1636,7 +1406,8 @@ ${articlesText}
                                     gap: '8px',
                                     flex: 1,
                                     minHeight: 0,
-                                    overflow: 'auto'
+                                    overflowY: 'auto', // 允许垂直滚动
+                                    overflowX: 'hidden'
                                 }}>
                                 {(() => {
                                     // 向后兼容：如果 visible 字段不存在，默认显示（visible !== false）
@@ -1939,21 +1710,14 @@ ${articlesText}
                     show={showInputDialog}
                     timeRange={aiMode.timeRange}
                     topicInput={aiMode.topicInput}
-                    classificationStandardInput={aiMode.classificationStandardInput}
                     recentTopics={aiMode.recentTopics}
-                    recentClassificationStandards={aiMode.recentClassificationStandards}
                     onClose={this.handleCloseInputDialog}
                     onConfirm={this.handleInputDialogConfirm}
                     onTimeRangeChange={(timeRange) => this.props.updateTimeRange(timeRange)}
                     onTopicInputChange={(topic) => this.props.updateTopicInput(topic)}
-                    onClassificationStandardInputChange={(standard) => this.props.updateClassificationStandardInput(standard)}
                     onRecentTopicClick={(topic) => {
                         this.props.updateTopicInput(topic)
                         this.saveTopicToRecent(topic)
-                    }}
-                    onRecentClassificationStandardClick={(standard) => {
-                        this.props.updateClassificationStandardInput(standard)
-                        this.saveClassificationStandardToRecent(standard)
                     }}
                 />
 
@@ -2017,9 +1781,6 @@ const mapDispatchToProps = dispatch => ({
     updateTopicInput: (topicInput: string) => dispatch(updateAIModeTopicInput(topicInput)),
     setIsComposing: (isComposing: boolean) => dispatch(setAIModeIsComposing(isComposing)),
     updateRecentTopics: (recentTopics: string[]) => dispatch(updateAIModeRecentTopics(recentTopics)),
-    updateClassificationStandard: (classificationStandard: string) => dispatch(updateAIModeClassificationStandard(classificationStandard)),
-    updateClassificationStandardInput: (classificationStandardInput: string) => dispatch(updateAIModeClassificationStandardInput(classificationStandardInput)),
-    updateRecentClassificationStandards: (recentClassificationStandards: string[]) => dispatch(updateAIModeRecentClassificationStandards(recentClassificationStandards)),
     setSummary: (summary: string) => dispatch(setAIModeSummary(summary)),
     setLoading: (isLoading: boolean) => dispatch(setAIModeLoading(isLoading)),
     setClustering: (isClustering: boolean) => dispatch(setAIModeClustering(isClustering)),

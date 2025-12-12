@@ -58,8 +58,12 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.542.0",
     "node-polyfill-webpack-plugin": "^2.0.1",
     "openai": "^6.7.0",
+    "tailwind-merge": "^3.4.0",
     "tiktoken": "^1.0.0"
   }
 }
