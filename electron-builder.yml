@@ -19,22 +19,9 @@ mac:
     category: public.app-category.news
     electronLanguages:
         - zh_CN
-        - zh_TW
         - en
-        - fr
-        - es
-        - de
-        - tr
         - ja
-        - sv
-        - uk
-        - it
-        - nl
-        - ko
-        - ru
-        - pt_BR
-        - pt_PT
-        - cs
+        - es
 win:
     target:
         - nsis
@@ -46,22 +33,9 @@ appx:
     backgroundColor: transparent
     languages:
         - zh-CN
-        - zh-TW
         - en-US
-        - fr-FR
-        - es
-        - de
-        - tr
         - ja
-        - sv
-        - uk
-        - it
-        - nl
-        - ko
-        - ru
-        - pt-BR
-        - pt-PT
-        - cs
+        - es
     showNameOnTiles: true
     setBuildNumber: true
 nsis:

@@ -17,26 +17,9 @@ const localeToLanguageName: { [key: string]: string } = {
     "en-US": "English",
     "en": "English",
     "zh-CN": "简体中文",
-    "zh-TW": "繁體中文",
     "zh": "简体中文", // 默认中文使用简体
     "ja": "日本語",
-    "fr-FR": "Français",
-    "fr": "Français",
-    "de": "Deutsch",
     "es": "Español",
-    "it": "Italiano",
-    "pt-BR": "Português do Brasil",
-    "pt-PT": "Português de Portugal",
-    "pt": "Português do Brasil", // 默认葡萄牙语使用巴西葡萄牙语
-    "ru": "Русский",
-    "ko": "한국어",
-    "nl": "Nederlands",
-    "sv": "Svenska",
-    "tr": "Türkçe",
-    "uk": "Українська",
-    "cs": "Čeština",
-    "fi-FI": "Suomi",
-    "fi": "Suomi",
 }
 
 /**

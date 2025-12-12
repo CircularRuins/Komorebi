@@ -17,22 +17,9 @@ mac:
     category: public.app-category.news
     electronLanguages:
         - zh_CN
-        - zh_TW
         - en
-        - fr
-        - es
-        - de
-        - tr
         - ja
-        - sv
-        - uk
-        - it
-        - nl
-        - ko
-        - ru
-        - pt_BR
-        - pt_PT
-        - cs
+        - es
     minimumSystemVersion: 10.15.0
 mas:
     entitlements: build/entitlements.mas.plist
