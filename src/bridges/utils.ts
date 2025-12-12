@@ -192,7 +192,7 @@ const utilsBridge = {
     generateTranscriptSummary: async (
         segments: Array<{text: string, start: number, duration: number}>,
         snippet?: string
-    ): Promise<{overview: string, takeaways: Array<{label: string, insight: string}>}> => {
+    ): Promise<{overview: string, takeaways: Array<{label: string, insight: string, timestamps: string[]}>}> => {
         return await ipcRenderer.invoke("generate-transcript-summary", segments, snippet)
     },
 

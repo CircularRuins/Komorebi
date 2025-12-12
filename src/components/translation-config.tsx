@@ -116,3 +116,4 @@ class TranslationConfig extends React.Component<TranslationConfigProps> {
 export default TranslationConfig
 
 
+

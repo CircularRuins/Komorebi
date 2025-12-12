@@ -209,11 +209,12 @@ export interface TranscriptSegment {
 }
 
 /**
- * 摘要要点接口（不含时间戳）
+ * 摘要要点接口（包含时间戳引用）
  */
 export interface SummaryTakeaway {
     label: string
     insight: string
+    timestamps: string[]  // 时间戳引用数组，1-2个 (MM:SS 或 HH:MM:SS)
 }
 
 /**
@@ -251,12 +252,137 @@ function formatTime(totalSeconds: number): string {
 }
 
 /**
- * 格式化转录文本为带时间戳的格式
+ * 格式化时间戳部分为零填充字符串
+ */
+function formatTimestampFromParts(hours: number, minutes: number, seconds: number): string {
+    const totalSeconds = Math.max(0, Math.floor(hours * 3600 + minutes * 60 + seconds))
+    const normalizedHours = Math.floor(totalSeconds / 3600)
+    const normalizedMinutes = Math.floor((totalSeconds % 3600) / 60)
+    const normalizedSeconds = totalSeconds % 60
+
+    if (normalizedHours > 0) {
+        return [
+            normalizedHours.toString().padStart(2, '0'),
+            normalizedMinutes.toString().padStart(2, '0'),
+            normalizedSeconds.toString().padStart(2, '0')
+        ].join(':')
+    }
+
+    return [
+        normalizedMinutes.toString().padStart(2, '0'),
+        normalizedSeconds.toString().padStart(2, '0')
+    ].join(':')
+}
+
+/**
+ * 清理时间戳字符串，转换为规范化的零填充格式
+ */
+function sanitizeTimestamp(value: string): string | null {
+    if (!value) return null
+
+    const cleaned = value
+        .replace(/[\[\](){}【】]/g, ' ')
+        .replace(/[-–]|to/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+    const directMatch = cleaned.match(/(\d{1,2}:\d{1,2}:\d{1,2}|\d{1,2}:\d{1,2})/)
+    if (directMatch) {
+        const parts = directMatch[1].split(':').map(part => parseInt(part, 10))
+        if (parts.some(Number.isNaN)) {
+            return null
+        }
+
+        if (parts.length === 3) {
+            return formatTimestampFromParts(parts[0], parts[1], parts[2])
+        }
+
+        if (parts.length === 2) {
+            return formatTimestampFromParts(0, parts[0], parts[1])
+        }
+    }
+
+    return null
+}
+
+/**
+ * 从字符串中提取时间戳候选
+ */
+function timestampCandidatesFromString(source: string): string[] {
+    return source
+        .split(/[,/;]|and|\s+(?=\d)/i)
+        .map(part => part.trim())
+        .filter(Boolean)
+}
+
+/**
+ * 从对象中提取时间戳候选
+ */
+function timestampCandidatesFromObject(source: Record<string, unknown>): string[] {
+    const candidates: string[] = []
+
+    if (typeof source.time === 'string') {
+        candidates.push(source.time)
+    }
+
+    if (typeof source.timestamp === 'string') {
+        candidates.push(source.timestamp)
+    }
+
+    return candidates
+}
+
+/**
+ * 收集时间戳候选
+ */
+function collectTimestampCandidates(source: unknown, depth = 0): string[] {
+    if (depth > 3 || source == null) {
+        return []
+    }
+
+    if (typeof source === 'string') {
+        return timestampCandidatesFromString(source)
+    }
+
+    if (Array.isArray(source)) {
+        return source.flatMap(item => collectTimestampCandidates(item, depth + 1))
+    }
+
+    if (typeof source === 'object') {
+        return timestampCandidatesFromObject(source as Record<string, unknown>)
+    }
+
+    return []
+}
+
+/**
+ * 规范化时间戳源数组，返回规范化的时间戳数组（最多 limit 个）
+ */
+function normalizeTimestampSources(sources: unknown[], limit: number = 2): string[] {
+    const sanitized: string[] = []
+
+    for (const source of sources) {
+        const candidates = collectTimestampCandidates(source)
+        for (const candidate of candidates) {
+            const normalized = sanitizeTimestamp(candidate)
+            if (normalized) {
+                sanitized.push(normalized)
+            }
+        }
+    }
+
+    const unique = Array.from(new Set(sanitized))
+    return unique.slice(0, limit)
+}
+
+/**
+ * 格式化转录文本为带时间戳的格式（使用时间范围格式，与 TLDW 一致）
  */
 function formatTranscriptWithTimestamps(segments: TranscriptSegment[]): string {
     return segments.map(segment => {
         const start = formatTime(segment.start)
-        return `[${start}] ${segment.text}`
+        const end = formatTime(segment.start + segment.duration)
+        return `[${start}-${end}] ${segment.text}`
     }).join('\n')
 }
 
@@ -294,19 +420,20 @@ ${snippetSection}<role>You are an expert editorial analyst summarizing video con
   <item>Only use information stated explicitly in the transcript. Never speculate.</item>
   <item>Generate two parts:
     1. Overview: A brief summary (2-4 sentences) introducing the video's content. If there are people mentioned in the transcript (speakers, interviewees, guests, etc.), include their names and roles/identities in the overview. Use the article summary above to help identify speakers and context when available.
-    2. Takeaways: 4-6 key points, each with a label and insight. No timestamps needed.</item>
+    2. Takeaways: 4-6 key points, each with a label, insight, and 1-2 timestamps pointing to supporting moments.</item>
   <item>For the overview: Write 2-4 sentences that give a quick introduction to what the video is about. If people are mentioned, introduce them (e.g., "This video features an interview with [Name], who discusses..."). Use the article summary above to help identify speakers when available.</item>
-  <item>For each takeaway: Make the label specific, punchy, and no longer than 10 words. Write the insight as 1-2 sentences that preserve the speaker's framing.</item>
+  <item>For each takeaway: Make the label specific, punchy, and no longer than 10 words. Write the insight as 1-2 sentences that preserve the speaker's framing. Attach 1-2 zero-padded timestamps (MM:SS or HH:MM:SS) that point to the supporting moments in the transcript.</item>
   <item>Favor contrarian viewpoints, concrete examples, data, or memorable stories over generic advice.</item>
   <item>Avoid overlapping takeaways. Each one should stand alone.</item>
   <item>CRITICAL LANGUAGE REQUIREMENT: You MUST write ALL text (including the "overview" field and all "label" and "insight" fields in "takeaways") STRICTLY in ${targetLanguage}. This is mandatory and non-negotiable. Do NOT use any other language. Every single word in your response must be in ${targetLanguage}. If the transcript is in a different language, you must translate and summarize it in ${targetLanguage}.</item>
 </instructions>
 <qualityControl>
   <item>Verify every claim is grounded in transcript lines you can cite verbatim.</item>
+  <item>Ensure timestamps map to the lines that justify the insight.</item>
   <item>If the transcript lacks enough high-quality insights, still return at least four takeaways by choosing the strongest available.</item>
   <item>Double-check that ALL text is in ${targetLanguage} before returning the response.</item>
 </qualityControl>
-<outputFormat>Return strict JSON with this structure: {"overview":"string","takeaways":[{"label":"string","insight":"string"}]}. The "overview" field and all "label" and "insight" fields MUST be written in ${targetLanguage}. Do not include markdown or commentary. Do not include timestamps in takeaways.</outputFormat>
+<outputFormat>Return strict JSON with this structure: {"overview":"string","takeaways":[{"label":"string","insight":"string","timestamps":["MM:SS"]}]}. The "overview" field and all "label" and "insight" fields MUST be written in ${targetLanguage}. Each takeaway must include 1-2 timestamps in the "timestamps" array. Do not include markdown or commentary.</outputFormat>
 <transcript><![CDATA[
 ${transcriptWithTimestamps}
 ]]></transcript>
@@ -376,10 +503,29 @@ ${transcriptWithTimestamps}
             const label = (item.label || item.title || '').trim()
             const insight = (item.insight || item.summary || item.description || '').trim()
 
-            if (label && insight) {
+            // 提取时间戳
+            const timestampSources: unknown[] = []
+
+            if (Array.isArray(item.timestamps)) {
+                timestampSources.push(...item.timestamps)
+            }
+
+            if (typeof item.timestamp === 'string') {
+                timestampSources.push(item.timestamp)
+            }
+
+            if (typeof item.time === 'string') {
+                timestampSources.push(item.time)
+            }
+
+            const uniqueTimestamps = normalizeTimestampSources(timestampSources, 2)
+
+            // 必须有 label、insight 和至少一个时间戳
+            if (label && insight && uniqueTimestamps.length > 0) {
                 takeaways.push({
                     label,
-                    insight
+                    insight,
+                    timestamps: uniqueTimestamps
                 })
             }
 

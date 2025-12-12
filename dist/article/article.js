@@ -965,10 +965,28 @@ function renderSummaryTakeaways(summary, videoId) {
     html += `<h3 class="youtube-transcript-summary-takeaways-title">${escapeHtml(titles.takeaways)}</h3>`
     html += '<div class="youtube-transcript-summary-takeaways-content">'
     
+    // Play icon SVG for timestamp buttons
+    const playIconSvg = '<svg class="youtube-transcript-summary-timestamp-icon" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 2.5L9.5 6L2.5 9.5V2.5Z" fill="currentColor"/></svg>'
+    
     takeaways.forEach((takeaway, index) => {
         html += '<div class="youtube-transcript-summary-takeaway-item">'
         html += `<strong class="youtube-transcript-summary-label">${escapeHtml(takeaway.label)}</strong>`
         html += `<span class="youtube-transcript-summary-insight">${escapeHtml(takeaway.insight)}</span>`
+        
+        // Show timestamps if available (backward compatible: old takeaways may not have timestamps)
+        if (takeaway.timestamps && Array.isArray(takeaway.timestamps) && takeaway.timestamps.length > 0) {
+            html += '<div class="youtube-transcript-summary-timestamps">'
+            takeaway.timestamps.forEach((timestamp) => {
+                if (timestamp && typeof timestamp === 'string' && timestamp.trim()) {
+                    html += `<button class="youtube-transcript-summary-timestamp" data-video-id="${videoId}" data-timestamp="${escapeHtml(timestamp.trim())}" type="button">`
+                    html += playIconSvg
+                    html += `<span>${escapeHtml(timestamp.trim())}</span>`
+                    html += '</button>'
+                }
+            })
+            html += '</div>'
+        }
+        
         html += '</div>'
     })
     
@@ -980,11 +998,9 @@ function renderSummaryTakeaways(summary, videoId) {
 }
 
 /**
- * Setup timestamp click handlers for summary (no longer needed, but kept for backward compatibility)
+ * Setup timestamp click handlers for summary
  */
 function setupSummaryTimestampHandlers(container, videoId) {
-    // No longer needed since we removed timestamps from takeaways
-    // But kept for backward compatibility in case old summaries are cached
     const timestampButtons = container.querySelectorAll('.youtube-transcript-summary-timestamp')
     timestampButtons.forEach(button => {
         button.addEventListener('click', (e) => {
