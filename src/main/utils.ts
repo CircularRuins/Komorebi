@@ -108,17 +108,21 @@ export function setUtilsListeners(manager: WindowManager) {
         "show-message-box",
         async (_, title, message, confirm, cancel, defaultCancel, type) => {
             if (manager.hasWindow()) {
+                // 如果cancel为空字符串，只显示一个按钮
+                const buttons = cancel === "" 
+                    ? [confirm]
+                    : (process.platform === "win32"
+                        ? ["Yes", "No"]
+                        : [confirm, cancel])
+                
                 let response = await dialog.showMessageBox(manager.mainWindow, {
                     type: type,
                     title: title,
                     message: title,
                     detail: message,
-                    buttons:
-                        process.platform === "win32"
-                            ? ["Yes", "No"]
-                            : [confirm, cancel],
-                    cancelId: 1,
-                    defaultId: defaultCancel ? 1 : 0,
+                    buttons: buttons,
+                    cancelId: cancel === "" ? 0 : 1,
+                    defaultId: defaultCancel ? (cancel === "" ? 0 : 1) : 0,
                 })
                 return response.response === 0
             } else {
@@ -683,7 +687,7 @@ export function setUtilsListeners(manager: WindowManager) {
             const model = store.get("aiModel", "") as string
 
             if (!apiEndpoint || !apiKey || !model) {
-                throw new Error("翻译配置不完整，请先设置Chat API配置")
+                throw new Error("AI模型未配置，请先配置AI模型")
             }
 
             if (!texts || texts.length === 0) {

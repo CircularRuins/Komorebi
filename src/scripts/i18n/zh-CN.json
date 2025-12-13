@@ -461,8 +461,8 @@
             "confirm": "确认"
         },
         "error": {
-            "configIncomplete": "翻译配置不完整，请先设置翻译API配置",
-            "configNotSet": "翻译配置未设置",
+            "configIncomplete": "AI模型未配置，请先配置AI模型",
+            "configNotSet": "AI模型未配置",
             "translationFailed": "翻译失败",
             "emptyContent": "文章内容为空，无法翻译",
             "openConfig": "打开配置"
@@ -480,8 +480,8 @@
         "showOriginal": "显示原始字幕",
         "translating": "正在翻译字幕...",
         "translationFailed": "翻译失败：{error}",
-        "translationConfigIncomplete": "翻译配置不完整",
-        "translationConfigIncompleteMessage": "请先配置Chat API设置。",
+        "translationConfigIncomplete": "AI模型未配置",
+        "translationConfigIncompleteMessage": "请先配置AI模型。",
         "openConfig": "打开配置",
         "cancel": "取消",
         "noQuotesAvailable": "没有可用的引用。",

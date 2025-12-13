@@ -18,9 +18,9 @@ import {
 export interface ConsolidateConfig {
     chatApiEndpoint: string
     chatApiKey: string
-    embeddingApiEndpoint: string
-    embeddingApiKey: string
-    embeddingModel: string
+    embeddingApiEndpoint?: string  // 可选
+    embeddingApiKey?: string  // 可选
+    embeddingModel?: string  // 可选
     embeddingQPS?: number
     model: string
     topk: number
@@ -951,20 +951,9 @@ export async function consolidate(
         throw new Error('请先配置模型名称（在设置中配置）')
     }
     
-    // 验证 Embedding API 配置
-    if (!config.embeddingApiEndpoint || !config.embeddingApiEndpoint.trim()) {
-        throw new Error('请先配置Embedding API Endpoint（在设置中配置）')
-    }
-    if (!config.embeddingApiKey || !config.embeddingApiKey.trim()) {
-        throw new Error('请先配置Embedding API Key（在设置中配置）')
-    }
-    if (!config.embeddingModel || !config.embeddingModel.trim()) {
-        throw new Error('请先配置Embedding模型名称（在设置中配置）')
-    }
-    
     // 规范化 URL
     let chatApiBaseURL: string
-    let embeddingApiBaseURL: string
+    let embeddingApiBaseURL: string | undefined
     try {
         chatApiBaseURL = normalizeApiEndpoint(config.chatApiEndpoint)
     } catch (error) {
@@ -974,13 +963,16 @@ export async function consolidate(
         throw error
     }
     
-    try {
-        embeddingApiBaseURL = normalizeApiEndpoint(config.embeddingApiEndpoint)
-    } catch (error) {
-        if (error instanceof Error) {
-            throw new Error(`Embedding API Endpoint配置错误: ${error.message}`)
+    // Embedding API 是可选的，只有在配置了的情况下才规范化 URL
+    if (config.embeddingApiEndpoint && config.embeddingApiEndpoint.trim()) {
+        try {
+            embeddingApiBaseURL = normalizeApiEndpoint(config.embeddingApiEndpoint)
+        } catch (error) {
+            if (error instanceof Error) {
+                throw new Error(`Embedding API Endpoint配置错误: ${error.message}`)
+            }
+            throw error
         }
-        throw error
     }
     
     // 创建包含规范化 baseURL 的配置对象

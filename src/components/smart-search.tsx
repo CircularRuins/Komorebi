@@ -152,8 +152,6 @@ type SmartSearchProps = {
     updateTempEmbeddingModel: (tempEmbeddingModel: string) => void
     updateTempEmbeddingQPS: (tempEmbeddingQPS: string) => void
     updateTempTopk: (tempTopk: string) => void
-    setShowErrorDialog: (showErrorDialog: boolean) => void
-    setErrorDialogMessage: (errorDialogMessage: string) => void
     setShowInputDialog: (showInputDialog: boolean) => void
     setArticleCount: (articleCount: number) => void
     setFilteredArticles: (filteredArticles: RSSItem[]) => void
@@ -440,23 +438,39 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
         this.props.updateTempTopk(value)
     }
 
-    handleConfigConfirm = () => {
-        const { aiMode, updateChatApiEndpoint, updateChatApiKey, updateEmbeddingApiEndpoint, updateEmbeddingApiKey, updateModel, updateEmbeddingModel, updateEmbeddingQPS, updateTopk, setShowConfigPanel, setShowErrorDialog, setErrorDialogMessage } = this.props
+    handleConfigConfirm = async () => {
+        const { aiMode, updateChatApiEndpoint, updateChatApiKey, updateEmbeddingApiEndpoint, updateEmbeddingApiKey, updateModel, updateEmbeddingModel, updateEmbeddingQPS, updateTopk, setShowConfigPanel } = this.props
         const { tempChatApiEndpoint, tempChatApiKey, tempEmbeddingApiEndpoint, tempEmbeddingApiKey, tempModel, tempEmbeddingModel, tempEmbeddingQPS, tempTopk } = aiMode
         
         // 验证topk
         const topk = parseInt(tempTopk, 10)
         if (isNaN(topk) || topk < 1 || !Number.isInteger(topk)) {
-            setShowErrorDialog(true)
-            setErrorDialogMessage(intl.get("settings.aiMode.errors.topkInvalid"))
+            if (window.utils && window.utils.showMessageBox) {
+                await window.utils.showMessageBox(
+                    intl.get("settings.aiMode.common.error") || "错误",
+                    intl.get("settings.aiMode.errors.topkInvalid") || "TopK值无效",
+                    intl.get("settings.aiMode.common.ok") || "确定",
+                    "",
+                    false,
+                    "error"
+                )
+            }
             return
         }
         
         // 验证embeddingQPS
         const embeddingQPS = parseInt(tempEmbeddingQPS, 10)
         if (isNaN(embeddingQPS) || embeddingQPS < 1 || !Number.isInteger(embeddingQPS)) {
-            setShowErrorDialog(true)
-            setErrorDialogMessage(intl.get("settings.aiMode.errors.embeddingQPSInvalid"))
+            if (window.utils && window.utils.showMessageBox) {
+                await window.utils.showMessageBox(
+                    intl.get("settings.aiMode.common.error") || "错误",
+                    intl.get("settings.aiMode.errors.embeddingQPSInvalid") || "Embedding QPS值无效",
+                    intl.get("settings.aiMode.common.ok") || "确定",
+                    "",
+                    false,
+                    "error"
+                )
+            }
             return
         }
         
@@ -594,15 +608,25 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
     queryArticles = async (timeRangeDays: number | null, topic: string | null): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, tokenStatistics: TokenStatistics }> => {
         const { aiMode, updateQueryProgress } = this.props
         
+        // 从 window.settings 读取配置（与检查配置的地方一致）
+        const chatApiEndpoint = window.settings.getAIChatApiEndpoint()
+        const chatApiKey = window.settings.getAIChatApiKey()
+        const model = window.settings.getAIModel()
+        const embeddingApiEndpoint = window.settings.getAIEmbeddingApiEndpoint()
+        const embeddingApiKey = window.settings.getAIEmbeddingApiKey()
+        const embeddingModel = window.settings.getAIEmbeddingModel()
+        const embeddingQPS = window.settings.getAIEmbeddingQPS()
+        const topk = window.settings.getAITopk()
+        
         const config: ConsolidateConfig = {
-            chatApiEndpoint: aiMode.chatApiEndpoint,
-            chatApiKey: aiMode.chatApiKey,
-            embeddingApiEndpoint: aiMode.embeddingApiEndpoint,
-            embeddingApiKey: aiMode.embeddingApiKey,
-            embeddingModel: aiMode.embeddingModel,
-            embeddingQPS: aiMode.embeddingQPS,
-            model: aiMode.model,
-            topk: aiMode.topk || 100,
+            chatApiEndpoint,
+            chatApiKey,
+            embeddingApiEndpoint: embeddingApiEndpoint || undefined,  // 可选
+            embeddingApiKey: embeddingApiKey || undefined,  // 可选
+            embeddingModel: embeddingModel || undefined,  // 可选
+            embeddingQPS: embeddingQPS || undefined,
+            model,
+            topk: topk || 100,
         }
         
         const callbacks: ConsolidateCallbacks = {
@@ -712,46 +736,86 @@ ${articlesText}
     handleGenerateSummary = async () => {
         const { aiMode } = this.props
         const { timeRange, topicInput } = aiMode
-        const { updateTopic, updateTopicInput, setLoading, setClustering, setError, setSummary, setArticleCount, setFilteredArticles, setClusters, setTimeRangeHasArticles, updateQueryProgress, setShowResults, setShowErrorDialog, setErrorDialogMessage, setAIModeTokenStatistics } = this.props
+        const { updateTopic, updateTopicInput, setLoading, setClustering, setError, setSummary, setArticleCount, setFilteredArticles, setClusters, setTimeRangeHasArticles, updateQueryProgress, setShowResults, setAIModeTokenStatistics } = this.props
 
-        // 检查配置是否完整
-        const chatApiEndpoint = (aiMode.chatApiEndpoint || '').trim()
-        const chatApiKey = (aiMode.chatApiKey || '').trim()
-        const model = (aiMode.model || '').trim()
-        const embeddingApiEndpoint = (aiMode.embeddingApiEndpoint || '').trim()
-        const embeddingApiKey = (aiMode.embeddingApiKey || '').trim()
-        const embeddingModel = (aiMode.embeddingModel || '').trim()
-        
-        if (!chatApiEndpoint || !chatApiKey || !model || !embeddingApiEndpoint || !embeddingApiKey || !embeddingModel) {
-            // 显示错误提示并提供打开配置的选项
+        // 使用 window.settings 检查配置（与 selectSmartSearch 和文章翻译一致）
+        if (typeof window === 'undefined' || !window.settings) {
+            console.error('Settings not available')
             if (window.utils && window.utils.showMessageBox) {
                 const openConfig = await window.utils.showMessageBox(
-                    intl.get("settings.aiMode.errors.configNotSet"),
-                    intl.get("settings.aiMode.errors.configIncomplete"),
-                    intl.get("settings.aiMode.errors.openConfig"),
-                    intl.get("cancel"),
+                    intl.get("translation.error.configNotSet") || "AI模型未配置",
+                    intl.get("translation.error.configIncomplete") || "AI模型未配置，请先配置AI模型",
+                    intl.get("translation.error.openConfig") || "打开配置",
+                    intl.get("cancel") || "取消",
                     false,
                     "warning"
                 )
-                if (openConfig) {
+                if (openConfig && window.utils && window.utils.openAIConfig) {
+                    await window.utils.openAIConfig()
+                } else if (openConfig) {
                     this.props.dispatch(selectAIConfig())
                 }
+            } else {
+                this.props.dispatch(selectAIConfig())
+            }
+            return
+        }
+
+        // 只检查Chat API配置（不需要Embedding API）
+        const chatApiEndpoint = window.settings.getAIChatApiEndpoint()
+        const chatApiKey = window.settings.getAIChatApiKey()
+        const model = window.settings.getAIModel()
+        
+        if (!chatApiEndpoint || !chatApiKey || !model) {
+            // 显示错误提示并提供打开配置的选项（使用与文章翻译相同的i18n键）
+            if (window.utils && window.utils.showMessageBox) {
+                const openConfig = await window.utils.showMessageBox(
+                    intl.get("translation.error.configNotSet") || "AI模型未配置",
+                    intl.get("translation.error.configIncomplete") || "AI模型未配置，请先配置AI模型",
+                    intl.get("translation.error.openConfig") || "打开配置",
+                    intl.get("cancel") || "取消",
+                    false,
+                    "warning"
+                )
+                if (openConfig && window.utils && window.utils.openAIConfig) {
+                    await window.utils.openAIConfig()
+                } else if (openConfig) {
+                    this.props.dispatch(selectAIConfig())
+                }
+            } else {
+                this.props.dispatch(selectAIConfig())
             }
             return
         }
 
         // 验证时间范围必须选择
         if (!timeRange) {
-            setShowErrorDialog(true)
-            setErrorDialogMessage(intl.get("settings.aiMode.errors.selectTimeRange"))
+            if (window.utils && window.utils.showMessageBox) {
+                await window.utils.showMessageBox(
+                    intl.get("settings.aiMode.common.error") || "错误",
+                    intl.get("settings.aiMode.errors.selectTimeRange") || "请选择时间范围",
+                    intl.get("settings.aiMode.common.ok") || "确定",
+                    "",
+                    false,
+                    "error"
+                )
+            }
             return
         }
 
         // 验证话题必须输入（话题是必填的）
         const trimmedTopic = topicInput.trim() || aiMode.topic?.trim() || ''
         if (!trimmedTopic) {
-            setShowErrorDialog(true)
-            setErrorDialogMessage(intl.get("settings.aiMode.errors.enterTopic"))
+            if (window.utils && window.utils.showMessageBox) {
+                await window.utils.showMessageBox(
+                    intl.get("settings.aiMode.common.error") || "错误",
+                    intl.get("settings.aiMode.errors.enterTopic") || "请输入话题",
+                    intl.get("settings.aiMode.common.ok") || "确定",
+                    "",
+                    false,
+                    "error"
+                )
+            }
             return
         }
 
@@ -901,14 +965,29 @@ ${articlesText}
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : intl.get("settings.aiMode.errors.queryFailed")
+            // 清理所有状态，确保UI正确显示错误状态
             setLoading(false)
+            setClustering(false)
             setError(errorMessage)
-            setShowErrorDialog(true)
-            setErrorDialogMessage(errorMessage)
             updateQueryProgress(null)
+            setArticleCount(0)
+            setFilteredArticles([])
+            setClusters([])
+            setShowResults(false)
             if (typeof window !== 'undefined') {
                 const event = new CustomEvent('smartSearchUpdated')
                 window.dispatchEvent(event)
+            }
+            // 使用与AI配置一致的弹窗样式
+            if (window.utils && window.utils.showMessageBox) {
+                await window.utils.showMessageBox(
+                    intl.get("settings.aiMode.common.error") || "错误",
+                    errorMessage,
+                    intl.get("settings.aiMode.common.ok") || "确定",
+                    "",
+                    false,
+                    "error"
+                )
             }
         }
     }
@@ -937,10 +1016,6 @@ ${articlesText}
         this.props.setShowResults(true)
     }
 
-    handleCloseErrorDialog = () => {
-        this.props.setShowErrorDialog(false)
-        this.props.setErrorDialogMessage('')
-    }
 
     handleCloseInputDialog = () => {
         this.props.setShowInputDialog(false)
@@ -998,8 +1073,6 @@ ${articlesText}
             tempEmbeddingApiKey, 
             tempModel,
             tempEmbeddingModel,
-            showErrorDialog, 
-            errorDialogMessage,
             showInputDialog,
             articleCount,
             filteredArticles,
@@ -1061,14 +1134,6 @@ ${articlesText}
                             maxWidth: '800px',
                             margin: '0 auto'
                         }}>
-                            <h2 style={{
-                                margin: '0 0 20px 0',
-                                fontSize: '20px',
-                                fontWeight: 600,
-                                color: 'var(--neutralPrimary)'
-                            }}>
-                                {intl.get("menu.aiFeature")}
-                            </h2>
                             <SmartSearchMenuContent />
                         </div>
                     </div>
@@ -1637,23 +1702,6 @@ ${articlesText}
                 })()}
                 
 
-                {/* 只在真正的错误（非无文章情况）时显示错误提示 */}
-                {error && !isLoading && filteredArticles.length === 0 && !shouldShowDarkProgress && !shouldShowProgressForCompleted && (
-                    <div style={{ 
-                        display: 'flex', 
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flex: 1,
-                        gap: '16px',
-                        padding: '20px'
-                    }}>
-                        <Icon iconName="Error" style={{ fontSize: 48, color: 'var(--error)' }} />
-                        <p style={{ color: 'var(--error)', fontSize: '14px', textAlign: 'center' }}>
-                            {error}
-                        </p>
-                    </div>
-                )}
 
                 {/* 输入弹窗 */}
                 <SmartSearchInputDialog
@@ -1670,43 +1718,6 @@ ${articlesText}
                         this.saveTopicToRecent(topic)
                     }}
                 />
-
-                {/* 错误对话框 */}
-                {showErrorDialog && (
-                    <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 1000,
-                        backgroundColor: 'rgba(0, 0, 0, 0.3)'
-                    }} onClick={this.handleCloseErrorDialog}>
-                        <div style={{
-                            backgroundColor: 'var(--white)',
-                            borderRadius: '4px',
-                            padding: '24px',
-                            maxWidth: '500px',
-                            width: '90%',
-                            boxShadow: '0 6.4px 14.4px rgba(0, 0, 0, 0.132), 0 1.2px 3.6px rgba(0, 0, 0, 0.108)',
-                            maxHeight: '90%',
-                            overflow: 'auto'
-                        }} onClick={(e) => e.stopPropagation()}>
-                            <div style={{ marginBottom: '16px' }}>
-                                <h2 style={{ margin: 0, fontSize: '21px', fontWeight: 600, color: 'var(--neutralPrimary)' }}>{intl.get("settings.aiMode.common.error")}</h2>
-                            </div>
-                            <div style={{ marginBottom: '20px', color: 'var(--neutralPrimary)', fontSize: '14px', whiteSpace: 'pre-wrap' }}>
-                                {errorDialogMessage}
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                <DefaultButton onClick={this.handleCloseErrorDialog} text={intl.get("settings.aiMode.common.ok")} />
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         )
     }
@@ -1752,8 +1763,6 @@ const mapDispatchToProps = dispatch => ({
     updateTempEmbeddingModel: (tempEmbeddingModel: string) => dispatch(updateAIModeTempEmbeddingModel(tempEmbeddingModel)),
     updateTempEmbeddingQPS: (tempEmbeddingQPS: string) => dispatch(updateAIModeTempEmbeddingQPS(tempEmbeddingQPS)),
     updateTempTopk: (tempTopk: string) => dispatch(updateAIModeTempTopk(tempTopk)),
-    setShowErrorDialog: (showErrorDialog: boolean) => dispatch(setAIModeShowErrorDialog(showErrorDialog)),
-    setErrorDialogMessage: (errorDialogMessage: string) => dispatch(setAIModeErrorDialogMessage(errorDialogMessage)),
     setShowInputDialog: (showInputDialog: boolean) => dispatch(setAIModeShowInputDialog(showInputDialog)),
     setArticleCount: (articleCount: number) => dispatch(setAIModeArticleCount(articleCount)),
     setFilteredArticles: (filteredArticles: RSSItem[]) => dispatch(setAIModeFilteredArticles(filteredArticles)),

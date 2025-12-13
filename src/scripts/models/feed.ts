@@ -460,10 +460,13 @@ export function feedReducer(
                     let nextState = { ...state }
                     for (let feed of Object.values(state)) {
                         if (feed.loaded) {
+                            // 创建已有item IDs的Set以便快速查找
+                            const existingItemIds = new Set(feed.iids)
                             let items = action.items.filter(
                                 i =>
                                     feed.sids.includes(i.source) &&
-                                    FeedFilter.testItem(feed.filter, i)
+                                    FeedFilter.testItem(feed.filter, i) &&
+                                    !existingItemIds.has(i._id) // 过滤掉已存在的items，避免重复
                             )
                             if (items.length > 0) {
                                 let oldItems = feed.iids.map(
@@ -475,9 +478,11 @@ export function feedReducer(
                                     (a, b) =>
                                         b.date.getTime() - a.date.getTime()
                                 )
+                                // 使用Set去重，确保iids数组中没有重复的ID
+                                const uniqueIds = Array.from(new Set(nextItems.map(i => i._id)))
                                 nextState[feed._id] = {
                                     ...feed,
-                                    iids: nextItems.map(i => i._id),
+                                    iids: uniqueIds,
                                 }
                             }
                         }

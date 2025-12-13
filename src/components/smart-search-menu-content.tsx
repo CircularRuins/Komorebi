@@ -22,6 +22,7 @@ export const SmartSearchMenuContent: React.FC = () => {
         isClustering,
         filteredArticles,
         queryProgress,
+        error,
         handleGenerateSummary,
         handleClearSummary
     } = context
@@ -41,18 +42,19 @@ export const SmartSearchMenuContent: React.FC = () => {
                     return (
                         <>
                             {/* 流程未结束或正在加载/聚类时，显示整理汇总按钮；流程结束后（无论是否有结果）且不在加载中时，隐藏它 */}
-                            {(!isCompleted || isLoading || isClustering) && (
+                            {/* 如果有错误，不显示搜索按钮 */}
+                            {(!isCompleted || isLoading || isClustering) && !error && (
                                 <PrimaryButton
                                     iconProps={{ iconName: 'Search' }}
                                     text={intl.get("settings.aiMode.menu.generate")}
                                     onClick={handleGenerateSummary}
-                                    disabled={isLoading || isClustering || !topic.trim() && !topicInput.trim()}
+                                    disabled={isLoading || isClustering || (!topic.trim() && !topicInput.trim())}
                                     styles={{ root: { width: '100%' } }}
                                 />
                             )}
                             
                             {/* 只要流程结束（有 queryProgress 且所有步骤完成），无论是否有结果，都显示清空按钮 */}
-                            {(isCompleted || (filteredArticles && filteredArticles.length > 0)) && !isLoading && !isClustering && (
+                            {isCompleted && !error && (filteredArticles && filteredArticles.length > 0) && !isLoading && !isClustering && (
                                 <DefaultButton
                                     iconProps={{ iconName: 'Clear' }}
                                     text={intl.get("settings.aiMode.menu.clear")}

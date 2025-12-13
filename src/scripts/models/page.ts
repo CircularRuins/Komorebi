@@ -162,23 +162,28 @@ export function selectSources(
 
 export function selectSmartSearch(): AppThunk<Promise<void>> {
     return async (dispatch, getState) => {
-        const aiModeState = getState().aiMode
+        // 使用 window.settings 检查配置（与文章翻译和字幕翻译一致）
+        if (typeof window === 'undefined' || !window.settings) {
+            console.error('Settings not available')
+            dispatch(selectAIConfig())
+            return
+        }
         
-        // 只检查Chat API配置项是否已填写
-        const chatApiEndpoint = (aiModeState.chatApiEndpoint || '').trim()
-        const chatApiKey = (aiModeState.chatApiKey || '').trim()
-        const model = (aiModeState.model || '').trim()
+        // 只检查Chat API配置（不需要Embedding API）
+        const chatApiEndpoint = window.settings.getAIChatApiEndpoint()
+        const chatApiKey = window.settings.getAIChatApiKey()
+        const model = window.settings.getAIModel()
         
-        // 如果Chat API配置未填写，显示弹窗提示
+        // 如果Chat API配置未填写，显示弹窗提示（使用与文章翻译相同的i18n键）
         if (!chatApiEndpoint || !chatApiKey || !model) {
             // 显示错误提示并提供打开配置的选项
             try {
                 // 检查 window.utils 是否可用
                 if (typeof window !== 'undefined' && window.utils && typeof window.utils.showMessageBox === 'function') {
-                    // 确保 intl 已初始化
-                    const configNotSet = intl.get("settings.aiMode.errors.configNotSet") || "AI配置未设置"
-                    const configIncomplete = intl.get("settings.aiMode.errors.configIncomplete") || "请先完成Chat API配置（在设置中配置）"
-                    const openConfigText = intl.get("settings.aiMode.errors.openConfig") || "打开配置"
+                    // 使用与文章翻译相同的i18n键（因为都使用Chat API）
+                    const configNotSet = intl.get("translation.error.configNotSet") || "AI模型未配置"
+                    const configIncomplete = intl.get("translation.error.configIncomplete") || "AI模型未配置，请先配置AI模型"
+                    const openConfigText = intl.get("translation.error.openConfig") || "打开配置"
                     const cancelText = intl.get("cancel") || "取消"
                     
                     const openConfig = await window.utils.showMessageBox(
@@ -189,7 +194,10 @@ export function selectSmartSearch(): AppThunk<Promise<void>> {
                         false,
                         "warning"
                     )
-                    if (openConfig) {
+                    if (openConfig && window.utils && window.utils.openAIConfig) {
+                        await window.utils.openAIConfig()
+                    } else if (openConfig) {
+                        // 如果 openAIConfig 不可用，使用 dispatch
                         dispatch(selectAIConfig())
                     }
                 } else {

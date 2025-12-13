@@ -459,8 +459,8 @@
             "confirm": "Confirm"
         },
         "error": {
-            "configIncomplete": "Translation configuration is incomplete, please configure translation API first",
-            "configNotSet": "Translation configuration not set",
+            "configIncomplete": "AI model not configured, please configure AI model first",
+            "configNotSet": "AI model not configured",
             "translationFailed": "Translation failed",
             "emptyContent": "Article content is empty, cannot translate",
             "openConfig": "Open Config"
@@ -478,8 +478,8 @@
         "showOriginal": "Show original transcript",
         "translating": "Translating transcript...",
         "translationFailed": "Translation failed: {error}",
-        "translationConfigIncomplete": "Translation Config Incomplete",
-        "translationConfigIncompleteMessage": "Please configure Chat API settings first.",
+        "translationConfigIncomplete": "AI Model Not Configured",
+        "translationConfigIncompleteMessage": "Please configure AI model first.",
         "openConfig": "Open Config",
         "cancel": "Cancel",
         "noQuotesAvailable": "No quotes available.",
