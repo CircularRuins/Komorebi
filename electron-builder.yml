@@ -22,10 +22,12 @@ mac:
         - en
         - ja
         - es
+    icon: build/AppIcon.appiconset
 win:
     target:
         - nsis
         - zip
+    icon: build/icon.ico
 appx:
     applicationId: Komorebi
     identityName: 

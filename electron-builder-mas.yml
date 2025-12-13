@@ -21,6 +21,7 @@ mac:
         - ja
         - es
     minimumSystemVersion: 10.15.0
+    icon: build/AppIcon.appiconset
 mas:
     entitlements: build/entitlements.mas.plist
     entitlementsInherit: build/entitlements.mas.inherit.plist
