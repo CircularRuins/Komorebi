@@ -1,3 +1,7 @@
+<p align="right">
+  <a href="README.zh.md">中文</a> | <strong>English</strong>
+</p>
+
 <p align="center">
   <img width="120" height="120" src="https://github.com/CircularRuins/Komorebi/raw/master/build/icon.png">
 </p>
@@ -12,11 +16,7 @@
 
 ## Download
 
-For Windows 10 users, the recommended way of installation is through [Microsoft Store](https://www.microsoft.com/store/apps/9P71FC94LRH8?cid=github). 
-This enables auto-update and experimental ARM64 support. 
-macOS users can also get Komorebi from the [Mac App Store](https://apps.apple.com/app/id1520907427).
-
-If you are using Linux or an older version of Windows, you can [get Komorebi from GitHub releases](https://github.com/CircularRuins/Komorebi/releases).
+You can [get Komorebi from GitHub releases](https://github.com/CircularRuins/Komorebi/releases). We support Windows，macOS and Linux. 
 
 ## Features
 
