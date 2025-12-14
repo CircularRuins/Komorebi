@@ -1,14 +1,18 @@
 <p align="center">
-  <img width="120" height="120" src="https://github.com/CircularRuins/Komorebi/tree/main/build/icon.png">
+  <img width="120" height="120" src="https://github.com/CircularRuins/Komorebi/raw/main/build/icon.png">
 </p>
 <h3 align="center">Komorebi</h3>
-<p align="center">A modern desktop RSS reader</p>
+<p align="center">A desktop RSS reader that keeps you up to date with the latest in AI.</p>
 <p align="center">
   <img src="https://img.shields.io/github/v/release/CircularRuins/Komorebi?label=version" />
   <img src="https://img.shields.io/github/downloads/CircularRuins/Komorebi/total" />
   <img src="https://github.com/CircularRuins/Komorebi/workflows/CI%2FCD%20Release/badge.svg" />
 </p>
 <hr />
+
+## About
+This is a highly customized application. I developed it to meet my personal needs, without giving much consideration to more general use cases.
+But if you work in the AI industry just like I do—especially as a developer—then it might be very helpful to you as well.
 
 ## Download
 
