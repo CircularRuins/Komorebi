@@ -1,28 +1,33 @@
+<div align="center">
 <p align="center">
-  <img width="120" height="120" src="https://github.com/CircularRuins/Komorebi/raw/main/build/icon.png">
+  <img width="120" height="120" src="https://github.com/CircularRuins/Komorebi/raw/main/build/AppIcon.appiconset/mac512pt2x.png">
 </p>
 <h3 align="center">Komorebi</h3>
 <p align="center">An LLM-powered RSS reader.</p>
-<p align="center">
+<!-- <p align="center">
   <img src="https://img.shields.io/github/v/release/CircularRuins/Komorebi?label=version" />
   <img src="https://img.shields.io/github/downloads/CircularRuins/Komorebi/total" />
   <img src="https://github.com/CircularRuins/Komorebi/workflows/CI%2FCD%20Release/badge.svg" />
-</p>
-<hr />
+</p> -->
+<!-- <hr /> -->
+</div>
 
-## About
 Komorebi is not a full-featured, general-purpose RSS reader, it is designed for AI professionals. \
 If you want to keep pace with:
 - The latest industry trends and insights.
 - Cutting-edge products and technologies.
-- State-of-the-art research papers.
+- State-of-the-art research papers. \
 Try Komorebi!
 
-## Download
+## 👋🏻 Getting Started
 
 You can [get Komorebi from GitHub releases](https://github.com/CircularRuins/Komorebi/releases). We support Windows，macOS and Linux. 
 
-## Features
+> \[!IMPORTANT]
+>
+> **Star Us**, You will receive all release notifications from GitHub without any delay \~
+
+## ✨ Features
 
 <!-- <p align="center">
   <img src="https://github.com/CircularRuins/Komorebi/raw/master/docs/imgs/screenshot.jpg">
