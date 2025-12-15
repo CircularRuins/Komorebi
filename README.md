@@ -56,11 +56,14 @@ This isn’t just another app. Folo is a community — introducing a new era of 
 
 
 
-## 🤝 Contributing
+## 🤝 Contribute
 Help make Komorebi better by reporting bugs or opening feature requests through [GitHub issues](https://github.com/CircularRuins/Komorebi/issues). 
 
 ## ❤️ Buy Me a Coffee
 This project will always be 100% open source and free. But if you feel like supporting it, I won’t pretend I don’t like coffee☕️. [GitHub Sponsors](https://github.com/sponsors/yang991178), [Paypal](https://www.paypal.me/yang991178), or [Alipay](https://hyliu.me/komorebi/imgs/alipay.jpg).
+
+## 📮 Contact
+For questions, suggestions, or collaborations, feel free to contact me via email at wwf.1996@qq.com
 
 
 
