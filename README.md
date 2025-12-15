@@ -1,6 +1,6 @@
 <div align="center">
 <a href="https://github.com/CircularRuins/Komorebi">
-    <img src="https://github.com/CircularRuins/Komorebi/raw/main/build/AppIcon.appiconset/mac256pt1x.png" alt="Logo" width="80" height="80">
+    <img src="https://github.com/CircularRuins/Komorebi/raw/main/build/AppIcon.appiconset/mac256pt1x.png" alt="Logo" width="120" height="120">
   </a>
 
 <!-- <p align="center">
@@ -22,7 +22,7 @@ Komorebi is not a full-featured, general-purpose RSS reader, it is designed for 
 
 ## 👋🏻 Getting Started
 
-You can [get Komorebi from GitHub releases](https://github.com/CircularRuins/Komorebi/releases). We support Windows，macOS and Linux. 
+Komorebi is a desktop application that supports Windows, macOS and Linux. You can [get Komorebi from GitHub releases](https://github.com/CircularRuins/Komorebi/releases).
 
 > \[!IMPORTANT]
 >
@@ -30,60 +30,50 @@ You can [get Komorebi from GitHub releases](https://github.com/CircularRuins/Kom
 
 ## ✨ Features
 
-<!-- <p align="center">
-  <img src="https://github.com/CircularRuins/Komorebi/raw/master/docs/imgs/screenshot.jpg">
-</p> -->
+### Customized Information Hub
 
-- Read locally or sync with self-hosted services compatible with Fever or Google Reader API.
-- Organize your subscriptions with folder-like groupings.
-- Fetch articles in the background and send push notifications.
+Subscribe to a vast range of feeds and curated lists. Curate your favorites and keep track of what matters most to you.
+
+![](https://github.com/user-attachments/assets/11dc7d21-f5d8-4e41-9269-24fc352aa02b)
+
+### AI At Your Fingertips
+
+A smarter and more efficient browsing with AI-powered features like translation, summary, and more.
+
+![](https://github.com/user-attachments/assets/37cf4f2f-4c5e-4775-86e8-2fa1a1b2ecf5)
+
+### Dynamic Content Support
+
+Because we know content is more than just text. From articles to videos, images to audio — Folo gets it all covered.
+
+![](https://github.com/user-attachments/assets/d1379fd6-8767-476e-b0dc-d61753715e26)
+
+### More Than Just An App
+
+This isn’t just another app. Folo is a community — introducing a new era of openness and community-driven experience.
+
+![](https://github.com/user-attachments/assets/62004a04-eaea-4f5d-bfbf-4e68b6b90286)
 
 
-## Development
 
-### Contribute
-
+## 🤝 Contributing
 Help make Komorebi better by reporting bugs or opening feature requests through [GitHub issues](https://github.com/CircularRuins/Komorebi/issues). 
 
+## ❤️ Buy Me a Coffee
+This project will always be 100% open source and free. But if you feel like supporting it, I won’t pretend I don’t like coffee☕️. [GitHub Sponsors](https://github.com/sponsors/yang991178), [Paypal](https://www.paypal.me/yang991178), or [Alipay](https://hyliu.me/komorebi/imgs/alipay.jpg).
 
-If you enjoy using this app, consider supporting its development by donating through [GitHub Sponsors](https://github.com/sponsors/yang991178), [Paypal](https://www.paypal.me/yang991178), or [Alipay](https://hyliu.me/komorebi/imgs/alipay.jpg).
 
-### Build from source
-```bash
-# Install dependencies
-npm install
 
-# Compile ts & dependencies
-npm run build
-
-# Start the application
-npm run electron
-
-# Package the app for macOS
-npm run package-mac
-# Package the app for Windows
-npm run package-win
-
-```
-
-### Developed with
-
-- [Electron](https://github.com/electron/electron)
-- [React](https://github.com/facebook/react)
-- [Redux](https://github.com/reduxjs/redux)
-- [Fluent UI](https://github.com/microsoft/fluentui)
-- [Lovefield](https://github.com/google/lovefield)
-- [Mercury Parser](https://github.com/postlight/mercury-parser)
-
-### Thanks
-
+## 🎉 Acknowledgements
+This project wouldn't have been possible without the support of the following open-source projects.
 - [Fluent Reader](https://github.com/yang991178/fluent-reader)
 - [BestBlogs](https://github.com/ginobefun/BestBlogs)
 - [longcut](https://github.com/SamuelZ12/longcut)
 - [kill-the-newletter](https://github.com/leafac/kill-the-newsletter)
 - [arxiv-rss-feed-generator](https://github.com/postlight/mercury-parser)
 - [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api)
+- [alphaXiv](https://www.alphaxiv.org/)
 
-### License
+## 📝 License
 
 BSD
