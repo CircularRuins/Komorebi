@@ -698,3 +698,162 @@ ${transcriptWithTimestamps}
     }
 }
 
+/**
+ * Chat响应接口
+ */
+export interface ChatResponse {
+    content: string
+    timestamps: string[]
+}
+
+/**
+ * 格式化字幕为带时间戳的上下文（用于Chat）
+ */
+function formatTranscriptForChatContext(segments: TranscriptSegment[]): string {
+    return segments.map(s => {
+        const mins = Math.floor(s.start / 60)
+        const secs = Math.floor(s.start % 60)
+        const timestamp = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+        return `[${timestamp}] ${s.text}`
+    }).join('\n')
+}
+
+/**
+ * 生成Chat响应（基于字幕内容回答用户问题）
+ * @param message 用户问题
+ * @param segments 字幕片段数组
+ * @param config Chat API配置
+ * @param chatHistory 聊天历史（可选）
+ * @param targetLanguage 目标语言（可选，用于多语言回答）
+ * @returns Chat响应，包含答案和时间戳数组
+ */
+export async function generateChatResponse(
+    message: string,
+    segments: TranscriptSegment[],
+    config: ChatApiConfig,
+    chatHistory?: Array<{role: 'user' | 'assistant', content: string}>,
+    targetLanguage?: string
+): Promise<ChatResponse> {
+    if (!segments || segments.length === 0) {
+        throw new Error('字幕片段为空，无法回答问题')
+    }
+
+    if (!message || !message.trim()) {
+        throw new Error('用户问题为空')
+    }
+
+    const transcriptContext = formatTranscriptForChatContext(segments)
+    
+    // 构建聊天历史上下文
+    const chatHistoryContext = chatHistory?.map((msg) =>
+        `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+    ).join('\n\n') || ''
+
+    // 构建语言指令
+    const languageInstruction = targetLanguage
+        ? `\n<languageRequirement>IMPORTANT: You MUST respond in ${targetLanguage}. All text in the "answer" field must be in ${targetLanguage}.</languageRequirement>\n`
+        : ''
+
+    // 构建prompt（参考TLDW的实现）
+    const prompt = `<task>
+<role>You are an expert AI assistant for video transcripts. Prefer the provided transcript when the user asks about the video, but answer general knowledge questions directly.</role>${languageInstruction}
+<context>
+<conversationHistory><![CDATA[
+${chatHistoryContext || 'No prior conversation'}
+]]></conversationHistory>
+</context>
+<goal>Deliver concise, factual answers. Use the transcript when it is relevant to the question; otherwise respond with your best general knowledge.</goal>
+<instructions>
+  <step name="Assess Intent">
+    <item>Decide whether the user's question requires information from the transcript.</item>
+    <item>If the question is general knowledge or unrelated to the video, answer directly without forcing transcript references.</item>
+    <item>If the transcript lacks the requested information, clearly state that and return an empty timestamps array.</item>
+  </step>
+  <step name="Using The Transcript">
+    <item>When referencing the video, rely exclusively on the transcript.</item>
+    <item>Whenever you make a factual claim based on the transcript, append the exact supporting timestamp in brackets like [MM:SS] or [HH:MM:SS]. Never use numeric citation markers like [1].</item>
+    <item>List the same timestamps in the timestamps array, zero-padded and in the order they appear. Provide no more than five unique timestamps.</item>
+  </step>
+  <step name="AnswerFormatting">
+    <item>Respond in concise, complete sentences that mirror the transcript's language when applicable.</item>
+    <item>If the transcript lacks the requested information or was unnecessary, state that clearly and return an empty timestamps array.</item>
+  </step>
+</instructions>
+<validationChecklist>
+  <item>If you cited the transcript, does every factual statement have a supporting timestamp in brackets?</item>
+  <item>Are all timestamps valid moments within the transcript?</item>
+  <item>If the transcript was unnecessary or lacked the answer, did you state that and keep the timestamps array empty?</item>
+</validationChecklist>
+<outputFormat>Return strict JSON object: {"answer":"string","timestamps":["MM:SS"]}. No extra commentary.</outputFormat>
+<transcript><![CDATA[
+${transcriptContext}
+]]></transcript>
+<userQuestion><![CDATA[
+${message}
+]]></userQuestion>
+</task>`
+
+    // 使用和翻译功能相同的客户端创建方式
+    const translationConfig: TranslationConfig = {
+        apiEndpoint: config.apiEndpoint,
+        apiKey: config.apiKey,
+        model: config.model
+    }
+    const openai = createOpenAIClient(translationConfig)
+
+    const completion = await openai.chat.completions.create({
+        model: config.model,
+        messages: [
+            {
+                role: 'system',
+                content: 'You are a helpful assistant that answers questions about video transcripts. You MUST include timestamps in brackets [MM:SS] when referencing the transcript. Return your response as JSON with "answer" and "timestamps" fields.'
+            },
+            {
+                role: 'user',
+                content: prompt
+            }
+        ],
+        temperature: 0.6,
+        max_tokens: 1024,
+        response_format: { type: "json_object" }
+    })
+
+    if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
+        const responseText = completion.choices[0].message.content || ''
+        if (!responseText) {
+            throw new Error('Chat响应为空')
+        }
+
+        // 解析JSON响应
+        let parsed: any
+        try {
+            // 尝试提取JSON（可能被代码块包裹）
+            const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/i)
+            const jsonText = jsonMatch ? jsonMatch[1].trim() : responseText.trim()
+            parsed = JSON.parse(jsonText)
+        } catch (parseError) {
+            throw new Error('API返回的JSON格式不正确')
+        }
+
+        // 提取answer和timestamps
+        const answer = (parsed?.answer || parsed?.content || '').trim()
+        const timestamps = Array.isArray(parsed?.timestamps) 
+            ? parsed.timestamps.filter((ts: any) => typeof ts === 'string' && ts.trim().length > 0)
+            : []
+
+        if (!answer) {
+            throw new Error('AI模型未返回有效的答案')
+        }
+
+        // 规范化时间戳（最多5个）
+        const normalizedTimestamps = normalizeTimestampSources(timestamps, 5)
+
+        return {
+            content: answer,
+            timestamps: normalizedTimestamps
+        }
+    } else {
+        throw new Error('API返回格式不正确，未找到choices数组或message内容')
+    }
+}
+

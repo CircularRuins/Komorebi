@@ -72,6 +72,7 @@ const transcriptTranslating = new Map() // Store translating state for each vide
 const lastScrollTarget = new Map() // Track last scroll target for each transcript to detect rapid changes
 const transcriptSummaries = new Map() // Store generated summaries: Map<videoId, string>
 const transcriptQuotes = new Map() // Store extracted quotes: Map<videoId, Array<{quote: string, timestamp: string, speaker?: string}>>
+const transcriptChatMessages = new Map() // Store chat messages: Map<videoId, Array<{role: 'user' | 'assistant', content: string, timestamps?: string[]}>>
 
 function convertYouTubeLinks(html) {
     if (!html || typeof html !== 'string') return html || ''
@@ -600,6 +601,21 @@ function setupTabSwitching(container) {
                     const videoId = youtubePlayers.get(playerId)
                     if (videoId) {
                         setupQuotesTab(container, videoId)
+                    }
+                }
+            }
+            
+            // Setup chat tab if switching to chat
+            if (targetTab === 'chat') {
+                // Extract videoId from container id
+                const containerId = container.id
+                const match = containerId.match(/youtube-transcript-(\d+)/)
+                if (match) {
+                    const playerIndex = parseInt(match[1])
+                    const playerId = `youtube-player-${playerIndex}`
+                    const videoId = youtubePlayers.get(playerId)
+                    if (videoId) {
+                        setupChatTab(container, videoId)
                     }
                 }
             }
@@ -1286,9 +1302,48 @@ async function generateQuotes(videoId) {
 /**
  * Setup quotes tab functionality
  */
-function setupQuotesTab(container, videoId) {
+async function setupQuotesTab(container, videoId) {
     const quotesContent = container.querySelector('.youtube-transcript-quotes-content')
     if (!quotesContent) return
+    
+    // Check Chat API configuration (same as chat tab)
+    if (typeof window === 'undefined' || !window.settings) {
+        const configIncomplete = i18n('transcript.chat.configIncomplete', 'AI Model Not Configured')
+        quotesContent.innerHTML = '<div class="youtube-transcript-quotes-error">' + configIncomplete + '</div>'
+        return
+    }
+    
+    const apiEndpoint = window.settings.getAIChatApiEndpoint()
+    const apiKey = window.settings.getAIChatApiKey()
+    const model = window.settings.getAIModel()
+    
+    if (!apiEndpoint || !apiKey || !model) {
+        // Show config incomplete message (same as chat tab)
+        const configIncomplete = i18n('transcript.chat.configIncomplete', 'AI Model Not Configured')
+        const configIncompleteMessage = i18n('transcript.chat.configIncompleteMessage', 'Please configure Chat API settings first.')
+        const openConfig = i18n('transcript.openConfig', 'Open Config')
+        
+        quotesContent.innerHTML = `
+            <div class="youtube-transcript-quotes-config-incomplete">
+                <div class="youtube-transcript-quotes-config-message">
+                    <div class="youtube-transcript-quotes-config-title">${configIncomplete}</div>
+                    <div class="youtube-transcript-quotes-config-desc">${configIncompleteMessage}</div>
+                </div>
+                <button type="button" class="youtube-transcript-quotes-config-button">${openConfig}</button>
+            </div>
+        `
+        
+        // Setup open config button
+        const configButton = quotesContent.querySelector('.youtube-transcript-quotes-config-button')
+        if (configButton && window.utils && window.utils.openAIConfig) {
+            configButton.addEventListener('click', async (e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                await window.utils.openAIConfig()
+            })
+        }
+        return
+    }
     
     // Check if quotes already exists
     const existingQuotes = transcriptQuotes.get(videoId)
@@ -1312,8 +1367,8 @@ function setupQuotesTab(container, videoId) {
             generateButton.addEventListener('click', async () => {
                 // Disable button and show loading
                 generateButton.disabled = true
-                generateButton.textContent = 'Extracting...'
-                quotesContent.innerHTML = '<div class="youtube-transcript-quotes-loading">Extracting quotes...</div>'
+                generateButton.textContent = i18n('transcript.extracting', 'Extracting...')
+                quotesContent.innerHTML = '<div class="youtube-transcript-quotes-loading">' + i18n('transcript.extractingQuotes', 'Extracting quotes...') + '</div>'
                 
                 try {
                     const quotes = await generateQuotes(videoId)
@@ -1324,10 +1379,11 @@ function setupQuotesTab(container, videoId) {
                 } catch (error) {
                     console.error('Error extracting quotes:', error)
                     const errorMessage = error instanceof Error ? error.message : String(error)
+                    const failedMessage = i18n('transcript.failedToExtractQuotes', 'Failed to extract quotes: {error}')
                     quotesContent.innerHTML = `
                         <div class="youtube-transcript-quotes-error">
-                            <div>Failed to extract quotes: ${errorMessage}</div>
-                            <button class="youtube-transcript-quotes-retry">Retry</button>
+                            <div>${failedMessage.replace('{error}', errorMessage)}</div>
+                            <button class="youtube-transcript-quotes-retry">${i18n('transcript.retry', 'Retry')}</button>
                         </div>
                     `
                     
@@ -1347,9 +1403,48 @@ function setupQuotesTab(container, videoId) {
 /**
  * Setup summary tab functionality
  */
-function setupSummaryTab(container, videoId) {
+async function setupSummaryTab(container, videoId) {
     const summaryContent = container.querySelector('.youtube-transcript-summary-content')
     if (!summaryContent) return
+    
+    // Check Chat API configuration (same as chat tab)
+    if (typeof window === 'undefined' || !window.settings) {
+        const configIncomplete = i18n('transcript.chat.configIncomplete', 'AI Model Not Configured')
+        summaryContent.innerHTML = '<div class="youtube-transcript-summary-error">' + configIncomplete + '</div>'
+        return
+    }
+    
+    const apiEndpoint = window.settings.getAIChatApiEndpoint()
+    const apiKey = window.settings.getAIChatApiKey()
+    const model = window.settings.getAIModel()
+    
+    if (!apiEndpoint || !apiKey || !model) {
+        // Show config incomplete message (same as chat tab)
+        const configIncomplete = i18n('transcript.chat.configIncomplete', 'AI Model Not Configured')
+        const configIncompleteMessage = i18n('transcript.chat.configIncompleteMessage', 'Please configure Chat API settings first.')
+        const openConfig = i18n('transcript.openConfig', 'Open Config')
+        
+        summaryContent.innerHTML = `
+            <div class="youtube-transcript-summary-config-incomplete">
+                <div class="youtube-transcript-summary-config-message">
+                    <div class="youtube-transcript-summary-config-title">${configIncomplete}</div>
+                    <div class="youtube-transcript-summary-config-desc">${configIncompleteMessage}</div>
+                </div>
+                <button type="button" class="youtube-transcript-summary-config-button">${openConfig}</button>
+            </div>
+        `
+        
+        // Setup open config button
+        const configButton = summaryContent.querySelector('.youtube-transcript-summary-config-button')
+        if (configButton && window.utils && window.utils.openAIConfig) {
+            configButton.addEventListener('click', async (e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                await window.utils.openAIConfig()
+            })
+        }
+        return
+    }
     
     // Check if summary already exists
     const existingSummary = transcriptSummaries.get(videoId)
@@ -1363,7 +1458,7 @@ function setupSummaryTab(container, videoId) {
         // Show Generate button
         summaryContent.innerHTML = `
             <div class="youtube-transcript-summary-empty">
-                <button class="youtube-transcript-summary-generate">Generate Summary</button>
+                <button class="youtube-transcript-summary-generate">${i18n('transcript.generateSummary', 'Generate Summary')}</button>
             </div>
         `
         
@@ -1373,8 +1468,8 @@ function setupSummaryTab(container, videoId) {
             generateButton.addEventListener('click', async () => {
                 // Disable button and show loading
                 generateButton.disabled = true
-                generateButton.textContent = 'Generating...'
-                summaryContent.innerHTML = '<div class="youtube-transcript-summary-loading">Generating summary...</div>'
+                generateButton.textContent = i18n('transcript.generating', 'Generating...')
+                summaryContent.innerHTML = '<div class="youtube-transcript-summary-loading">' + i18n('transcript.generatingSummary', 'Generating summary...') + '</div>'
                 
                 try {
                     const takeaways = await generateSummary(videoId)
@@ -1385,10 +1480,11 @@ function setupSummaryTab(container, videoId) {
                 } catch (error) {
                     console.error('Error generating summary:', error)
                     const errorMessage = error instanceof Error ? error.message : String(error)
+                    const failedMessage = i18n('transcript.failedToGenerateSummary', 'Failed to generate summary: {error}')
                     summaryContent.innerHTML = `
                         <div class="youtube-transcript-summary-error">
-                            <div>Failed to generate summary: ${errorMessage}</div>
-                            <button class="youtube-transcript-summary-retry">Retry</button>
+                            <div>${failedMessage.replace('{error}', errorMessage)}</div>
+                            <button class="youtube-transcript-summary-retry">${i18n('transcript.retry', 'Retry')}</button>
                         </div>
                     `
                     
@@ -1403,6 +1499,536 @@ function setupSummaryTab(container, videoId) {
             })
         }
     }
+}
+
+/**
+ * Parse timestamp from string (MM:SS or HH:MM:SS)
+ */
+function parseTimestampToSeconds(timestamp) {
+    const parts = timestamp.split(':').map(p => parseInt(p, 10))
+    if (parts.length === 2) {
+        return parts[0] * 60 + parts[1]
+    } else if (parts.length === 3) {
+        return parts[0] * 3600 + parts[1] * 60 + parts[2]
+    }
+    return null
+}
+
+/**
+ * Format timestamp from seconds to MM:SS or HH:MM:SS
+ */
+function formatTimestampFromSeconds(seconds) {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = Math.floor(seconds % 60)
+    
+    if (hours > 0) {
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    }
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+}
+
+/**
+ * Render timestamp buttons in text
+ */
+function renderTimestampButtons(text, timestamps, videoId) {
+    if (!timestamps || timestamps.length === 0) {
+        return text
+    }
+    
+    // Replace timestamp patterns [MM:SS] or [HH:MM:SS] with clickable buttons
+    const timestampPattern = /\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g
+    let result = text
+    const matches = []
+    
+    let match
+    while ((match = timestampPattern.exec(text)) !== null) {
+        matches.push({
+            index: match.index,
+            length: match[0].length,
+            timestamp: match[1],
+            fullMatch: match[0]
+        })
+    }
+    
+    // Replace from end to start to preserve indices
+    for (let i = matches.length - 1; i >= 0; i--) {
+        const m = matches[i]
+        const seconds = parseTimestampToSeconds(m.timestamp)
+        if (seconds !== null) {
+            const buttonHtml = `<button class="youtube-transcript-chat-timestamp" data-timestamp="${m.timestamp}" data-seconds="${seconds}" data-video-id="${videoId}">
+                <svg class="youtube-transcript-chat-timestamp-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 2.5L9 6L3 9.5V2.5Z" fill="currentColor"/>
+                </svg>
+                <span>${m.timestamp}</span>
+            </button>`
+            result = result.substring(0, m.index) + buttonHtml + result.substring(m.index + m.length)
+        }
+    }
+    
+    return result
+}
+
+/**
+ * Setup chat tab functionality
+ */
+async function setupChatTab(container, videoId) {
+    const chatContainer = container.querySelector('.youtube-transcript-chat')
+    if (!chatContainer) return
+    
+    // Check if chat already initialized
+    if (chatContainer.querySelector('.youtube-transcript-chat-content')) {
+        return
+    }
+    
+    // Check Chat API configuration
+    if (typeof window === 'undefined' || !window.settings) {
+        chatContainer.innerHTML = '<div class="youtube-transcript-chat-error">' + i18n('transcript.chat.configIncomplete', 'AI Model Not Configured') + '</div>'
+        return
+    }
+    
+    const apiEndpoint = window.settings.getAIChatApiEndpoint()
+    const apiKey = window.settings.getAIChatApiKey()
+    const model = window.settings.getAIModel()
+    
+    if (!apiEndpoint || !apiKey || !model) {
+        // Show config incomplete message
+        const configIncomplete = i18n('transcript.chat.configIncomplete', 'AI Model Not Configured')
+        const configIncompleteMessage = i18n('transcript.chat.configIncompleteMessage', 'Please configure Chat API settings first.')
+        const openConfig = i18n('transcript.openConfig', 'Open Config')
+        const cancel = i18n('transcript.cancel', 'Cancel')
+        
+        chatContainer.innerHTML = `
+            <div class="youtube-transcript-chat-content">
+                <div class="youtube-transcript-chat-config-incomplete">
+                    <div class="youtube-transcript-chat-config-message">
+                        <div class="youtube-transcript-chat-config-title">${configIncomplete}</div>
+                        <div class="youtube-transcript-chat-config-desc">${configIncompleteMessage}</div>
+                    </div>
+                    <button type="button" class="youtube-transcript-chat-config-button">${openConfig}</button>
+                </div>
+            </div>
+        `
+        
+        // Setup open config button
+        const configButton = chatContainer.querySelector('.youtube-transcript-chat-config-button')
+        if (configButton && window.utils && window.utils.openAIConfig) {
+            configButton.addEventListener('click', async (e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                await window.utils.openAIConfig()
+            })
+        }
+        return
+    }
+    
+    // Get transcript data
+    const transcript = transcriptData.get(videoId)
+    if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
+        const transcriptNotAvailableText = i18n('transcript.chat.transcriptNotAvailable', 'Transcript not available')
+        chatContainer.innerHTML = '<div class="youtube-transcript-chat-error">' + transcriptNotAvailableText + '</div>'
+        return
+    }
+    
+    // Get or initialize chat messages
+    if (!transcriptChatMessages.has(videoId)) {
+        transcriptChatMessages.set(videoId, [])
+    }
+    const messages = transcriptChatMessages.get(videoId)
+    
+    // Create chat UI
+    const placeholder = i18n('transcript.chat.placeholder', 'Ask about the video...')
+    const sendText = i18n('transcript.chat.send', 'Send')
+    const loadingText = i18n('transcript.chat.loading', 'Thinking...')
+    
+    chatContainer.innerHTML = `
+        <div class="youtube-transcript-chat-content">
+            <div class="youtube-transcript-chat-messages"></div>
+            <form class="youtube-transcript-chat-input-container" onsubmit="return false;" autocomplete="off" novalidate>
+                <div class="youtube-transcript-chat-input-wrapper">
+                    <textarea class="youtube-transcript-chat-input" placeholder="${placeholder}" rows="2" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+                    <button type="button" class="youtube-transcript-chat-send">
+                        <svg width="12" height="12" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M13.5 0.5L6.5 7.5M13.5 0.5L9.5 13.5L6.5 7.5M13.5 0.5L0.5 4.5L6.5 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+    `
+    
+    const messagesContainer = chatContainer.querySelector('.youtube-transcript-chat-messages')
+    const inputElement = chatContainer.querySelector('.youtube-transcript-chat-input')
+    const sendButton = chatContainer.querySelector('.youtube-transcript-chat-send')
+    const inputContainer = chatContainer.querySelector('.youtube-transcript-chat-input-container')
+    const inputWrapper = chatContainer.querySelector('.youtube-transcript-chat-input-wrapper')
+    
+    // Prevent form submission and all form-related events
+    if (inputContainer) {
+        // Use capture phase and immediate stop to prevent any form submission
+        const preventFormSubmit = (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            e.stopImmediatePropagation()
+            return false
+        }
+        
+        inputContainer.addEventListener('submit', preventFormSubmit, true)
+        inputContainer.addEventListener('reset', preventFormSubmit, true)
+        
+        // Also prevent at the form level
+        inputContainer.setAttribute('onsubmit', 'return false;')
+        inputContainer.setAttribute('onreset', 'return false;')
+        
+        // Prevent any other form events
+        inputContainer.addEventListener('formdata', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+        }, true)
+    }
+    
+    // Also prevent any click events on the wrapper that might bubble up
+    if (inputWrapper) {
+        inputWrapper.addEventListener('click', (e) => {
+            e.stopPropagation()
+        })
+        
+        inputWrapper.addEventListener('mousedown', (e) => {
+            e.stopPropagation()
+        })
+        
+        inputWrapper.addEventListener('mouseup', (e) => {
+            e.stopPropagation()
+        })
+    }
+    
+    // Prevent any global event handlers from interfering
+    // Wrap the entire chat container to prevent event bubbling
+    if (chatContainer) {
+        const stopAllEvents = (e) => {
+            // Only stop events that originate from within the chat container
+            if (e.target && chatContainer.contains(e.target)) {
+                // Don't stop propagation for events we need (like clicks on buttons)
+                if (e.target.closest('.youtube-transcript-chat-send')) {
+                    return
+                }
+                // For input-related events, always stop
+                if (e.type === 'submit' || e.type === 'reset' || 
+                    (e.type === 'keydown' && e.key === 'Enter' && !e.shiftKey)) {
+                    e.stopPropagation()
+                    e.stopImmediatePropagation()
+                }
+            }
+        }
+        
+        // Only prevent form-related events at the container level
+        chatContainer.addEventListener('submit', stopAllEvents, true)
+        chatContainer.addEventListener('reset', stopAllEvents, true)
+    }
+    
+    // Add a global event listener at document level to catch any events that might bubble up
+    // This is a last resort to prevent page refresh
+    const globalEventBlocker = (e) => {
+        // Check if the event originated from the chat input
+        if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-chat-input')) {
+            // For form submission, always prevent
+            if (e.type === 'submit') {
+                e.preventDefault()
+                e.stopPropagation()
+                e.stopImmediatePropagation()
+            }
+            // Don't block keydown events here - let the input element handle them
+            // This allows the sendMessage function to be called properly
+        }
+    }
+    
+    // Only add submit blocker to document
+    document.addEventListener('submit', globalEventBlocker, true)
+    
+    // Store the blocker function so we can remove it later if needed
+    chatContainer._globalEventBlocker = globalEventBlocker
+    
+    // Render existing messages
+    function renderMessages() {
+        if (!messagesContainer) return
+        
+        messagesContainer.innerHTML = ''
+        messages.forEach((msg, index) => {
+            const messageDiv = document.createElement('div')
+            messageDiv.className = `youtube-transcript-chat-message youtube-transcript-chat-message-${msg.role}`
+            
+            if (msg.role === 'user') {
+                messageDiv.innerHTML = `<div class="youtube-transcript-chat-message-content">${escapeHtml(msg.content)}</div>`
+            } else {
+                // Render assistant message with timestamp buttons
+                const contentWithTimestamps = renderTimestampButtons(msg.content, msg.timestamps || [], videoId)
+                messageDiv.innerHTML = `<div class="youtube-transcript-chat-message-content">${contentWithTimestamps}</div>`
+            }
+            
+            messagesContainer.appendChild(messageDiv)
+        })
+        
+        // Setup timestamp button handlers
+        const timestampButtons = messagesContainer.querySelectorAll('.youtube-transcript-chat-timestamp')
+        timestampButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                const timestamp = button.getAttribute('data-timestamp')
+                const buttonVideoId = button.getAttribute('data-video-id')
+                if (timestamp && buttonVideoId === videoId) {
+                    handleTimestampClick(videoId, timestamp)
+                }
+            })
+        })
+        
+        // Scroll to bottom
+        messagesContainer.scrollTop = messagesContainer.scrollHeight
+    }
+    
+    // Send message function
+    async function sendMessage() {
+        if (!inputElement || !sendButton) return
+        
+        const messageText = inputElement.value.trim()
+        if (!messageText) return
+        
+        // Check config again before sending
+        const currentApiEndpoint = window.settings.getAIChatApiEndpoint()
+        const currentApiKey = window.settings.getAIChatApiKey()
+        const currentModel = window.settings.getAIModel()
+        
+        if (!currentApiEndpoint || !currentApiKey || !currentModel) {
+            if (window.utils && window.utils.showMessageBox) {
+                const openConfig = await window.utils.showMessageBox(
+                    i18n('transcript.chat.configIncomplete', 'AI Model Not Configured'),
+                    i18n('transcript.chat.configIncompleteMessage', 'Please configure Chat API settings first.'),
+                    i18n('transcript.openConfig', 'Open Config'),
+                    i18n('transcript.cancel', 'Cancel'),
+                    false,
+                    'warning'
+                )
+                if (openConfig && window.utils.openAIConfig) {
+                    await window.utils.openAIConfig()
+                }
+            }
+            return
+        }
+        
+        // Add user message
+        messages.push({ role: 'user', content: messageText })
+        inputElement.value = ''
+        inputElement.disabled = true
+        sendButton.disabled = true
+        
+        // Render user message first
+        renderMessages()
+        
+        // Show loading state
+        const loadingDiv = document.createElement('div')
+        loadingDiv.className = 'youtube-transcript-chat-message youtube-transcript-chat-message-assistant youtube-transcript-chat-message-loading'
+        loadingDiv.innerHTML = `<div class="youtube-transcript-chat-message-content">${loadingText}</div>`
+        if (messagesContainer) {
+            messagesContainer.appendChild(loadingDiv)
+            messagesContainer.scrollTop = messagesContainer.scrollHeight
+        }
+        
+        try {
+            // Prepare chat history (last 10 messages for context)
+            const chatHistory = messages.slice(-10).map(m => ({
+                role: m.role,
+                content: m.content
+            }))
+            
+            // Call IPC handler
+            if (!window.utils || !window.utils.chatWithTranscript) {
+                const apiNotAvailableText = i18n('transcript.chat.apiNotAvailable', 'Chat API not available')
+                throw new Error(apiNotAvailableText)
+            }
+            
+            const response = await window.utils.chatWithTranscript(messageText, transcript, chatHistory)
+            
+            // Remove loading message
+            const loadingMsg = messagesContainer.querySelector('.youtube-transcript-chat-message-loading')
+            if (loadingMsg) {
+                loadingMsg.remove()
+            }
+            
+            // Add assistant message
+            messages.push({
+                role: 'assistant',
+                content: response.content,
+                timestamps: response.timestamps || []
+            })
+            
+            renderMessages()
+        } catch (error) {
+            console.error('Error sending chat message:', error)
+            
+            // Remove loading message
+            const loadingMsg = messagesContainer.querySelector('.youtube-transcript-chat-message-loading')
+            if (loadingMsg) {
+                loadingMsg.remove()
+            }
+            
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            const errorText = i18n('transcript.chat.error', 'Failed to get response')
+            
+            // Add error message
+            messages.push({
+                role: 'assistant',
+                content: `${errorText}: ${errorMessage}`,
+                timestamps: []
+            })
+            
+            renderMessages()
+        } finally {
+            inputElement.disabled = false
+            sendButton.disabled = false
+            inputElement.focus()
+        }
+    }
+    
+    // Setup send button
+    if (sendButton) {
+        sendButton.addEventListener('click', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            sendMessage()
+        })
+    }
+    
+    // Track composition state for IME (Input Method Editor)
+    let isComposing = false
+    
+    // Setup Enter key (Shift+Enter for new line)
+    if (inputElement) {
+        // Handle IME composition events (for Chinese/Japanese/Korean input)
+        inputElement.addEventListener('compositionstart', (e) => {
+            isComposing = true
+            inputElement.setAttribute('data-composing', 'true')
+            e.stopPropagation()
+            e.stopImmediatePropagation()
+        }, true)
+        
+        inputElement.addEventListener('compositionupdate', (e) => {
+            e.stopPropagation()
+            e.stopImmediatePropagation()
+        }, true)
+        
+        inputElement.addEventListener('compositionend', (e) => {
+            isComposing = false
+            inputElement.removeAttribute('data-composing')
+            e.stopPropagation()
+            e.stopImmediatePropagation()
+        }, true)
+        
+        // Prevent any default behavior that might cause page refresh
+        inputElement.addEventListener('keydown', (e) => {
+            // Don't handle Enter during composition
+            if (isComposing && e.key === 'Enter') {
+                return
+            }
+            
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                e.stopPropagation()
+                e.stopImmediatePropagation()
+                // Call sendMessage asynchronously to avoid blocking
+                setTimeout(() => {
+                    sendMessage()
+                }, 0)
+                return false
+            }
+            
+            // Prevent other keys that might trigger navigation
+            if (e.key === 'Escape' || (e.ctrlKey && e.key === 'Enter')) {
+                e.stopPropagation()
+            }
+        }, false) // Don't use capture phase, use bubble phase so it runs after composition events
+        
+        // Also prevent form submission on keypress
+        inputElement.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
+                e.preventDefault()
+                e.stopPropagation()
+                e.stopImmediatePropagation()
+                return false
+            }
+        }, false) // Use bubble phase
+        
+        // Prevent any input events that might trigger navigation
+        inputElement.addEventListener('input', (e) => {
+            e.stopPropagation()
+        })
+        
+        // Prevent beforeinput events
+        inputElement.addEventListener('beforeinput', (e) => {
+            e.stopPropagation()
+        })
+        
+        // Prevent focus events from triggering anything
+        inputElement.addEventListener('focus', (e) => {
+            e.stopPropagation()
+            e.stopImmediatePropagation()
+        }, true)
+        
+        inputElement.addEventListener('blur', (e) => {
+            e.stopPropagation()
+            e.stopImmediatePropagation()
+        }, true)
+        
+        // Prevent paste events that might trigger issues
+        inputElement.addEventListener('paste', (e) => {
+            e.stopPropagation()
+            e.stopImmediatePropagation()
+        }, true)
+        
+        // Prevent cut/copy events
+        inputElement.addEventListener('cut', (e) => {
+            e.stopPropagation()
+            e.stopImmediatePropagation()
+        }, true)
+        
+        inputElement.addEventListener('copy', (e) => {
+            e.stopPropagation()
+            e.stopImmediatePropagation()
+        }, true)
+        
+        // Prevent contextmenu events
+        inputElement.addEventListener('contextmenu', (e) => {
+            e.stopPropagation()
+            e.stopImmediatePropagation()
+        }, true)
+        
+        // Prevent selectstart events
+        inputElement.addEventListener('selectstart', (e) => {
+            // Allow text selection, but stop propagation
+            e.stopPropagation()
+        }, true)
+        
+        // Add a data attribute to mark this as a chat input
+        inputElement.setAttribute('data-chat-input', 'true')
+        
+        // Prevent any default form behaviors
+        inputElement.addEventListener('invalid', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            e.stopImmediatePropagation()
+        }, true)
+    }
+    
+    // Render initial messages
+    renderMessages()
+}
+
+/**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div')
+    div.textContent = text
+    return div.innerHTML
 }
 
 /**
@@ -1668,19 +2294,20 @@ async function renderTranscript(containerId, videoId) {
     const transcriptTab = i18n('transcript.tab.transcript', 'Transcript')
     const aiSummaryTab = i18n('transcript.tab.aiSummary', 'AI Summary')
     const quotesTab = i18n('transcript.tab.quotes', 'Quotes')
+    const chatTab = i18n('transcript.tab.chat', 'Chat')
     const loadingText = i18n('transcript.loading', 'Loading transcript...')
     const notAvailableText = i18n('transcript.notAvailable', 'Transcript not available for this video.')
     const reloadText = i18n('transcript.reload', 'Reload')
     
     // Show loading state with tabs
-    container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>' + transcriptTab + '</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">' + aiSummaryTab + '</button><button class="youtube-transcript-tab" data-tab="quotes">' + quotesTab + '</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-loading">' + loadingText + '</div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="quotes" style="display: none;"><div class="youtube-transcript-quotes"><div class="youtube-transcript-quotes-content"></div></div></div></div>'
+    container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>' + transcriptTab + '</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">' + aiSummaryTab + '</button><button class="youtube-transcript-tab" data-tab="quotes">' + quotesTab + '</button><button class="youtube-transcript-tab" data-tab="chat">' + chatTab + '</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-loading">' + loadingText + '</div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="quotes" style="display: none;"><div class="youtube-transcript-quotes"><div class="youtube-transcript-quotes-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="chat" style="display: none;"><div class="youtube-transcript-chat"></div></div></div>'
     
     // Fetch transcript from YouTube
     const transcript = await fetchYouTubeTranscript(videoId)
     
     // If transcript fetch failed, show error message
     if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
-        container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>' + transcriptTab + '</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">' + aiSummaryTab + '</button><button class="youtube-transcript-tab" data-tab="quotes">' + quotesTab + '</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-error"><div>' + notAvailableText + '</div><button class="youtube-transcript-reload">' + reloadText + '</button></div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="quotes" style="display: none;"><div class="youtube-transcript-quotes"><div class="youtube-transcript-quotes-content"></div></div></div></div>'
+        container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>' + transcriptTab + '</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">' + aiSummaryTab + '</button><button class="youtube-transcript-tab" data-tab="quotes">' + quotesTab + '</button><button class="youtube-transcript-tab" data-tab="chat">' + chatTab + '</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-error"><div>' + notAvailableText + '</div><button class="youtube-transcript-reload">' + reloadText + '</button></div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="quotes" style="display: none;"><div class="youtube-transcript-quotes"><div class="youtube-transcript-quotes-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="chat" style="display: none;"><div class="youtube-transcript-chat"></div></div></div>'
         setupTabSwitching(container)
         setupTranscriptLanguageMenu(container, videoId)
         
@@ -1707,6 +2334,7 @@ async function renderTranscript(containerId, videoId) {
     transcriptHTML += '<button class="youtube-transcript-tab active" data-tab="transcript"><span>' + transcriptTab + '</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>'
     transcriptHTML += '<button class="youtube-transcript-tab" data-tab="summary">' + aiSummaryTab + '</button>'
     transcriptHTML += '<button class="youtube-transcript-tab" data-tab="quotes">' + quotesTab + '</button>'
+    transcriptHTML += '<button class="youtube-transcript-tab" data-tab="chat">' + chatTab + '</button>'
     transcriptHTML += '</div>'
     transcriptHTML += '<div class="youtube-transcript-tab-content" data-content="transcript">'
     transcriptHTML += '<div class="youtube-transcript-content"></div>'
@@ -1720,6 +2348,9 @@ async function renderTranscript(containerId, videoId) {
     transcriptHTML += '<div class="youtube-transcript-quotes">'
     transcriptHTML += '<div class="youtube-transcript-quotes-content"></div>'
     transcriptHTML += '</div>'
+    transcriptHTML += '</div>'
+    transcriptHTML += '<div class="youtube-transcript-tab-content" data-content="chat" style="display: none;">'
+    transcriptHTML += '<div class="youtube-transcript-chat"></div>'
     transcriptHTML += '</div>'
     transcriptHTML += '</div>'
     

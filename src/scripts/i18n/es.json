@@ -195,6 +195,11 @@
         "cancel": "Cancelar",
         "noQuotesAvailable": "No hay citas disponibles.",
         "extractQuotes": "Extraer citas",
-        "interpretation": "Interpretación: "
+        "interpretation": "Interpretación: ",
+        "generateSummary": "Generar resumen",
+        "generating": "Generando...",
+        "generatingSummary": "Generando resumen...",
+        "failedToGenerateSummary": "Error al generar resumen: {error}",
+        "retry": "Reintentar"
     }
 }

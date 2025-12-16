@@ -249,6 +249,11 @@
         "cancel": "Abbrechen",
         "noQuotesAvailable": "Keine Zitate verfügbar.",
         "extractQuotes": "Zitate extrahieren",
-        "interpretation": "Interpretation: "
+        "interpretation": "Interpretation: ",
+        "generateSummary": "Zusammenfassung generieren",
+        "generating": "Generiere...",
+        "generatingSummary": "Zusammenfassung wird generiert...",
+        "failedToGenerateSummary": "Fehler beim Generieren der Zusammenfassung: {error}",
+        "retry": "Wiederholen"
     }
 }

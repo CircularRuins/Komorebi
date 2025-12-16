@@ -203,6 +203,14 @@ const utilsBridge = {
         return await ipcRenderer.invoke("generate-juiciest-quotes", segments, snippet)
     },
 
+    chatWithTranscript: async (
+        message: string,
+        segments: Array<{text: string, start: number, duration: number}>,
+        chatHistory?: Array<{role: 'user' | 'assistant', content: string}>
+    ): Promise<{content: string, timestamps: string[]}> => {
+        return await ipcRenderer.invoke("chat-with-transcript", message, segments, chatHistory)
+    },
+
     getPreloadPath: (): string => {
         return ipcRenderer.sendSync("get-preload-path") as string
     },

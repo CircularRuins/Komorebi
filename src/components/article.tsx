@@ -725,6 +725,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                     transcript: getI18n("transcript.tab.transcript", "Transcript"),
                     aiSummary: getI18n("transcript.tab.aiSummary", "AI Summary"),
                     quotes: getI18n("transcript.tab.quotes", "Quotes"),
+                    chat: getI18n("transcript.tab.chat", "Chat"),
                 },
                 loading: getI18n("transcript.loading", "Loading transcript..."),
                 notAvailable: getI18n("transcript.notAvailable", "Transcript not available for this video."),
@@ -739,6 +740,24 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 noQuotesAvailable: getI18n("transcript.noQuotesAvailable", "No quotes available."),
                 extractQuotes: getI18n("transcript.extractQuotes", "Extract Quotes"),
                 interpretation: getI18n("transcript.interpretation", "Interpretation: "),
+                generateSummary: getI18n("transcript.generateSummary", "Generate Summary"),
+                generating: getI18n("transcript.generating", "Generating..."),
+                generatingSummary: getI18n("transcript.generatingSummary", "Generating summary..."),
+                failedToGenerateSummary: getI18n("transcript.failedToGenerateSummary", "Failed to generate summary: {error}"),
+                retry: getI18n("transcript.retry", "Retry"),
+                extracting: getI18n("transcript.extracting", "Extracting..."),
+                extractingQuotes: getI18n("transcript.extractingQuotes", "Extracting quotes..."),
+                failedToExtractQuotes: getI18n("transcript.failedToExtractQuotes", "Failed to extract quotes: {error}"),
+                chat: {
+                    placeholder: getI18n("transcript.chat.placeholder", "Ask about the video..."),
+                    send: getI18n("transcript.chat.send", "Send"),
+                    loading: getI18n("transcript.chat.loading", "Thinking..."),
+                    error: getI18n("transcript.chat.error", "Failed to get response"),
+                    configIncomplete: getI18n("transcript.chat.configIncomplete", "AI Model Not Configured"),
+                    configIncompleteMessage: getI18n("transcript.chat.configIncompleteMessage", "Please configure Chat API settings first."),
+                    apiNotAvailable: getI18n("transcript.chat.apiNotAvailable", "Chat API not available"),
+                    transcriptNotAvailable: getI18n("transcript.chat.transcriptNotAvailable", "Transcript not available"),
+                }
             }
         }
         let i18nParam = ""

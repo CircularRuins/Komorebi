@@ -470,7 +470,8 @@
         "tab": {
             "transcript": "Transcript",
             "aiSummary": "AI Summary",
-            "quotes": "Quotes"
+            "quotes": "Quotes",
+            "chat": "Chat"
         },
         "loading": "Loading transcript...",
         "notAvailable": "Transcript not available for this video.",
@@ -484,6 +485,24 @@
         "cancel": "Cancel",
         "noQuotesAvailable": "No quotes available.",
         "extractQuotes": "Extract Quotes",
-        "interpretation": "Interpretation: "
+        "interpretation": "Interpretation: ",
+        "generateSummary": "Generate Summary",
+        "generating": "Generating...",
+        "generatingSummary": "Generating summary...",
+        "failedToGenerateSummary": "Failed to generate summary: {error}",
+        "retry": "Retry",
+        "extracting": "Extracting...",
+        "extractingQuotes": "Extracting quotes...",
+        "failedToExtractQuotes": "Failed to extract quotes: {error}",
+        "chat": {
+            "placeholder": "Ask about the video...",
+            "send": "Send",
+            "loading": "Thinking...",
+            "error": "Failed to get response",
+            "configIncomplete": "AI Model Not Configured",
+            "configIncompleteMessage": "Please configure Chat API settings first.",
+            "apiNotAvailable": "Chat API not available",
+            "transcriptNotAvailable": "Transcript not available"
+        }
     }
 }

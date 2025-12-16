@@ -15,7 +15,7 @@
 <!-- <hr /> -->
 </div>
 
-**Komorebi isn’t trying to be a general-purpose RSS reader. **\
+**Komorebi isn’t trying to be a general-purpose RSS reader.**\
 Instead, it’s designed for AI professionals who want to keep pace with:
 - Evolving industry trends and insights
 - Cutting-edge products and technologies.

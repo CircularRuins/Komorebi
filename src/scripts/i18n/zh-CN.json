@@ -472,7 +472,8 @@
         "tab": {
             "transcript": "字幕",
             "aiSummary": "AI摘要",
-            "quotes": "引用"
+            "quotes": "引用",
+            "chat": "聊天"
         },
         "loading": "正在加载字幕...",
         "notAvailable": "此视频没有字幕。",
@@ -486,6 +487,24 @@
         "cancel": "取消",
         "noQuotesAvailable": "没有可用的引用。",
         "extractQuotes": "提取引用",
-        "interpretation": "解读："
+        "interpretation": "解读：",
+        "generateSummary": "生成摘要",
+        "generating": "生成中...",
+        "generatingSummary": "正在生成摘要...",
+        "failedToGenerateSummary": "生成摘要失败：{error}",
+        "retry": "重试",
+        "extracting": "提取中...",
+        "extractingQuotes": "正在提取引用...",
+        "failedToExtractQuotes": "提取引用失败：{error}",
+        "chat": {
+            "placeholder": "询问视频内容...",
+            "send": "发送",
+            "loading": "思考中...",
+            "error": "获取回复失败",
+            "configIncomplete": "AI模型未配置",
+            "configIncompleteMessage": "请先配置Chat API设置。",
+            "apiNotAvailable": "Chat API不可用",
+            "transcriptNotAvailable": "字幕不可用"
+        }
     }
 }

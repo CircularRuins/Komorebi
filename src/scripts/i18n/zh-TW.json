@@ -274,6 +274,11 @@
         "cancel": "取消",
         "noQuotesAvailable": "沒有可用的引用。",
         "extractQuotes": "提取引用",
-        "interpretation": "解讀："
+        "interpretation": "解讀：",
+        "generateSummary": "生成摘要",
+        "generating": "生成中...",
+        "generatingSummary": "正在生成摘要...",
+        "failedToGenerateSummary": "生成摘要失敗：{error}",
+        "retry": "重試"
     }
 }

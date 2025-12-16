@@ -261,6 +261,11 @@
         "cancel": "キャンセル",
         "noQuotesAvailable": "利用可能な引用がありません。",
         "extractQuotes": "引用を抽出",
-        "interpretation": "解釈："
+        "interpretation": "解釈：",
+        "generateSummary": "要約を生成",
+        "generating": "生成中...",
+        "generatingSummary": "要約を生成中...",
+        "failedToGenerateSummary": "要約の生成に失敗しました：{error}",
+        "retry": "再試行"
     }
 }
