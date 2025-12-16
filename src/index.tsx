@@ -45,6 +45,24 @@ window.utils.addMainContextListener((pos, text) => {
     rootStore.dispatch(openTextMenu(pos, text))
 })
 
+// Listen for API call recording requests from main process
+// This is sent via postMessage from preload script
+window.addEventListener("message", async (event) => {
+    if (event.data && event.data.type === "record-api-call-request") {
+        try {
+            const { recordApiCall } = await import("./scripts/api-call-recorder")
+            await recordApiCall(
+                event.data.model,
+                event.data.apiType,
+                event.data.callContext,
+                event.data.usage
+            )
+        } catch (error) {
+            console.error('记录API调用失败:', error)
+        }
+    }
+})
+
 window.fontList = [""]
 window.utils.initFontList().then(fonts => {
     window.fontList.push(...fonts)

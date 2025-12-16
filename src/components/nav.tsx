@@ -323,8 +323,7 @@ class Nav extends React.Component<NavProps, NavState> {
                         lineHeight: '20px',
                         display: 'flex',
                         alignItems: 'center',
-                        padding: '8px 16px',
-                        minHeight: '36px'
+                        height: '28px'
                     },
                     icon: {
                         fontSize: '11px',
@@ -333,6 +332,11 @@ class Nav extends React.Component<NavProps, NavState> {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
+                    },
+                    linkContent: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        height: '100%'
                     }
                 },
                 onClick: this.handleAppPreferences
@@ -359,8 +363,7 @@ class Nav extends React.Component<NavProps, NavState> {
                         lineHeight: '20px',
                         display: 'flex',
                         alignItems: 'center',
-                        padding: '8px 16px',
-                        minHeight: '36px'
+                        height: '28px'
                     },
                     icon: {
                         fontSize: '11px',
@@ -369,6 +372,11 @@ class Nav extends React.Component<NavProps, NavState> {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
+                    },
+                    linkContent: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        height: '100%'
                     }
                 },
                 onClick: this.handleAIConfig
@@ -395,8 +403,7 @@ class Nav extends React.Component<NavProps, NavState> {
                         lineHeight: '20px',
                         display: 'flex',
                         alignItems: 'center',
-                        padding: '8px 16px',
-                        minHeight: '36px'
+                        height: '28px'
                     },
                     icon: {
                         fontSize: '11px',
@@ -405,6 +412,11 @@ class Nav extends React.Component<NavProps, NavState> {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
+                    },
+                    linkContent: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        height: '100%'
                     }
                 },
                 onClick: this.handleTokenUsage
@@ -487,8 +499,7 @@ class Nav extends React.Component<NavProps, NavState> {
                         styles={{
                             root: {
                                 maxHeight: 'none',
-                                overflow: 'visible',
-                                minWidth: '180px'
+                                overflow: 'visible'
                             },
                             list: {
                                 maxHeight: 'none',

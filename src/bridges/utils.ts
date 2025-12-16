@@ -229,6 +229,15 @@ const utilsBridge = {
     removeOpenAIConfigRequestListener: () => {
         ipcRenderer.removeAllListeners("open-ai-config-request")
     },
+
+    recordApiCall: async (
+        model: string,
+        apiType: string,
+        callContext: string,
+        usage: { prompt_tokens?: number, completion_tokens?: number, total_tokens?: number }
+    ) => {
+        return await ipcRenderer.invoke("record-api-call", model, apiType, callContext, usage)
+    },
 }
 
 declare global {

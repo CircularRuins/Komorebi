@@ -219,11 +219,13 @@ export function parseTranslatedText(
 
 /**
  * 翻译单个文本块（用于字幕翻译，不包含标题）
+ * @param onApiCall 可选的 API 调用记录函数，用于在主进程中记录 API 调用
  */
 export async function translateTextChunk(
     chunk: TextChunk,
     targetLanguage: string,
-    config: TranslationConfig
+    config: TranslationConfig,
+    onApiCall?: (model: string, apiType: string, callContext: string, usage: { prompt_tokens?: number, completion_tokens?: number, total_tokens?: number }) => void
 ): Promise<string[]> {
     // 构建要翻译的文本
     const textToTranslate = chunk.texts.join('\n\n---SEPARATOR---\n\n')
@@ -249,10 +251,22 @@ ${textToTranslate}`
 
     // 记录API调用
     if (completion.usage) {
-        const { recordApiCall } = await import("./api-call-recorder")
-        recordApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage).catch(err => {
-            console.error('记录API调用失败:', err)
-        })
+        if (onApiCall) {
+            // 如果提供了记录函数，使用它（用于主进程）
+            onApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage)
+        } else if (typeof window !== 'undefined' && window.utils && window.utils.recordApiCall) {
+            // 在渲染进程中，通过 IPC 调用（因为可能从主进程调用，需要通过 IPC 转发）
+            window.utils.recordApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage).catch(err => {
+                console.error('记录API调用失败:', err)
+            })
+        } else if (typeof window !== 'undefined') {
+            // 在渲染进程中，直接调用数据库
+            const { recordApiCall } = await import("./api-call-recorder")
+            recordApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage).catch(err => {
+                console.error('记录API调用失败:', err)
+            })
+        }
+        // 在主进程中且没有提供记录函数时，不记录（由调用者负责）
     }
 
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
@@ -273,13 +287,15 @@ ${textToTranslate}`
  * @param targetLanguage 目标语言
  * @param config 翻译配置
  * @param maxTokens 最大token数（已废弃，保留以保持兼容性）
+ * @param onApiCall 可选的 API 调用记录函数，用于在主进程中记录 API 调用
  * @returns 翻译后的文本数组
  */
 export async function translateTexts(
     texts: string[],
     targetLanguage: string,
     config: TranslationConfig,
-    maxTokens: number = 3000
+    maxTokens: number = 3000,
+    onApiCall?: (model: string, apiType: string, callContext: string, usage: { prompt_tokens?: number, completion_tokens?: number, total_tokens?: number }) => void
 ): Promise<string[]> {
     // 按句子数量切分，每5个句子为一组
     const chunks = splitTextsIntoChunksBySentence(texts, 5)
@@ -304,13 +320,25 @@ ${textToTranslate}`
             max_tokens: 8000,
         })
 
-        // 记录API调用
-        if (completion.usage) {
+    // 记录API调用
+    if (completion.usage) {
+        if (onApiCall) {
+            // 如果提供了记录函数，使用它（用于主进程）
+            onApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage)
+        } else if (typeof window !== 'undefined' && window.utils && window.utils.recordApiCall) {
+            // 在渲染进程中，通过 IPC 调用（统一使用 IPC，因为可能从主进程调用）
+            window.utils.recordApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage).catch(err => {
+                console.error('记录API调用失败:', err)
+            })
+        } else if (typeof window !== 'undefined') {
+            // 在渲染进程中，直接调用数据库（fallback）
             const { recordApiCall } = await import("./api-call-recorder")
             recordApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage).catch(err => {
                 console.error('记录API调用失败:', err)
             })
         }
+        // 在主进程中且没有提供记录函数时，不记录（由调用者负责）
+    }
 
         if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
             const translatedText = completion.choices[0].message.content || ''
@@ -338,7 +366,7 @@ ${textToTranslate}`
     
     // 并行翻译所有分段
     const translationPromises = chunks.map((chunk, index) => 
-        translateTextChunk(chunk, targetLanguage, config)
+        translateTextChunk(chunk, targetLanguage, config, onApiCall)
             .catch((error) => {
                 console.error(`分段 ${index} 翻译失败:`, error)
                 return chunk.texts // 使用原文作为后备

@@ -121,6 +121,8 @@ body.linux {
     padding: 4px 6px !important;
     line-height: 20px !important;
     height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
 }
 .ms-ContextualMenu-item .ms-Icon {
     font-size: 10px !important;

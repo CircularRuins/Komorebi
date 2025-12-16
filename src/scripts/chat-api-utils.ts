@@ -398,7 +398,8 @@ export async function generateTranscriptSummary(
     segments: TranscriptSegment[],
     config: ChatApiConfig,
     targetLanguage: string = "English",
-    snippet?: string
+    snippet?: string,
+    onApiCall?: (model: string, apiType: string, callContext: string, usage: { prompt_tokens?: number, completion_tokens?: number, total_tokens?: number }) => void
 ): Promise<TranscriptSummary> {
     if (!segments || segments.length === 0) {
         throw new Error('转录片段为空，无法生成摘要')
@@ -464,15 +465,27 @@ ${transcriptWithTimestamps}
         response_format: { type: "json_object" }
     })
 
-    // 记录API调用（动态导入，避免在主进程中打包）
+    // 记录API调用
     if (completion.usage) {
-        import("./api-call-recorder").then(({ recordApiCall }) => {
-            recordApiCall(config.model, 'chat', 'transcript-summary', completion.usage).catch(err => {
+        if (onApiCall) {
+            // 如果提供了记录函数，使用它（用于主进程）
+            onApiCall(config.model, 'chat', 'transcript-summary', completion.usage)
+        } else if (typeof window !== 'undefined' && window.utils && window.utils.recordApiCall) {
+            // 在渲染进程中，通过 IPC 调用
+            window.utils.recordApiCall(config.model, 'chat', 'transcript-summary', completion.usage).catch(err => {
                 console.error('记录API调用失败:', err)
             })
-        }).catch(() => {
-            // 忽略导入失败（可能是在主进程中）
-        })
+        } else if (typeof window !== 'undefined') {
+            // 在渲染进程中，直接调用数据库（fallback）
+            import("./api-call-recorder").then(({ recordApiCall }) => {
+                recordApiCall(config.model, 'chat', 'transcript-summary', completion.usage).catch(err => {
+                    console.error('记录API调用失败:', err)
+                })
+            }).catch(() => {
+                // 忽略导入失败
+            })
+        }
+        // 在主进程中且没有提供记录函数时，不记录（由调用者负责）
     }
 
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
@@ -574,7 +587,8 @@ export async function generateJuiciestQuotes(
     segments: TranscriptSegment[],
     config: ChatApiConfig,
     targetLanguage: string = "English",
-    snippet?: string
+    snippet?: string,
+    onApiCall?: (model: string, apiType: string, callContext: string, usage: { prompt_tokens?: number, completion_tokens?: number, total_tokens?: number }) => void
 ): Promise<JuiciestQuote[]> {
     if (!segments || segments.length === 0) {
         throw new Error('转录片段为空，无法生成引用')
@@ -637,15 +651,27 @@ ${transcriptWithTimestamps}
         response_format: { type: "json_object" }
     })
 
-    // 记录API调用（动态导入，避免在主进程中打包）
+    // 记录API调用
     if (completion.usage) {
-        import("./api-call-recorder").then(({ recordApiCall }) => {
-            recordApiCall(config.model, 'chat', 'transcript-quotes', completion.usage).catch(err => {
+        if (onApiCall) {
+            // 如果提供了记录函数，使用它（用于主进程）
+            onApiCall(config.model, 'chat', 'transcript-quotes', completion.usage)
+        } else if (typeof window !== 'undefined' && window.utils && window.utils.recordApiCall) {
+            // 在渲染进程中，通过 IPC 调用
+            window.utils.recordApiCall(config.model, 'chat', 'transcript-quotes', completion.usage).catch(err => {
                 console.error('记录API调用失败:', err)
             })
-        }).catch(() => {
-            // 忽略导入失败（可能是在主进程中）
-        })
+        } else if (typeof window !== 'undefined') {
+            // 在渲染进程中，直接调用数据库（fallback）
+            import("./api-call-recorder").then(({ recordApiCall }) => {
+                recordApiCall(config.model, 'chat', 'transcript-quotes', completion.usage).catch(err => {
+                    console.error('记录API调用失败:', err)
+                })
+            }).catch(() => {
+                // 忽略导入失败
+            })
+        }
+        // 在主进程中且没有提供记录函数时，不记录（由调用者负责）
     }
 
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
@@ -754,7 +780,8 @@ export async function generateChatResponse(
     segments: TranscriptSegment[],
     config: ChatApiConfig,
     chatHistory?: Array<{role: 'user' | 'assistant', content: string}>,
-    targetLanguage?: string
+    targetLanguage?: string,
+    onApiCall?: (model: string, apiType: string, callContext: string, usage: { prompt_tokens?: number, completion_tokens?: number, total_tokens?: number }) => void
 ): Promise<ChatResponse> {
     if (!segments || segments.length === 0) {
         throw new Error('字幕片段为空，无法回答问题')
@@ -840,15 +867,27 @@ ${message}
         response_format: { type: "json_object" }
     })
 
-    // 记录API调用（动态导入，避免在主进程中打包）
+    // 记录API调用
     if (completion.usage) {
-        import("./api-call-recorder").then(({ recordApiCall }) => {
-            recordApiCall(config.model, 'chat', 'transcript-chat', completion.usage).catch(err => {
+        if (onApiCall) {
+            // 如果提供了记录函数，使用它（用于主进程）
+            onApiCall(config.model, 'chat', 'transcript-chat', completion.usage)
+        } else if (typeof window !== 'undefined' && window.utils && window.utils.recordApiCall) {
+            // 在渲染进程中，通过 IPC 调用
+            window.utils.recordApiCall(config.model, 'chat', 'transcript-chat', completion.usage).catch(err => {
                 console.error('记录API调用失败:', err)
             })
-        }).catch(() => {
-            // 忽略导入失败（可能是在主进程中）
-        })
+        } else if (typeof window !== 'undefined') {
+            // 在渲染进程中，直接调用数据库（fallback）
+            import("./api-call-recorder").then(({ recordApiCall }) => {
+                recordApiCall(config.model, 'chat', 'transcript-chat', completion.usage).catch(err => {
+                    console.error('记录API调用失败:', err)
+                })
+            }).catch(() => {
+                // 忽略导入失败
+            })
+        }
+        // 在主进程中且没有提供记录函数时，不记录（由调用者负责）
     }
 
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {

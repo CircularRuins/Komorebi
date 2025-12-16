@@ -703,7 +703,15 @@ export function setUtilsListeners(manager: WindowManager) {
                 model
             }
 
-            return await translateTexts(texts, targetLanguage, config)
+            // 在主进程中调用 translateTexts，提供记录函数来通过 IPC 记录 API 调用
+            const onApiCall = (model: string, apiType: string, callContext: string, usage: { prompt_tokens?: number, completion_tokens?: number, total_tokens?: number }) => {
+                if (manager.hasWindow()) {
+                    manager.mainWindow.webContents.send("record-api-call-request", model, apiType, callContext, usage)
+                }
+            }
+            const result = await translateTexts(texts, targetLanguage, config, 3000, onApiCall)
+            
+            return result
         } catch (error: any) {
             if (error instanceof OpenAI.APIError) {
                 let errorMessage = error.message
@@ -754,7 +762,14 @@ export function setUtilsListeners(manager: WindowManager) {
                 model
             }
 
-            return await generateTranscriptSummary(segments, config, targetLanguage, snippet)
+            // 提供记录函数来通过 IPC 记录 API 调用
+            const onApiCall = (model: string, apiType: string, callContext: string, usage: { prompt_tokens?: number, completion_tokens?: number, total_tokens?: number }) => {
+                if (manager.hasWindow()) {
+                    manager.mainWindow.webContents.send("record-api-call-request", model, apiType, callContext, usage)
+                }
+            }
+
+            return await generateTranscriptSummary(segments, config, targetLanguage, snippet, onApiCall)
         } catch (error: any) {
             if (error instanceof OpenAI.APIError) {
                 let errorMessage = error.message
@@ -805,7 +820,14 @@ export function setUtilsListeners(manager: WindowManager) {
                 model
             }
 
-            return await generateJuiciestQuotes(segments, config, targetLanguage, snippet)
+            // 提供记录函数来通过 IPC 记录 API 调用
+            const onApiCall = (model: string, apiType: string, callContext: string, usage: { prompt_tokens?: number, completion_tokens?: number, total_tokens?: number }) => {
+                if (manager.hasWindow()) {
+                    manager.mainWindow.webContents.send("record-api-call-request", model, apiType, callContext, usage)
+                }
+            }
+
+            return await generateJuiciestQuotes(segments, config, targetLanguage, snippet, onApiCall)
         } catch (error: any) {
             if (error instanceof OpenAI.APIError) {
                 let errorMessage = error.message
@@ -857,7 +879,14 @@ export function setUtilsListeners(manager: WindowManager) {
                 model
             }
 
-            return await generateChatResponse(message, segments, config, chatHistory, targetLanguage)
+            // 提供记录函数来通过 IPC 记录 API 调用
+            const onApiCall = (model: string, apiType: string, callContext: string, usage: { prompt_tokens?: number, completion_tokens?: number, total_tokens?: number }) => {
+                if (manager.hasWindow()) {
+                    manager.mainWindow.webContents.send("record-api-call-request", model, apiType, callContext, usage)
+                }
+            }
+
+            return await generateChatResponse(message, segments, config, chatHistory, targetLanguage, onApiCall)
         } catch (error: any) {
             if (error instanceof OpenAI.APIError) {
                 let errorMessage = error.message
@@ -882,6 +911,15 @@ export function setUtilsListeners(manager: WindowManager) {
         if (manager.hasWindow()) {
             // Send message to main window to open AI config
             manager.mainWindow.webContents.send("open-ai-config-request")
+        }
+    })
+
+    // Handle request to record API call from main process
+    // This forwards the request to the renderer process where the database is available
+    ipcMain.handle("record-api-call", async (_, model: string, apiType: string, callContext: string, usage: { prompt_tokens?: number, completion_tokens?: number, total_tokens?: number }) => {
+        if (manager.hasWindow()) {
+            // Send message to renderer process to record the API call
+            manager.mainWindow.webContents.send("record-api-call-request", model, apiType, callContext, usage)
         }
     })
 }
