@@ -53,6 +53,25 @@
         "maximize": "Maximize",
         "aiMode": "AI Search"
     },
+    "tokenUsage": {
+        "tokenUsage": "Token Usage",
+        "model": "Model",
+        "date": "Date & Time",
+        "time": "Time",
+        "usage": "Usage",
+        "total": "Total",
+        "promptTokens": "Prompt Tokens",
+        "completionTokens": "Completion Tokens",
+        "totalTokens": "Total Tokens",
+        "history": "Usage History",
+        "noHistory": "No usage records",
+        "monthlyUsage": "Monthly Usage",
+        "selectMonth": "Select Month",
+        "apiRequests": "API Requests",
+        "inputTokens": "Input Tokens",
+        "outputTokens": "Output Tokens",
+        "noMonthlyData": "No usage records for this month"
+    },
     "menu": {
         "close": "Close menu",
         "subscriptions": "Subscriptions",

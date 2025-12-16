@@ -247,6 +247,14 @@ ${textToTranslate}`
         max_tokens: 8000,
     })
 
+    // 记录API调用
+    if (completion.usage) {
+        const { recordApiCall } = await import("./api-call-recorder")
+        recordApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage).catch(err => {
+            console.error('记录API调用失败:', err)
+        })
+    }
+
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
         const translatedText = completion.choices[0].message.content || ''
         if (!translatedText) {
@@ -295,6 +303,14 @@ ${textToTranslate}`
             temperature: 0.3,
             max_tokens: 8000,
         })
+
+        // 记录API调用
+        if (completion.usage) {
+            const { recordApiCall } = await import("./api-call-recorder")
+            recordApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage).catch(err => {
+                console.error('记录API调用失败:', err)
+            })
+        }
 
         if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
             const translatedText = completion.choices[0].message.content || ''

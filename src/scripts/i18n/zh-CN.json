@@ -53,6 +53,25 @@
         "maximize": "最大化",
         "aiMode": "AI搜索"
     },
+    "tokenUsage": {
+        "tokenUsage": "Token用量",
+        "model": "模型",
+        "date": "日期时间",
+        "time": "时间",
+        "usage": "用量",
+        "total": "总计",
+        "promptTokens": "Prompt Tokens",
+        "completionTokens": "Completion Tokens",
+        "totalTokens": "Total Tokens",
+        "history": "使用历史",
+        "noHistory": "暂无使用记录",
+        "monthlyUsage": "每月用量",
+        "selectMonth": "选择月份",
+        "apiRequests": "API请求次数",
+        "inputTokens": "输入 Tokens",
+        "outputTokens": "输出 Tokens",
+        "noMonthlyData": "该月暂无使用记录"
+    },
     "menu": {
         "close": "关闭菜单",
         "subscriptions": "订阅源",

@@ -290,3 +290,12 @@ ipcMain.on("get-ai-translation-model", event => {
 ipcMain.handle("set-ai-translation-model", (_, model: string) => {
     store.set(AI_TRANSLATION_MODEL_KEY, model)
 })
+
+// Token使用历史记录存储
+const TOKEN_USAGE_HISTORY_KEY = "tokenUsageHistory"
+ipcMain.on("get-token-usage-history", event => {
+    event.returnValue = store.get(TOKEN_USAGE_HISTORY_KEY, [])
+})
+ipcMain.handle("set-token-usage-history", (_, history: any[]) => {
+    store.set(TOKEN_USAGE_HISTORY_KEY, history)
+})

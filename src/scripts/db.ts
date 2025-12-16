@@ -17,7 +17,7 @@ sdbSchema
     .addNullable(["iconurl", "serviceRef", "rules"])
     .addIndex("idxURL", ["url"], true)
 
-const idbSchema = lf.schema.create("itemsDB", 2)
+const idbSchema = lf.schema.create("itemsDB", 3)
 idbSchema
     .createTable("items")
     .addColumn("_id", lf.Type.INTEGER)
@@ -41,10 +41,25 @@ idbSchema
     .addIndex("idxDate", ["date"], false, lf.Order.DESC)
     .addIndex("idxService", ["serviceRef"], false)
 
+idbSchema
+    .createTable("api_calls")
+    .addColumn("id", lf.Type.INTEGER)
+    .addPrimaryKey(["id"], true)
+    .addColumn("model", lf.Type.STRING)
+    .addColumn("api_type", lf.Type.STRING)
+    .addColumn("call_context", lf.Type.STRING)
+    .addColumn("prompt_tokens", lf.Type.INTEGER)
+    .addColumn("completion_tokens", lf.Type.INTEGER)
+    .addColumn("total_tokens", lf.Type.INTEGER)
+    .addColumn("timestamp", lf.Type.DATE_TIME)
+    .addIndex("idxTimestamp", ["timestamp"], false, lf.Order.DESC)
+    .addIndex("idxModel", ["model"], false)
+
 export let sourcesDB: lf.Database
 export let sources: lf.schema.Table
 export let itemsDB: lf.Database
 export let items: lf.schema.Table
+export let apiCalls: lf.schema.Table
 
 async function onUpgradeSourceDB(rawDb: lf.raw.BackStore) {
     const version = rawDb.getVersion()
@@ -65,6 +80,10 @@ async function onUpgradeItemsDB(rawDb: lf.raw.BackStore) {
         // 添加embedding字段，初始值为null
         await rawDb.addTableColumn("items", "embedding", null)
     }
+    // Version 3: 添加 api_calls 表
+    if (version < 3) {
+        // 表会在schema升级时自动创建
+    }
 }
 
 export async function init() {
@@ -72,5 +91,6 @@ export async function init() {
     sources = sourcesDB.getSchema().table("sources")
     itemsDB = await idbSchema.connect({ onUpgrade: onUpgradeItemsDB })
     items = itemsDB.getSchema().table("items")
+    apiCalls = itemsDB.getSchema().table("api_calls")
 }
 

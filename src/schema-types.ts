@@ -107,4 +107,11 @@ export type SchemaTypes = {
     aiTranslationApiEndpoint: string
     aiTranslationApiKey: string
     aiTranslationModel: string
+    tokenUsageHistory: Array<{
+        model: string
+        prompt_tokens: number
+        completion_tokens: number
+        total_tokens: number
+        timestamp: number
+    }>
 }

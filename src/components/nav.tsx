@@ -64,6 +64,7 @@ type NavProps = {
     settingsDisplay: boolean
     isRefreshing: boolean
     openAIConfig: () => void
+    openTokenUsage: () => void
 }
 
 type NavState = {
@@ -293,6 +294,11 @@ class Nav extends React.Component<NavProps, NavState> {
         this.props.openAIConfig()
     }
 
+    handleTokenUsage = () => {
+        this.closeSettingsMenu()
+        this.props.openTokenUsage()
+    }
+
     getSettingsMenuItems = (): IContextualMenuItem[] => {
         return [
             {
@@ -316,7 +322,9 @@ class Nav extends React.Component<NavProps, NavState> {
                         fontSize: '11px',
                         lineHeight: '20px',
                         display: 'flex',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        padding: '8px 16px',
+                        minHeight: '36px'
                     },
                     icon: {
                         fontSize: '11px',
@@ -350,7 +358,9 @@ class Nav extends React.Component<NavProps, NavState> {
                         fontSize: '11px',
                         lineHeight: '20px',
                         display: 'flex',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        padding: '8px 16px',
+                        minHeight: '36px'
                     },
                     icon: {
                         fontSize: '11px',
@@ -362,6 +372,42 @@ class Nav extends React.Component<NavProps, NavState> {
                     }
                 },
                 onClick: this.handleAIConfig
+            },
+            {
+                key: "tokenUsage",
+                text: intl.get("tokenUsage.tokenUsage") || "Token用量",
+                iconProps: { 
+                    iconName: "BarChart4",
+                    styles: {
+                        root: {
+                            fontSize: '11px',
+                            width: '11px',
+                            height: '11px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }
+                    }
+                },
+                styles: {
+                    root: {
+                        fontSize: '11px',
+                        lineHeight: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '8px 16px',
+                        minHeight: '36px'
+                    },
+                    icon: {
+                        fontSize: '11px',
+                        width: '11px',
+                        height: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }
+                },
+                onClick: this.handleTokenUsage
             }
         ]
     }
@@ -441,7 +487,8 @@ class Nav extends React.Component<NavProps, NavState> {
                         styles={{
                             root: {
                                 maxHeight: 'none',
-                                overflow: 'visible'
+                                overflow: 'visible',
+                                minWidth: '180px'
                             },
                             list: {
                                 maxHeight: 'none',

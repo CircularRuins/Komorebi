@@ -7,7 +7,7 @@ import {
     toggleLogMenu,
     openSettingsTab,
 } from "../scripts/models/app"
-import { selectSmartSearch, selectAllArticles, selectAppPreferences, selectAIConfig } from "../scripts/models/page"
+import { selectSmartSearch, selectAllArticles, selectAppPreferences, selectAIConfig, selectTokenUsage } from "../scripts/models/page"
 import { ViewType } from "../schema-types"
 import Nav from "../components/nav"
 
@@ -49,6 +49,7 @@ const mapDispatchToProps = dispatch => ({
         }
     },
     openAIConfig: () => dispatch(selectAIConfig()),
+    openTokenUsage: () => dispatch(selectTokenUsage()),
 })
 
 const NavContainer = connect(mapStateToProps, mapDispatchToProps)(Nav)

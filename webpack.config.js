@@ -28,6 +28,10 @@ module.exports = [
         node: {
             __dirname: false,
         },
+        externals: {
+            "openai": "commonjs openai",
+            "lovefield": "commonjs lovefield",
+        },
     },
     {
         mode: "production",

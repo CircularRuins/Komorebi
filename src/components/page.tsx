@@ -10,6 +10,7 @@ import { ViewType } from "../schema-types"
 import SourcesTabContainer from "../containers/settings/sources-container"
 import AppTabContainer from "../containers/settings/app-container"
 import AIConfigContainer from "../containers/ai-config-container"
+import TokenUsageContainer from "../containers/token-usage-container"
 import { connect } from "react-redux"
 import { RootState } from "../scripts/reducer"
 import AIConfig from "./ai-config"
@@ -54,6 +55,7 @@ class Page extends React.Component<PageProps> {
         const isAlphaXiv = this.props.feeds.includes("alphaxiv")
         const isAppPreferences = this.props.feeds.includes("app-preferences")
         const isAIConfig = this.props.feeds.includes("ai-config")
+        const isTokenUsage = this.props.feeds.includes("token-usage")
         // 检查是否为订阅源设置页面（优先级最高，因为它是覆盖性的设置页面）
         if (this.props.showSourcesPage) {
             return (
@@ -320,6 +322,43 @@ class Page extends React.Component<PageProps> {
                         </a>
                     </div>
                     <AIConfigPageWrapper />
+                </div>
+            )
+        }
+        
+        // 检查是否为Token用量页面
+        if (isTokenUsage) {
+            return (
+                <div
+                    className={
+                        "token-usage-page" + (this.props.menuOn ? " menu-on" : "")
+                    }
+                    style={{
+                        height: "100%",
+                        overflow: "auto",
+                        padding: "20px",
+                        paddingBottom: "20px",
+                        boxSizing: "border-box",
+                    }}>
+                    <div style={{ marginBottom: "20px" }}>
+                        <a
+                            className="btn"
+                            onClick={this.props.goBack}
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                cursor: "pointer",
+                                textDecoration: "none",
+                                color: "white",
+                                fontSize: "12px",
+                            }}
+                            title={intl.get("settings.exit") || "返回"}>
+                            <Icon iconName="Back" />
+                            <span>{intl.get("settings.exit") || "返回"}</span>
+                        </a>
+                    </div>
+                    <TokenUsageContainer />
                 </div>
             )
         }

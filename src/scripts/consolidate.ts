@@ -3,7 +3,7 @@ import * as db from "./db"
 import lf from "lovefield"
 import intl from "react-intl-universal"
 import type { RSSItem } from "./models/item"
-import type { QueryProgressStep, QueryProgress, ArticleCluster, TokenStatistics, TokenUsage } from "./models/ai-mode"
+import type { QueryProgressStep, QueryProgress, ArticleCluster, TokenStatistics, TokenUsage, TokenUsageRecord } from "./models/ai-mode"
 import {
     TOPIC_INTENT_RECOGNITION_SYSTEM_MESSAGE,
     getTopicIntentRecognitionPrompt,
@@ -33,6 +33,7 @@ export interface ConsolidateCallbacks {
     updateQueryProgress?: (progress: Partial<QueryProgress>) => void
     getCurrentQueryProgress?: () => QueryProgress | null
     updateTokenStatistics?: (tokenStatistics: TokenStatistics) => void
+    addTokenUsageRecord?: (model: string, usage: TokenUsage) => void
 }
 
 // ==================== 辅助函数 ====================
@@ -144,243 +145,6 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
     return dotProduct / denominator
 }
 
-// 计算话题的embedding
-// textToVectorize: 实际用于计算embedding的文本（可能是HyDE生成的文章或原始主题）
-export async function computeTopicEmbedding(
-    textToVectorize: string,
-    config: ConsolidateConfig,
-    callbacks?: ConsolidateCallbacks,
-    tokenStatistics?: TokenStatistics
-): Promise<number[]> {
-    const { embeddingApiKey, embeddingModel, embeddingApiBaseURL } = config
-
-    if (!embeddingApiBaseURL) {
-        throw new Error('embeddingApiBaseURL未设置')
-    }
-
-    const modelToUse = embeddingModel.trim()
-    const trimmedText = textToVectorize.trim()
-
-    try {
-        const openai = new OpenAI({
-            apiKey: embeddingApiKey,
-            baseURL: embeddingApiBaseURL,
-            dangerouslyAllowBrowser: true
-        })
-
-        // 调用embedding API（使用实际文本计算embedding，不缓存）
-        const response = await openai.embeddings.create({
-            model: modelToUse,
-            input: trimmedText,
-        })
-
-        // 收集token使用量
-        if (response.usage && callbacks && callbacks.updateTokenStatistics && tokenStatistics) {
-            addTokenUsage(tokenStatistics, response.usage, false)
-            callbacks.updateTokenStatistics(tokenStatistics)
-        }
-
-        if (response.data && response.data.length > 0 && response.data[0].embedding) {
-            const embedding = response.data[0].embedding
-            return embedding
-        } else {
-            throw new Error('API返回的embedding格式不正确')
-        }
-    } catch (error: any) {
-        if (error instanceof OpenAI.APIError) {
-            throw new Error(`计算话题embedding失败: ${error.message}`)
-        } else if (error instanceof Error) {
-            throw error
-        } else {
-            throw new Error(`计算话题embedding失败: ${String(error)}`)
-        }
-    }
-}
-
-// 计算文章的embedding并存储
-export async function computeAndStoreEmbeddings(
-    articles: RSSItem[],
-    config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks,
-    tokenStatistics?: TokenStatistics
-): Promise<void> {
-    const { embeddingApiKey, embeddingModel, embeddingApiBaseURL } = config
-
-    if (articles.length === 0) {
-        return
-    }
-
-    if (!embeddingApiBaseURL) {
-        return
-    }
-
-    // 过滤出还没有embedding的文章
-    const articlesNeedingEmbedding = articles.filter(article => {
-        const embedding = article.embedding
-        return !embedding || !Array.isArray(embedding) || embedding.length === 0
-    })
-    
-    if (articlesNeedingEmbedding.length === 0) {
-        return
-    }
-
-    try {
-        const openai = new OpenAI({
-            apiKey: embeddingApiKey,
-            baseURL: embeddingApiBaseURL,
-            dangerouslyAllowBrowser: true
-        })
-
-        const modelToUse = embeddingModel.trim()
-        const batchSize = 10  // API限制：每批最多10篇
-        const totalArticles = articlesNeedingEmbedding.length
-        const totalBatches = Math.ceil(totalArticles / batchSize)
-        
-        // 创建所有批次
-        const batches: Array<{ batch: RSSItem[], batchNumber: number, batchStart: number }> = []
-        for (let batchStart = 0; batchStart < articlesNeedingEmbedding.length; batchStart += batchSize) {
-            const batchEnd = Math.min(batchStart + batchSize, articlesNeedingEmbedding.length)
-            const batch = articlesNeedingEmbedding.slice(batchStart, batchEnd)
-            const batchNumber = Math.floor(batchStart / batchSize) + 1
-            batches.push({ batch, batchNumber, batchStart })
-        }
-        
-        // 用于跟踪已完成的批次数量
-        let completedCount = 0
-        
-        // 更新进度的辅助函数（带节流）
-        const updateProgress = () => {
-            completedCount++
-            const progress = Math.floor((completedCount / totalBatches) * 100)
-            callbacks.updateStepStatus('vector-retrieval', 'in_progress', 
-                intl.get("settings.aiMode.progress.messages.computingVectorsInParallel", { 
-                    completed: completedCount, 
-                    total: totalBatches, 
-                    processed: Math.min(completedCount * batchSize, totalArticles), 
-                    totalArticles: totalArticles 
-                }), 
-                progress)
-        }
-        
-        // QPS限制器：使用滑动窗口跟踪最近1秒内的请求时间戳
-        const maxQPS = config.embeddingQPS || 30
-        const requestTimestamps: number[] = []
-        
-        // 速率限制函数：等待直到有可用的QPS配额
-        const waitForRateLimit = async () => {
-            const now = Date.now()
-            const oneSecondAgo = now - 1000
-            
-            // 清理1秒前的旧时间戳
-            while (requestTimestamps.length > 0 && requestTimestamps[0] <= oneSecondAgo) {
-                requestTimestamps.shift()
-            }
-            
-            // 如果当前QPS已达到限制，等待直到有可用配额
-            if (requestTimestamps.length >= maxQPS) {
-                const oldestTimestamp = requestTimestamps[0]
-                const waitTime = oldestTimestamp + 1000 - now
-                if (waitTime > 0) {
-                    await new Promise(resolve => setTimeout(resolve, waitTime))
-                    // 等待后再次清理旧时间戳
-                    const newNow = Date.now()
-                    const newOneSecondAgo = newNow - 1000
-                    while (requestTimestamps.length > 0 && requestTimestamps[0] <= newOneSecondAgo) {
-                        requestTimestamps.shift()
-                    }
-                }
-            }
-            
-            // 记录当前请求时间戳
-            requestTimestamps.push(Date.now())
-        }
-        
-        // 处理单个批次的函数
-        const processBatch = async (batchInfo: { batch: RSSItem[], batchNumber: number, batchStart: number }) => {
-            const { batch, batchNumber } = batchInfo
-            
-            try {
-                // 等待QPS限制
-                await waitForRateLimit()
-                
-                // 准备当前批次的文本
-                const texts = batch.map(article => {
-                    // 拼接标题和摘要
-                    const title = article.title || ''
-                    const snippet = article.snippet || (article.content ? article.content.substring(0, 300) : '')
-                    return `${title}\n${snippet}`.trim()
-                })
-
-                // 调用embedding API
-                const response = await openai.embeddings.create({
-                    model: modelToUse,
-                    input: texts,
-                })
-
-                // 收集token使用量
-                if (response.usage && callbacks.updateTokenStatistics && tokenStatistics) {
-                    addTokenUsage(tokenStatistics, response.usage, false)
-                    callbacks.updateTokenStatistics(tokenStatistics)
-                }
-
-                // 验证响应格式
-                if (!response.data || !Array.isArray(response.data) || response.data.length !== batch.length) {
-                    throw new Error(`API返回的embedding数量不正确：期望 ${batch.length} 个，实际 ${response.data?.length || 0} 个`)
-                }
-
-                // 存储embedding到数据库
-                const embeddings = response.data.map(item => {
-                    if (!item.embedding || !Array.isArray(item.embedding) || item.embedding.length === 0) {
-                        throw new Error('API返回的embedding格式不正确：缺少embedding字段或embedding为空')
-                    }
-                    return item.embedding
-                })
-                
-                // 并行更新数据库
-                await Promise.all(batch.map(async (article, i) => {
-                    const embedding = embeddings[i]
-                    
-                    // 更新数据库
-                    await db.itemsDB
-                        .update(db.items)
-                        .where(db.items._id.eq(article._id))
-                        .set(db.items.embedding, embedding)
-                        .exec()
-                    
-                    // 更新内存中的对象
-                    article.embedding = embedding
-                }))
-                
-                // 更新进度
-                updateProgress()
-            } catch (error) {
-                // 批次处理失败，抛出错误（严格模式）
-                updateProgress()
-                if (error instanceof OpenAI.APIError) {
-                    throw new Error(`计算文章embedding失败：批次 ${batchNumber} API调用失败: ${error.message}`)
-                } else if (error instanceof Error) {
-                    throw new Error(`计算文章embedding失败：批次 ${batchNumber} ${error.message}`)
-                } else {
-                    throw new Error(`计算文章embedding失败：批次 ${batchNumber} ${String(error)}`)
-                }
-            }
-        }
-        
-        // 顺序处理所有批次，确保QPS限制（严格模式：任何批次失败都会立即失败）
-        for (const batchInfo of batches) {
-            await processBatch(batchInfo)
-        }
-
-    } catch (error: any) {
-        // 抛出错误（严格模式）
-        if (error instanceof Error) {
-            throw error
-        } else {
-            throw new Error(`计算文章embedding失败: ${String(error)}`)
-        }
-    }
-}
-
 // ==================== 步骤函数 ====================
 
 // 步骤1: 查询数据库文章
@@ -484,6 +248,17 @@ async function stepRecognizeTopicIntent(
         if (completion.usage && callbacks.updateTokenStatistics && tokenStatistics) {
             addTokenUsage(tokenStatistics, completion.usage, true)
             callbacks.updateTokenStatistics(tokenStatistics)
+        }
+
+        // 记录API调用（动态导入，避免在主进程中打包）
+        if (completion.usage) {
+            import("./api-call-recorder").then(({ recordApiCall }) => {
+                recordApiCall(model, 'chat', 'topic-intent-recognition', completion.usage).catch(err => {
+                    console.error('记录API调用失败:', err)
+                })
+            }).catch(() => {
+                // 忽略导入失败（可能是在主进程中）
+            })
         }
 
         if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
@@ -639,6 +414,26 @@ export async function stepLLMPreliminaryFilter(
             if (completion.usage && callbacks.updateTokenStatistics && tokenStatistics) {
                 addTokenUsage(tokenStatistics, completion.usage, true)
                 callbacks.updateTokenStatistics(tokenStatistics)
+            }
+            
+            // 记录token使用记录
+            if (completion.usage && callbacks.addTokenUsageRecord) {
+                callbacks.addTokenUsageRecord(model, {
+                    prompt_tokens: completion.usage.prompt_tokens || 0,
+                    completion_tokens: completion.usage.completion_tokens || 0,
+                    total_tokens: completion.usage.total_tokens || 0
+                })
+            }
+
+            // 记录API调用（动态导入，避免在主进程中打包）
+            if (completion.usage) {
+                import("./api-call-recorder").then(({ recordApiCall }) => {
+                    recordApiCall(model, 'chat', 'llm-preliminary-filter', completion.usage).catch(err => {
+                        console.error('记录API调用失败:', err)
+                    })
+                }).catch(() => {
+                    // 忽略导入失败（可能是在主进程中）
+                })
             }
             
             if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
@@ -834,6 +629,26 @@ Summary: ${snippet}`
             if (completion.usage && callbacks.updateTokenStatistics && tokenStatistics) {
                 addTokenUsage(tokenStatistics, completion.usage, true)
                 callbacks.updateTokenStatistics(tokenStatistics)
+            }
+            
+            // 记录token使用记录
+            if (completion.usage && callbacks.addTokenUsageRecord) {
+                callbacks.addTokenUsageRecord(model, {
+                    prompt_tokens: completion.usage.prompt_tokens || 0,
+                    completion_tokens: completion.usage.completion_tokens || 0,
+                    total_tokens: completion.usage.total_tokens || 0
+                })
+            }
+
+            // 记录API调用（动态导入，避免在主进程中打包）
+            if (completion.usage) {
+                import("./api-call-recorder").then(({ recordApiCall }) => {
+                    recordApiCall(model, 'chat', 'llm-refine', completion.usage).catch(err => {
+                        console.error('记录API调用失败:', err)
+                    })
+                }).catch(() => {
+                    // 忽略导入失败（可能是在主进程中）
+                })
             }
             
             if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {

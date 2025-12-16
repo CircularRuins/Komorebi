@@ -192,6 +192,13 @@ const settingsBridge = {
     setAITranslationModel: (model: string) => {
         ipcRenderer.invoke("set-ai-translation-model", model)
     },
+    // Token使用历史记录
+    getTokenUsageHistory: (): any[] => {
+        return ipcRenderer.sendSync("get-token-usage-history")
+    },
+    setTokenUsageHistory: (history: any[]) => {
+        ipcRenderer.invoke("set-token-usage-history", history)
+    },
 }
 
 declare global {

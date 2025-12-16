@@ -133,6 +133,17 @@ ${textToTranslate}`
         max_tokens: 8000,
     })
 
+    // 记录API调用（动态导入，避免在主进程中打包）
+    if (completion.usage) {
+        import("./api-call-recorder").then(({ recordApiCall }) => {
+            recordApiCall(model, 'chat', 'article-translation-chunk', completion.usage).catch(err => {
+                console.error('记录API调用失败:', err)
+            })
+        }).catch(() => {
+            // 忽略导入失败（可能是在主进程中）
+        })
+    }
+
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
         const translatedText = completion.choices[0].message.content || ''
         if (!translatedText) {
@@ -204,6 +215,17 @@ ${textToTranslate}`
         temperature: 0.3,
         max_tokens: 8000,
     })
+
+    // 记录API调用（动态导入，避免在主进程中打包）
+    if (completion.usage) {
+        import("./api-call-recorder").then(({ recordApiCall }) => {
+            recordApiCall(model, 'chat', 'article-translation-chunk', completion.usage).catch(err => {
+                console.error('记录API调用失败:', err)
+            })
+        }).catch(() => {
+            // 忽略导入失败（可能是在主进程中）
+        })
+    }
 
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
         const translatedText = completion.choices[0].message.content || ''
@@ -383,6 +405,17 @@ ${textToTranslate}`
                 temperature: 0.3,
                 max_tokens: 8000,
             })
+
+            // 记录API调用（动态导入，避免在主进程中打包）
+            if (completion.usage) {
+                import("./api-call-recorder").then(({ recordApiCall }) => {
+                    recordApiCall(model, 'chat', 'article-translation', completion.usage).catch(err => {
+                        console.error('记录API调用失败:', err)
+                    })
+                }).catch(() => {
+                    // 忽略导入失败（可能是在主进程中）
+                })
+            }
 
             if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
                 const translatedText = completion.choices[0].message.content || ''
@@ -580,6 +613,17 @@ ${textToTranslate}`
                 temperature: 0.3,
                 max_tokens: 8000,
             })
+
+            // 记录API调用（动态导入，避免在主进程中打包）
+            if (completion.usage) {
+                import("./api-call-recorder").then(({ recordApiCall }) => {
+                    recordApiCall(model, 'chat', 'article-translation', completion.usage).catch(err => {
+                        console.error('记录API调用失败:', err)
+                    })
+                }).catch(() => {
+                    // 忽略导入失败（可能是在主进程中）
+                })
+            }
 
             if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
                 const translatedText = completion.choices[0].message.content || ''

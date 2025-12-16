@@ -464,6 +464,17 @@ ${transcriptWithTimestamps}
         response_format: { type: "json_object" }
     })
 
+    // 记录API调用（动态导入，避免在主进程中打包）
+    if (completion.usage) {
+        import("./api-call-recorder").then(({ recordApiCall }) => {
+            recordApiCall(config.model, 'chat', 'transcript-summary', completion.usage).catch(err => {
+                console.error('记录API调用失败:', err)
+            })
+        }).catch(() => {
+            // 忽略导入失败（可能是在主进程中）
+        })
+    }
+
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
         const responseText = completion.choices[0].message.content || ''
         if (!responseText) {
@@ -625,6 +636,17 @@ ${transcriptWithTimestamps}
         max_tokens: 2000,
         response_format: { type: "json_object" }
     })
+
+    // 记录API调用（动态导入，避免在主进程中打包）
+    if (completion.usage) {
+        import("./api-call-recorder").then(({ recordApiCall }) => {
+            recordApiCall(config.model, 'chat', 'transcript-quotes', completion.usage).catch(err => {
+                console.error('记录API调用失败:', err)
+            })
+        }).catch(() => {
+            // 忽略导入失败（可能是在主进程中）
+        })
+    }
 
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
         const responseText = completion.choices[0].message.content || ''
@@ -817,6 +839,17 @@ ${message}
         max_tokens: 1024,
         response_format: { type: "json_object" }
     })
+
+    // 记录API调用（动态导入，避免在主进程中打包）
+    if (completion.usage) {
+        import("./api-call-recorder").then(({ recordApiCall }) => {
+            recordApiCall(config.model, 'chat', 'transcript-chat', completion.usage).catch(err => {
+                console.error('记录API调用失败:', err)
+            })
+        }).catch(() => {
+            // 忽略导入失败（可能是在主进程中）
+        })
+    }
 
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
         const responseText = completion.choices[0].message.content || ''

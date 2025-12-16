@@ -43,6 +43,15 @@ export type TokenStatistics = {
     embeddingModel: TokenUsage
 }
 
+// Token使用记录类型
+export type TokenUsageRecord = {
+    model: string  // 模型名称
+    prompt_tokens: number  // prompt token数量
+    completion_tokens: number  // completion token数量
+    total_tokens: number  // 总token数量
+    timestamp: number  // 使用时间（Unix时间戳）
+}
+
 // ==================== 类型定义 ====================
 
 export class AIModeState {
@@ -92,6 +101,7 @@ export class AIModeState {
     showResults: boolean = false
     timeRangeHasArticles: boolean = false
     tokenStatistics: TokenStatistics | null = null
+    tokenUsageHistory: TokenUsageRecord[] = []  // Token使用历史记录
 }
 
 // ==================== Action Types ====================
@@ -143,6 +153,7 @@ export const UPDATE_AI_MODE_QUERY_PROGRESS = "UPDATE_AI_MODE_QUERY_PROGRESS"
 export const UPDATE_AI_MODE_STEP_STATUS = "UPDATE_AI_MODE_STEP_STATUS"
 export const SET_AI_MODE_SHOW_RESULTS = "SET_AI_MODE_SHOW_RESULTS"
 export const SET_AI_MODE_TOKEN_STATISTICS = "SET_AI_MODE_TOKEN_STATISTICS"
+export const ADD_TOKEN_USAGE_RECORD = "ADD_TOKEN_USAGE_RECORD"
 export const INIT_AI_MODE = "INIT_AI_MODE"
 
 // ==================== Action Creators ====================
@@ -385,6 +396,11 @@ export interface SetAIModeTokenStatisticsAction {
     tokenStatistics: TokenStatistics | null
 }
 
+export interface AddTokenUsageRecordAction {
+    type: typeof ADD_TOKEN_USAGE_RECORD
+    record: TokenUsageRecord
+}
+
 export interface InitAIModeAction {
     type: typeof INIT_AI_MODE
 }
@@ -437,6 +453,7 @@ export type AIModeActionTypes =
     | UpdateAIModeStepStatusAction
     | SetAIModeShowResultsAction
     | SetAIModeTokenStatisticsAction
+    | AddTokenUsageRecordAction
     | InitAIModeAction
 
 // ==================== Action Creator Functions ====================
@@ -778,6 +795,19 @@ export function setAIModeTokenStatistics(tokenStatistics: TokenStatistics | null
     }
 }
 
+export function addTokenUsageRecord(model: string, usage: TokenUsage): AIModeActionTypes {
+    return {
+        type: ADD_TOKEN_USAGE_RECORD,
+        record: {
+            model,
+            prompt_tokens: usage.prompt_tokens,
+            completion_tokens: usage.completion_tokens,
+            total_tokens: usage.total_tokens,
+            timestamp: Date.now()
+        }
+    }
+}
+
 // ==================== Reducer ====================
 
 // 初始化状态：从 electron-store 读取配置（与 localStorage 向后兼容）
@@ -842,6 +872,16 @@ function getInitialState(): AIModeState {
     state.tempTranslationApiEndpoint = ''
     state.tempTranslationApiKey = ''
     state.tempTranslationModel = ''
+    
+    // 从持久化存储读取token使用历史记录
+    try {
+        const history = window.settings.getTokenUsageHistory()
+        state.tokenUsageHistory = Array.isArray(history) ? history : []
+    } catch (error) {
+        console.error('读取token使用历史记录失败:', error)
+        state.tokenUsageHistory = []
+    }
+    
     return state
 }
 
@@ -1169,6 +1209,16 @@ export function aiModeReducer(
 
         case SET_AI_MODE_TOKEN_STATISTICS:
             return { ...state, tokenStatistics: action.tokenStatistics }
+
+        case ADD_TOKEN_USAGE_RECORD:
+            const newHistory = [...state.tokenUsageHistory, action.record]
+            // 持久化到electron-store
+            try {
+                window.settings.setTokenUsageHistory(newHistory)
+            } catch (error) {
+                console.error('保存token使用历史记录失败:', error)
+            }
+            return { ...state, tokenUsageHistory: newHistory }
 
         default:
             return state

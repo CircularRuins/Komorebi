@@ -41,6 +41,7 @@ export enum PageType {
     AIConfig,
     AIFeatures,
     SmartSearch,
+    TokenUsage,
 }
 
 interface SelectPageAction {
@@ -269,6 +270,18 @@ export function selectAIConfig(init = false): AppThunk {
             keepMenu: getWindowBreakpoint(),
             filter: getState().page.filter,
             pageType: PageType.AIConfig,
+            init: init,
+        } as PageActionTypes)
+    }
+}
+
+export function selectTokenUsage(init = false): AppThunk {
+    return (dispatch, getState) => {
+        dispatch({
+            type: SELECT_PAGE,
+            keepMenu: getWindowBreakpoint(),
+            filter: getState().page.filter,
+            pageType: PageType.TokenUsage,
             init: init,
         } as PageActionTypes)
     }
@@ -571,6 +584,12 @@ export function pageReducer(
                     return {
                         ...state,
                         feedId: "smart-search",
+                        itemId: null,
+                    }
+                case PageType.TokenUsage:
+                    return {
+                        ...state,
+                        feedId: "token-usage",
                         itemId: null,
                     }
                 default:

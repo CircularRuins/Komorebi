@@ -66,6 +66,7 @@ import {
     updateAIModeStepStatus,
     setAIModeShowResults,
     setAIModeTokenStatistics,
+    addTokenUsageRecord,
 } from "../scripts/models/ai-mode"
 import {
     consolidate,
@@ -161,58 +162,11 @@ type SmartSearchProps = {
     updateStepStatus: (stepId: string, status: QueryProgressStep['status'], message?: string, progress?: number) => void
     setShowResults: (showResults: boolean) => void
     setAIModeTokenStatistics: (tokenStatistics: import("../scripts/models/ai-mode").TokenStatistics | null) => void
+    addTokenUsageRecord: (model: string, usage: import("../scripts/models/ai-mode").TokenUsage) => void
 }
 
 // 创建 Context
 export const SmartSearchContext = React.createContext<SmartSearchContextType | null>(null)
-
-// Token统计组件
-interface TokenStatisticsProps {
-    tokenStatistics: TokenStatistics | null
-}
-
-const TokenStatisticsComponent: React.FC<TokenStatisticsProps> = ({ tokenStatistics }) => {
-    if (!tokenStatistics || !tokenStatistics.chatModel) {
-        return null
-    }
-
-    return (
-        <div style={{
-            backgroundColor: '#1e1e1e',
-            borderRadius: '8px',
-            padding: '20px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-        }}>
-            <div style={{
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#858585',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-            }}>
-                {intl.get("settings.aiMode.results.tokenStatistics")}
-            </div>
-            <div style={{
-                fontSize: '13px',
-                color: '#a0a0a0'
-            }}>
-                <span style={{ marginRight: '16px' }}>
-                    Prompt: {(tokenStatistics.chatModel.prompt_tokens || 0).toLocaleString()}
-                </span>
-                <span style={{ marginRight: '16px' }}>
-                    Completion: {(tokenStatistics.chatModel.completion_tokens || 0).toLocaleString()}
-                </span>
-                <span style={{ fontWeight: 600, color: '#e0e0e0' }}>
-                    Total: {(tokenStatistics.chatModel.total_tokens || 0).toLocaleString()}
-                </span>
-            </div>
-        </div>
-    )
-}
 
 export class SmartSearchComponent extends React.Component<SmartSearchProps> {
     static contextType = SmartSearchContext
@@ -635,102 +589,13 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
             getCurrentQueryProgress: () => aiMode.queryProgress,
             updateTokenStatistics: (tokenStatistics) => {
                 this.props.setAIModeTokenStatistics(tokenStatistics)
+            },
+            addTokenUsageRecord: (model: string, usage: any) => {
+                this.props.addTokenUsageRecord(model, usage)
             }
         }
         
         return await consolidate(timeRangeDays, topic, null, config, callbacks)
-    }
-
-    // 生成总结
-    generateSummary = async (articles: RSSItem[], topic: string): Promise<string> => {
-        const { aiMode } = this.props
-        const { chatApiEndpoint, chatApiKey, model } = aiMode
-
-        // 规范化endpoint URL
-        let normalizedEndpoint = chatApiEndpoint.trim()
-        if (!normalizedEndpoint.startsWith('http://') && !normalizedEndpoint.startsWith('https://')) {
-            throw new Error('Chat API Endpoint必须以http://或https://开头')
-        }
-
-        // 提取base URL
-        let baseURL = normalizedEndpoint
-        try {
-            const url = new URL(normalizedEndpoint)
-            if (url.pathname.includes('/v1/chat/completions')) {
-                baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
-            } else {
-                baseURL = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}`
-            }
-        } catch (error) {
-            throw new Error(`无效的Chat API Endpoint URL: ${normalizedEndpoint}`)
-        }
-
-        // 准备文章内容
-        const articlesText = articles.slice(0, 50).map((article, index) => {
-            const dateStr = article.date.toLocaleDateString('zh-CN')
-            return `文章 ${index + 1}:
-标题: ${article.title}
-发布时间: ${dateStr}
-摘要: ${article.snippet || article.content.substring(0, 200)}`
-        }).join('\n\n')
-
-        const topicText = topic ? `，重点关注话题：${topic}` : ''
-
-        const prompt = `请帮我总结整理以下RSS文章${topicText}。
-
-要求：
-1. 按照主题或类别对文章进行分组
-2. 为每个分组提供简要总结
-3. 突出重要信息和趋势
-4. 使用清晰的结构和格式
-
-文章列表：
-${articlesText}
-
-请生成详细的总结报告：`
-
-        try {
-            const openai = new OpenAI({
-                apiKey: chatApiKey,
-                baseURL: baseURL,
-                dangerouslyAllowBrowser: true
-            })
-
-            const completion = await openai.chat.completions.create({
-                model: model,
-                messages: [
-                    {
-                        role: 'system',
-                        content: '你是一个专业的RSS阅读助手，擅长总结和整理文章内容。'
-                    },
-                    {
-                        role: 'user',
-                        content: prompt
-                    }
-                ],
-                temperature: 0.7,
-                max_tokens: 3000,
-            })
-
-            if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
-                return completion.choices[0].message.content || ''
-            } else {
-                throw new Error('API返回格式不正确，未找到choices数组或message内容')
-            }
-        } catch (error: any) {
-            
-            if (error instanceof OpenAI.APIError) {
-                let errorMessage = error.message
-                if (error.status === 404) {
-                    errorMessage = `404错误: 请求的URL不存在\n${error.message}\n\n请检查:\n1. Chat API Endpoint是否正确（完整的URL路径）\n2. 是否需要包含特定的路径（如 /v1/chat/completions）\n3. API服务是否正常运行\n当前请求URL: ${normalizedEndpoint}`
-                }
-                throw new Error(errorMessage)
-            } else if (error instanceof Error) {
-                throw error
-            } else {
-                throw new Error(`请求失败: ${String(error)}`)
-            }
-        }
     }
 
     handleGenerateSummary = async () => {
@@ -1343,12 +1208,9 @@ ${articlesText}
                         progress = {
                             steps: [
                                 { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: defaultStatus, message: defaultMessage, visible: true },
-                                { id: 'compute-topic-embedding', title: intl.get("settings.aiMode.progress.steps.computeTopicEmbedding"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted },
-                                { id: 'load-embeddings', title: intl.get("settings.aiMode.progress.steps.loadEmbeddings"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted },
-                                { id: 'compute-embeddings', title: intl.get("settings.aiMode.progress.steps.computeEmbeddings"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted },
                                 { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: isCompleted ? 'completed' as const : 'pending' as const, visible: isCompleted }
                             ],
-                            currentStepIndex: isCompleted ? 4 : 0,
+                            currentStepIndex: isCompleted ? 1 : 0,
                             overallProgress: isCompleted ? 100 : 0,
                             currentMessage: defaultMessage
                         }
@@ -1577,9 +1439,6 @@ ${articlesText}
                                 </div>
                             </div>
 
-                            {/* Token统计显示 */}
-                            <TokenStatisticsComponent tokenStatistics={aiMode.tokenStatistics} />
-
                             {/* 所有步骤完成后的"查看结果"按钮或"无结果"提示 - 深色卡片 */}
                             {(() => {
                                 // 动态检查所有可见步骤是否完成
@@ -1772,7 +1631,8 @@ const mapDispatchToProps = dispatch => ({
     updateStepStatus: (stepId: string, status: QueryProgressStep['status'], message?: string, progress?: number) => 
         dispatch(updateAIModeStepStatus(stepId, status, message, progress)),
     setShowResults: (showResults: boolean) => dispatch(setAIModeShowResults(showResults)),
-    setAIModeTokenStatistics: (tokenStatistics: import("../scripts/models/ai-mode").TokenStatistics | null) => dispatch(setAIModeTokenStatistics(tokenStatistics))
+    setAIModeTokenStatistics: (tokenStatistics: import("../scripts/models/ai-mode").TokenStatistics | null) => dispatch(setAIModeTokenStatistics(tokenStatistics)),
+    addTokenUsageRecord: (model: string, usage: import("../scripts/models/ai-mode").TokenUsage) => dispatch(addTokenUsageRecord(model, usage))
 })
 
 const SmartSearch = connect(mapStateToProps, mapDispatchToProps, null, { forwardRef: true })(SmartSearchComponent)
