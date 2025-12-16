@@ -15,14 +15,15 @@
 <!-- <hr /> -->
 </div>
 
-Komorebi is not a full-featured, general-purpose RSS reader, it is designed for AI professionals who want to keep pace with:
-- The latest industry trends and insights.
+**Komorebi isn’t trying to be a general-purpose RSS reader. **\
+Instead, it’s designed for AI professionals who want to keep pace with:
+- Evolving industry trends and insights
 - Cutting-edge products and technologies.
-- State-of-the-art research papers.
+- State-of-the-art academic research.
 
 ## 👋🏻 Getting Started
 
-Komorebi is a desktop application that supports Windows, macOS and Linux. You can [get Komorebi from GitHub releases](https://github.com/CircularRuins/Komorebi/releases).
+Komorebi is a desktop application that supports Windows and macOS. You can [get Komorebi from GitHub releases](https://github.com/CircularRuins/Komorebi/releases).
 
 > \[!IMPORTANT]
 >
@@ -30,29 +31,23 @@ Komorebi is a desktop application that supports Windows, macOS and Linux. You ca
 
 ## ✨ Features
 
-### Customized Information Hub
+### Diverse And High-quality Information Sources
 
 Subscribe to a vast range of feeds and curated lists. Curate your favorites and keep track of what matters most to you.
 
 ![](https://github.com/user-attachments/assets/11dc7d21-f5d8-4e41-9269-24fc352aa02b)
 
-### AI At Your Fingertips
-
-A smarter and more efficient browsing with AI-powered features like translation, summary, and more.
-
-![](https://github.com/user-attachments/assets/37cf4f2f-4c5e-4775-86e8-2fa1a1b2ecf5)
-
 ### Dynamic Content Support
 
-Because we know content is more than just text. From articles to videos, images to audio — Folo gets it all covered.
+From articles to videos, tweets to newsletters — Komorebi can display them in a compelling way.
 
 ![](https://github.com/user-attachments/assets/d1379fd6-8767-476e-b0dc-d61753715e26)
 
-### More Than Just An App
+### LLM-powered
 
-This isn’t just another app. Folo is a community — introducing a new era of openness and community-driven experience.
+A smarter and more efficient browsing with LLM-powered features like translation, summary, extraction, and more.
 
-![](https://github.com/user-attachments/assets/62004a04-eaea-4f5d-bfbf-4e68b6b90286)
+![](https://github.com/user-attachments/assets/37cf4f2f-4c5e-4775-86e8-2fa1a1b2ecf5)
 
 
 
@@ -60,7 +55,7 @@ This isn’t just another app. Folo is a community — introducing a new era of 
 Help make Komorebi better by reporting bugs or opening feature requests through [GitHub issues](https://github.com/CircularRuins/Komorebi/issues). 
 
 ## ❤️ Buy Me a Coffee
-This project will always be 100% open source and free. But if you feel like supporting it, I won’t pretend I don’t like coffee☕️. [GitHub Sponsors](https://github.com/sponsors/yang991178), [Paypal](https://www.paypal.me/yang991178), or [Alipay](https://hyliu.me/komorebi/imgs/alipay.jpg).
+This project will always be 100% open source and free. But if you feel like supporting it, I won’t pretend I don’t like coffee ☕️. [GitHub Sponsors](https://github.com/sponsors/yang991178), [Paypal](https://www.paypal.me/yang991178), or [Alipay](https://hyliu.me/komorebi/imgs/alipay.jpg).
 
 ## 📮 Contact
 For questions, suggestions, or collaborations, feel free to contact me via email at wwf.1996@qq.com
