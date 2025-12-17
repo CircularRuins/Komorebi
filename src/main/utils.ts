@@ -648,23 +648,10 @@ export function setUtilsListeners(manager: WindowManager) {
     // Language code to language name mapping
     const languageCodeToName: { [key: string]: string } = {
         "en": "English",
+        "en-US": "English",
         "zh-CN": "简体中文",
-        "zh-TW": "繁體中文",
         "ja": "日本語",
-        "fr-FR": "Français",
-        "de": "Deutsch",
         "es": "Español",
-        "it": "Italiano",
-        "pt-BR": "Português do Brasil",
-        "pt-PT": "Português de Portugal",
-        "ru": "Русский",
-        "ko": "한국어",
-        "nl": "Nederlands",
-        "sv": "Svenska",
-        "tr": "Türkçe",
-        "uk": "Українська",
-        "cs": "Čeština",
-        "fi-FI": "Suomi",
     }
 
     function getTargetLanguageName(languageCode: string): string {

@@ -16,10 +16,11 @@
 </div>
 
 **Komorebi isn’t trying to be a general-purpose RSS reader.**\
-Instead, it’s designed for AI professionals who want to keep pace with:
-- Evolving industry trends and insights
-- Cutting-edge products and technologies.
-- State-of-the-art academic research.
+Instead, it is tailored for AI professionals who want to keep pace with:
+- Visionary insights into where we are headed.
+- Top trending news and topics about AI.
+- New progress on a fancy product.
+- State-of-the-art papers in a specific research area.
 
 ## 👋🏻 Getting Started
 
@@ -54,11 +55,17 @@ A smarter and more efficient browsing with LLM-powered features like translation
 ## 🤝 Contribute
 Help make Komorebi better by reporting bugs or opening feature requests through [GitHub issues](https://github.com/CircularRuins/Komorebi/issues). 
 
+## ☀️ Product Philosophy
+
+<p align="center">
+  <img width="256" height="256" src="https://github.com/CircularRuins/Komorebi/raw/main/build/icon.png">
+</p>
+
+Komorebi (木漏れ日) is a Japanese word describing the dappled sunlight filtering through leaves and trees. Currently, AI is the hottest field—like the sun itself—and the vast amount of related information shines and burns like direct sunlight, overwhelming people with information anxiety. Komorebi aims to thoughtfully curate information sources and refine product features to deliver the best possible user experience, making the process of consuming information as enjoyable as bathing in komorebi—the gentle, dappled sunlight filtering through trees.
+
 ## ❤️ Buy Me a Coffee
 This project will always be 100% open source and free. But if you feel like supporting it, I won’t pretend I don’t like coffee ☕️. [GitHub Sponsors](https://github.com/sponsors/yang991178), [Paypal](https://www.paypal.me/yang991178), or [Alipay](https://hyliu.me/komorebi/imgs/alipay.jpg).
 
-## 📮 Contact
-For questions, suggestions, or collaborations, feel free to contact me via email at wwf.1996@qq.com
 
 
 

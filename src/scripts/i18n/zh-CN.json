@@ -378,7 +378,10 @@
         "howToSubscribeMoreYoutube": "如何订阅更多Youtube频道？",
         "howToSubscribeMoreWechat": "如何订阅更多Wechat公众号？",
         "howToSubscribeMoreNewsletters": "如何订阅更多Newsletters？",
-        "howToSubscribeMoreArxiv": "如何订阅更多arXiv？"
+        "howToSubscribeMoreArxiv": "如何订阅更多arXiv？",
+        "moreTab": "更多",
+        "loading": "加载中...",
+        "contentComingSoon": "内容即将推出..."
     },
     "groups": {
         "exist": "该分组已存在",

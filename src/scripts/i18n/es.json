@@ -114,7 +114,21 @@
         "badUrl": "URL no válida",
         "deleteWarning": "Se eliminarán la fuente y todos los artículos guardados..",
         "selected": "Fuente seleccionada",
-        "selectedMulti": "Múltiples fuentes seleccionadas"
+        "selectedMulti": "Múltiples fuentes seleccionadas",
+        "recommendedFeeds": "Fuentes recomendadas",
+        "subscribed": "Seguido",
+        "subscribe": "Seguir",
+        "unsubscribe": "Dejar de seguir",
+        "youMightLike": "Sugerido",
+        "exploreMore": "Más",
+        "howToSubscribeMoreTwitter": "¿Cómo suscribirse a más usuarios de Twitter?",
+        "howToSubscribeMoreYoutube": "¿Cómo suscribirse a más canales de Youtube?",
+        "howToSubscribeMoreWechat": "¿Cómo suscribirse a más cuentas públicas de WeChat?",
+        "howToSubscribeMoreNewsletters": "¿Cómo suscribirse a más Newsletters?",
+        "howToSubscribeMoreArxiv": "¿Cómo suscribirse a más arXiv?",
+        "moreTab": "Más",
+        "loading": "Cargando...",
+        "contentComingSoon": "El contenido estará disponible pronto..."
     },
     "groups": {
         "type": "Tipo",

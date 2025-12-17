@@ -376,7 +376,10 @@
         "howToSubscribeMoreYoutube": "How to subscribe to more Youtube channels?",
         "howToSubscribeMoreWechat": "How to subscribe to more WeChat public accounts?",
         "howToSubscribeMoreNewsletters": "How to subscribe to more Newsletters?",
-        "howToSubscribeMoreArxiv": "How to subscribe to more arXiv?"
+        "howToSubscribeMoreArxiv": "How to subscribe to more arXiv?",
+        "moreTab": "More",
+        "loading": "Loading...",
+        "contentComingSoon": "Content coming soon..."
     },
     "groups": {
         "exist": "This group already exists.",

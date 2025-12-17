@@ -284,13 +284,13 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
                     ))}
                     <PivotItem
                         key="more"
-                        headerText="More"
+                        headerText={intl.get("sources.moreTab") || "More"}
                         itemKey="more"
                     >
                         <div style={{ padding: "4px 16px", boxSizing: "border-box" }}>
                             {this.state.moreSections.length === 0 ? (
                                 <div style={{ color: "var(--neutralSecondary)", fontSize: "14px" }}>
-                                    Loading...
+                                    {intl.get("sources.loading") || "Loading..."}
                                 </div>
                             ) : (
                                 this.state.moreSections.map((section) => {
@@ -366,7 +366,7 @@ class RecommendedFeeds extends React.Component<RecommendedFeedsProps, Recommende
                                                         />
                                                     ) : (
                                                         <div style={{ color: "var(--neutralSecondary)", fontSize: "14px" }}>
-                                                            Content coming soon...
+                                                            {intl.get("sources.contentComingSoon") || "Content coming soon..."}
                                                         </div>
                                                     )}
                                                     <style>{`

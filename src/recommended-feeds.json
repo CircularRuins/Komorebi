@@ -270,6 +270,42 @@
             {
                 "name": "AI Explained",
                 "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCNJ1Ymd5yFuUPtn21xtRbbw"
+            },
+            {
+                "name": "WhynotTV",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC5xLV_gJAP9psKcyrJ3ZIcw"
+            },
+            {
+                "name": "跟李沐学AI",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC8WCW6C3BWLKSZ5cMzD8Gyw"
+            },
+            {
+                "name": "Lenny's Podcast",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6t1O76G0jYXOAoYCm153dA"
+            },
+            {
+                "name": "Peter Yang",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCnpBg7yqNauHtlNSpOl5-cg"
+            },
+            {
+                "name": "Latent Space",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCxBcwypKK-W3GHd_RZ9FZrQ"
+            },
+            {
+                "name": "Unsupervised Learning",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCUl-s_Vp-Kkk_XVyDylNwLA"
+            },
+            {
+                "name": "The AI Daily Brief",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCKelCK4ZaO6HeEI1KQjqzWA"
+            },
+            {
+                "name": "Lex Fridman",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSHZKyawb77ixDdsGog4iWA"
+            },
+            {
+                "name": "Andrej Karpathy",
+                "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCXUPKJO5MZQN11PqgIvyuvQ"
             }
         ]
     },

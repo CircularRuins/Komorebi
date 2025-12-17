@@ -155,7 +155,10 @@
         "howToSubscribeMoreYoutube": "より多くのYoutubeチャンネルを購読するには？",
         "howToSubscribeMoreWechat": "より多くのWeChat公式アカウントを購読するには？",
         "howToSubscribeMoreNewsletters": "より多くのNewslettersを購読するには？",
-        "howToSubscribeMoreArxiv": "より多くのarXivを購読するには？"
+        "howToSubscribeMoreArxiv": "より多くのarXivを購読するには？",
+        "moreTab": "もっと見る",
+        "loading": "読み込み中...",
+        "contentComingSoon": "コンテンツは間もなく公開されます..."
     },
     "groups": {
         "exist": "このグループは既に存在します。",

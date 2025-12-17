@@ -1,31 +1,85 @@
 // 直接导入JSON配置文件
 import moreSectionsConfig from "../../more-sections.json"
+import { getCurrentLocale } from "../settings"
 
-// 导入Markdown文件
-import wechatGuideMd from "../../more-sections/wechat-guide.md"
-import twitterGuideMd from "../../more-sections/twitter-guide.md"
-import newslettersGuideMd from "../../more-sections/newsletters-guide.md"
-import youtubeGuideMd from "../../more-sections/youtube-guide.md"
-import arxivGuideMd from "../../more-sections/arxiv-guide.md"
+// 导入Markdown文件 - 所有语言版本
+// 中文版本
+import wechatGuideZhCN from "../../more-sections/wechat-guide.zh-CN.md"
+import twitterGuideZhCN from "../../more-sections/twitter-guide.zh-CN.md"
+import newslettersGuideZhCN from "../../more-sections/newsletters-guide.zh-CN.md"
+import youtubeGuideZhCN from "../../more-sections/youtube-guide.zh-CN.md"
+import arxivGuideZhCN from "../../more-sections/arxiv-guide.zh-CN.md"
 
-// Markdown文件映射
-// 支持多种路径格式以匹配不同的引用方式
+// 英文版本
+import wechatGuideEn from "../../more-sections/wechat-guide.en.md"
+import twitterGuideEn from "../../more-sections/twitter-guide.en.md"
+import newslettersGuideEn from "../../more-sections/newsletters-guide.en.md"
+import youtubeGuideEn from "../../more-sections/youtube-guide.en.md"
+import arxivGuideEn from "../../more-sections/arxiv-guide.en.md"
+
+// 日文版本
+import wechatGuideJa from "../../more-sections/wechat-guide.ja.md"
+import twitterGuideJa from "../../more-sections/twitter-guide.ja.md"
+import newslettersGuideJa from "../../more-sections/newsletters-guide.ja.md"
+import youtubeGuideJa from "../../more-sections/youtube-guide.ja.md"
+import arxivGuideJa from "../../more-sections/arxiv-guide.ja.md"
+
+// 西班牙文版本
+import wechatGuideEs from "../../more-sections/wechat-guide.es.md"
+import twitterGuideEs from "../../more-sections/twitter-guide.es.md"
+import newslettersGuideEs from "../../more-sections/newsletters-guide.es.md"
+import youtubeGuideEs from "../../more-sections/youtube-guide.es.md"
+import arxivGuideEs from "../../more-sections/arxiv-guide.es.md"
+
+// Markdown文件映射 - 按语言和文件ID组织
+const markdownFilesByLocale: { [locale: string]: { [id: string]: string } } = {
+    "zh-CN": {
+        "wechat": wechatGuideZhCN,
+        "twitter": twitterGuideZhCN,
+        "newsletters": newslettersGuideZhCN,
+        "youtube": youtubeGuideZhCN,
+        "arxiv": arxivGuideZhCN,
+    },
+    "en-US": {
+        "wechat": wechatGuideEn,
+        "twitter": twitterGuideEn,
+        "newsletters": newslettersGuideEn,
+        "youtube": youtubeGuideEn,
+        "arxiv": arxivGuideEn,
+    },
+    "ja": {
+        "wechat": wechatGuideJa,
+        "twitter": twitterGuideJa,
+        "newsletters": newslettersGuideJa,
+        "youtube": youtubeGuideJa,
+        "arxiv": arxivGuideJa,
+    },
+    "es": {
+        "wechat": wechatGuideEs,
+        "twitter": twitterGuideEs,
+        "newsletters": newslettersGuideEs,
+        "youtube": youtubeGuideEs,
+        "arxiv": arxivGuideEs,
+    },
+}
+
+// 向后兼容：保留旧的路径映射（用于fallback）
 const markdownFiles: { [key: string]: string } = {
-    "more-sections/wechat-guide.md": wechatGuideMd,
-    "../../more-sections/wechat-guide.md": wechatGuideMd,
-    "wechat-guide.md": wechatGuideMd,
-    "more-sections/twitter-guide.md": twitterGuideMd,
-    "../../more-sections/twitter-guide.md": twitterGuideMd,
-    "twitter-guide.md": twitterGuideMd,
-    "more-sections/newsletters-guide.md": newslettersGuideMd,
-    "../../more-sections/newsletters-guide.md": newslettersGuideMd,
-    "newsletters-guide.md": newslettersGuideMd,
-    "more-sections/youtube-guide.md": youtubeGuideMd,
-    "../../more-sections/youtube-guide.md": youtubeGuideMd,
-    "youtube-guide.md": youtubeGuideMd,
-    "more-sections/arxiv-guide.md": arxivGuideMd,
-    "../../more-sections/arxiv-guide.md": arxivGuideMd,
-    "arxiv-guide.md": arxivGuideMd,
+    "more-sections/wechat-guide.md": wechatGuideZhCN,
+    "../../more-sections/wechat-guide.md": wechatGuideZhCN,
+    "wechat-guide.md": wechatGuideZhCN,
+    "more-sections/twitter-guide.md": twitterGuideZhCN,
+    "../../more-sections/twitter-guide.md": twitterGuideZhCN,
+    "twitter-guide.md": twitterGuideZhCN,
+    "more-sections/newsletters-guide.md": newslettersGuideZhCN,
+    "../../more-sections/newsletters-guide.md": newslettersGuideZhCN,
+    "newsletters-guide.md": newslettersGuideZhCN,
+    "more-sections/youtube-guide.md": youtubeGuideZhCN,
+    "../../more-sections/youtube-guide.md": youtubeGuideZhCN,
+    "youtube-guide.md": youtubeGuideZhCN,
+    "more-sections/arxiv-guide.md": arxivGuideZhCN,
+    "../../more-sections/arxiv-guide.md": arxivGuideZhCN,
+    "arxiv-guide.md": arxivGuideZhCN,
 }
 
 
@@ -171,12 +225,48 @@ function escapeHtml(text: string): string {
 }
 
 /**
+ * 根据当前语言和section ID获取对应的Markdown内容
+ */
+function getMarkdownByLocaleAndId(locale: string, sectionId: string): string | null {
+    // 获取当前语言的markdown文件映射
+    const localeFiles = markdownFilesByLocale[locale]
+    if (localeFiles && localeFiles[sectionId]) {
+        return localeFiles[sectionId]
+    }
+    
+    // 如果当前语言没有，尝试fallback到en-US
+    if (locale !== "en-US") {
+        const enFiles = markdownFilesByLocale["en-US"]
+        if (enFiles && enFiles[sectionId]) {
+            return enFiles[sectionId]
+        }
+    }
+    
+    // 最后fallback到zh-CN（向后兼容）
+    const zhCNFiles = markdownFilesByLocale["zh-CN"]
+    if (zhCNFiles && zhCNFiles[sectionId]) {
+        return zhCNFiles[sectionId]
+    }
+    
+    return null
+}
+
+/**
  * 加载Markdown文件内容
  * 优先从构建时导入的文件中获取，如果不存在则尝试fetch
  */
-async function loadMarkdownFile(filePath: string): Promise<string> {
+async function loadMarkdownFile(filePath: string, sectionId?: string): Promise<string> {
     try {
-        // 首先尝试从构建时导入的文件中获取
+        // 如果提供了sectionId，尝试根据当前语言加载
+        if (sectionId) {
+            const currentLocale = getCurrentLocale()
+            const content = getMarkdownByLocaleAndId(currentLocale, sectionId)
+            if (content) {
+                return content
+            }
+        }
+        
+        // 向后兼容：首先尝试从构建时导入的文件中获取
         if (markdownFiles[filePath]) {
             return markdownFiles[filePath]
         }
@@ -217,9 +307,10 @@ export async function loadMoreSections(): Promise<MoreSection[]> {
         // 加载所有markdown文件
         const sectionsWithContent = await Promise.all(
             sections.map(async (section) => {
-                if (section.markdownFile) {
+                if (section.markdownFile || section.id) {
                     try {
-                        const markdownContent = await loadMarkdownFile(section.markdownFile)
+                        // 使用section.id来根据当前语言加载对应的markdown文件
+                        const markdownContent = await loadMarkdownFile(section.markdownFile || "", section.id)
                         if (markdownContent && markdownContent.trim()) {
                             const htmlContent = markdownToHtml(markdownContent)
                             return {
