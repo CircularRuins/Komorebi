@@ -34,9 +34,9 @@ Komorebi is a desktop application that supports Windows and macOS. You can [get 
 
 ### Simple UI
 
-Keep only essential features. Easy to use. Supports English, 简体中文, Español, and 日本語.
+Keep only essential features. Easy to use. Supports English, 简体中文, Español, 日本語.
 
-![](https://github.com/CircularRuins/Komorebi/raw/main/docs/feature1.png)
+<!-- ![](https://github.com/CircularRuins/Komorebi/raw/main/docs/feature1.png) -->
 
 ### Diverse And High-quality Information Sources
 
@@ -64,9 +64,9 @@ Help make Komorebi better by reporting bugs or opening feature requests through 
 ## ☀️ Product Philosophy
 Komorebi (木漏れ日) is a Japanese word describing the dappled sunlight filtering through leaves and trees. 
 
-<p align="center">
+<!-- <p align="center">
   <img width="256" height="256" src="https://github.com/CircularRuins/Komorebi/raw/main/build/icon.png">
-</p>
+</p> -->
 
  Currently, AI is the hottest field—like the sun itself—and the vast amount of related information shines and burns like direct sunlight, overwhelming people with information anxiety. 
  
