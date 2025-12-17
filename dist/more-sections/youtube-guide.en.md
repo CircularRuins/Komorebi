@@ -1,5 +1,9 @@
 ### YouTube provides RSS service officially 🎉
 
+### The subscription methods for YouTube channels and playlists (podcasts) are basically similar
+
+## Channel Subscription
+
 ### First, open the YouTube channel page you want to subscribe to and copy the channel URL
 ![](images/youtube1.png)
 
@@ -13,6 +17,10 @@
 
 ### Paste the generated feed URL into the RSS URL input box at the top of the page, click the Add button to subscribe
 ![](images/RSS_URL.png)
+
+## Playlist Subscription
+
+### Unlike channels, playlist RSS feed generation does not use TubePilot, but uses <mark>[Youtube RSS Extractor](https://jeffkeeling.github.io/youtube_rss_extractor/)</mark>. Enter the playlist URL and click the Generate button. The other steps are the same.
 
 
 

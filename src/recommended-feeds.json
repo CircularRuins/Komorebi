@@ -306,6 +306,30 @@
             {
                 "name": "Andrej Karpathy",
                 "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCXUPKJO5MZQN11PqgIvyuvQ"
+            },
+            {
+                "name": "AI & I",
+                "url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLuMcoKK9mKgHtW_o9h5sGO2vXrffKHwJL"
+            },
+            {
+                "name": "Training Data",
+                "url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLOhHNjZItNnMm5tdW61JpnyxeYH5NDDx8"
+            },
+            {
+                "name": "Google DeepMind: The Podcast",
+                "url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLqYmG7hTraZBiUr6_Qf8YTS2Oqy3OGZEj"
+            },
+            {
+                "name": "AI at a16z",
+                "url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLM4u6XbiXf5p-bokWYcyi8SKnMzoYW4b3"
+            },
+            {
+                "name": "Lightcone Podcast",
+                "url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLQ-uHSnFig5Ob4XXhgSK26Smb4oRhzFmK"
+            },
+            {
+                "name": "Dwarkesh Podcast",
+                "url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLd7-bHaQwnthaNDpZ32TtYONGVk95-fhF"
             }
         ]
     },
