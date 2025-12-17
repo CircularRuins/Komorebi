@@ -1,7 +1,10 @@
 <div align="center">
-    <a href="https://github.com/CircularRuins/Komorebi">
-    <img width="128" height="128" alt="mac128pt1x" src="https://github.com/user-attachments/assets/6cd7e263-01ac-42ec-bc8d-4de23a79d1b9" />
-    </a>
+
+<a href="https://github.com/CircularRuins/Komorebi">
+<img width="256" height="256" alt="mac256pt1x" src="https://github.com/user-attachments/assets/69a65cc5-d366-4d99-81d2-a4e1072ce525" />
+</a>
+
+
 
 
 
