@@ -32,6 +32,12 @@ Komorebi is a desktop application that supports Windows and macOS. You can [get 
 
 ## ✨ Features
 
+### Simple UI
+
+Keep only essential features. Easy to use. Supports English, 简体中文, Español, and 日本語.
+
+![](https://github.com/CircularRuins/Komorebi/raw/main/docs/feature1.png)
+
 ### Diverse And High-quality Information Sources
 
 Subscribe to a vast range of feeds and curated lists. Curate your favorites and keep track of what matters most to you.
@@ -56,12 +62,15 @@ A smarter and more efficient browsing with LLM-powered features like translation
 Help make Komorebi better by reporting bugs or opening feature requests through [GitHub issues](https://github.com/CircularRuins/Komorebi/issues). 
 
 ## ☀️ Product Philosophy
+Komorebi (木漏れ日) is a Japanese word describing the dappled sunlight filtering through leaves and trees. 
 
 <p align="center">
   <img width="256" height="256" src="https://github.com/CircularRuins/Komorebi/raw/main/build/icon.png">
 </p>
 
-Komorebi (木漏れ日) is a Japanese word describing the dappled sunlight filtering through leaves and trees. Currently, AI is the hottest field—like the sun itself—and the vast amount of related information shines and burns like direct sunlight, overwhelming people with information anxiety. Komorebi aims to thoughtfully curate information sources and refine product features to deliver the best possible user experience, making the process of consuming information as enjoyable as bathing in komorebi—the gentle, dappled sunlight filtering through trees.
+ Currently, AI is the hottest field—like the sun itself—and the vast amount of related information shines and burns like direct sunlight, overwhelming people with information anxiety. 
+ 
+ Komorebi aims to thoughtfully curate information sources and refine product features to deliver the best possible user experience, making the process of consuming information as enjoyable as bathing in komorebi—the gentle, dappled sunlight filtering through trees.
 
 ## ❤️ Buy Me a Coffee
 This project will always be 100% open source and free. But if you feel like supporting it, I won’t pretend I don’t like coffee ☕️. [GitHub Sponsors](https://github.com/sponsors/yang991178), [Paypal](https://www.paypal.me/yang991178), or [Alipay](https://hyliu.me/komorebi/imgs/alipay.jpg).
@@ -78,6 +87,7 @@ This project wouldn't have been possible without the support of the following op
 - [arxiv-rss-feed-generator](https://github.com/postlight/mercury-parser)
 - [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api)
 - [alphaXiv](https://www.alphaxiv.org/)
+- [youtube_rss_extractor](https://github.com/jeffkeeling/youtube_rss_extractor)
 
 ## 📝 License
 
