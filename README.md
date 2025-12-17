@@ -1,7 +1,9 @@
 <div align="center">
-<a href="https://github.com/CircularRuins/Komorebi">
-    <img src="https://github.com/CircularRuins/Komorebi/raw/main/build/AppIcon.appiconset/mac256pt1x.png" alt="Logo" width="120" height="120">
-  </a>
+    <a href="https://github.com/CircularRuins/Komorebi">
+    <img width="128" height="128" alt="mac128pt1x" src="https://github.com/user-attachments/assets/6cd7e263-01ac-42ec-bc8d-4de23a79d1b9" />
+    </a>
+
+
 
 <!-- <p align="center">
   <img width="120" height="120" src="https://github.com/CircularRuins/Komorebi/raw/main/build/AppIcon.appiconset/mac256pt1x.png">
@@ -35,6 +37,8 @@ Komorebi is a desktop application that supports Windows and macOS. You can [get 
 ### Simple UI
 
 Keep only essential features. Easy to use. Supports English, 简体中文, Español, 日本語.
+<img width="1476" height="936" alt="feature1" src="https://github.com/user-attachments/assets/ce3de2ae-d43c-4f54-a41a-21657d1ca6e6" />
+
 
 <!-- ![](https://github.com/CircularRuins/Komorebi/raw/main/docs/feature1.png) -->
 
@@ -42,19 +46,19 @@ Keep only essential features. Easy to use. Supports English, 简体中文, Espa�
 
 Subscribe to a vast range of feeds and curated lists. Curate your favorites and keep track of what matters most to you.
 
-![](https://github.com/user-attachments/assets/11dc7d21-f5d8-4e41-9269-24fc352aa02b)
+
 
 ### Dynamic Content Support
 
 From articles to videos, tweets to newsletters — Komorebi can display them in a compelling way.
 
-![](https://github.com/user-attachments/assets/d1379fd6-8767-476e-b0dc-d61753715e26)
+
 
 ### LLM-powered
 
 A smarter and more efficient browsing with LLM-powered features like translation, summary, extraction, and more.
 
-![](https://github.com/user-attachments/assets/37cf4f2f-4c5e-4775-86e8-2fa1a1b2ecf5)
+
 
 
 
@@ -64,9 +68,7 @@ Help make Komorebi better by reporting bugs or opening feature requests through 
 ## ☀️ Product Philosophy
 Komorebi (木漏れ日) is a Japanese word describing the dappled sunlight filtering through leaves and trees. 
 
-<!-- <p align="center">
-  <img width="256" height="256" src="https://github.com/CircularRuins/Komorebi/raw/main/build/icon.png">
-</p> -->
+
 
  Currently, AI is the hottest field—like the sun itself—and the vast amount of related information shines and burns like direct sunlight, overwhelming people with information anxiety. 
  
