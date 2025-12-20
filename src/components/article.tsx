@@ -440,7 +440,8 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             const result = await translateArticleWithTitle(
                 this.props.item.title,
                 content,
-                this.props.translationConfig
+                this.props.translationConfig,
+                targetLanguage
             )
             this.setState({
                 translatedContent: result.content,

@@ -69,13 +69,11 @@ A smarter and more efficient browsing with LLM-powered features like translation
 Help make Komorebi better by reporting bugs or opening feature requests through [GitHub issues](https://github.com/CircularRuins/Komorebi/issues). 
 
 ## ☀️ Product Philosophy
-Komorebi (木漏れ日) is a Japanese word describing the dappled sunlight filtering through leaves and trees. 
+**Komorebi (木漏れ日)** is a Japanese word that describes the soft, dappled sunlight filtering through leaves and trees.
 
+Today, AI is the hottest field—like the sun itself. An overwhelming flood of news, products, and research shines down relentlessly, often leaving people burned out and anxious rather than informed.
 
-
- Currently, AI is the hottest field—like the sun itself—and the vast amount of related information shines and burns like direct sunlight, overwhelming people with information anxiety. 
- 
- Komorebi aims to thoughtfully curate information sources and refine product features to deliver the best possible user experience, making the process of consuming information as enjoyable as bathing in komorebi—the gentle, dappled sunlight filtering through trees.
+Komorebi is designed to be a filter, not another beam of direct light. By carefully curating information sources and refining product features, it transforms the experience of staying informed into something calm, focused, and enjoyable—like standing beneath the trees, absorbing only the gentle warmth of komorebi.
 
 ## ❤️ Buy Me a Coffee
 This project will always be 100% open source and free. But if you feel like supporting it, I won’t pretend I don’t like coffee ☕️. [GitHub Sponsors](https://github.com/sponsors/yang991178), [Paypal](https://www.paypal.me/yang991178), or [Alipay](https://hyliu.me/komorebi/imgs/alipay.jpg).
