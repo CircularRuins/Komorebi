@@ -102,8 +102,10 @@ module.exports = [
             new CopyWebpackPlugin({
                 patterns: [
                     {
-                        from: path.resolve(__dirname, "src/more-sections"),
-                        to: path.resolve(__dirname, "dist/more-sections"),
+                        from: path.resolve(__dirname, "src/more-sections/images"),
+                        to: path.resolve(__dirname, "dist/more-sections/images"),
+                        // Copy images directory - markdown files reference these images
+                        // Markdown files themselves are bundled via imports in more-sections.ts
                     },
                     {
                         from: path.resolve(__dirname, "src/article"),
