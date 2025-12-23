@@ -105,6 +105,13 @@ module.exports = [
                         from: path.resolve(__dirname, "src/more-sections"),
                         to: path.resolve(__dirname, "dist/more-sections"),
                     },
+                    {
+                        from: path.resolve(__dirname, "src/article"),
+                        to: path.resolve(__dirname, "dist/article"),
+                        // Note: article.js is a standalone browser script that runs directly
+                        // It's not a module, so we copy it as-is rather than processing it through webpack
+                        // This ensures it executes correctly in the browser without module wrapper
+                    },
                 ],
             }),
         ],

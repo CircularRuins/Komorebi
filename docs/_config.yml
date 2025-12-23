@@ -1,0 +1,30 @@
+# Jekyll Configuration for Komorebi Product Page
+title: Komorebi
+description: An LLM-powered RSS reader tailored for AI professionals
+url: https://circularruins.github.io
+baseurl: /Komorebi
+
+# Build settings
+markdown: kramdown
+theme: minima
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+
+# Custom settings
+lang: en
+langs:
+  - en
+  - zh-CN
+
+

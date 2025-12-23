@@ -3,6 +3,8 @@ dist/*.js
 dist/*.js.map
 dist/*.html
 dist/*.LICENSE.txt
+dist/article
+dist/more-sections
 bin/*
 .DS_Store
 *.provisionprofile
