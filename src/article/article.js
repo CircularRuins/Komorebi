@@ -398,6 +398,173 @@ function renderTranscriptWithTranslation(containerId, videoId, targetLanguageCod
         }, 2000)
         scrollResumeTimers.set(transcriptId, timer)
     })
+    
+    // Setup selection actions for explain feature
+    setupSelectionActions(containerId, videoId)
+}
+
+/**
+ * Setup selection actions for explain feature
+ */
+function setupSelectionActions(containerId, videoId) {
+    const container = document.getElementById(containerId)
+    if (!container) return
+    
+    const transcriptContent = container.querySelector('.youtube-transcript-content')
+    if (!transcriptContent) return
+    
+    let currentSelectionButtons = null
+    
+    const clearSelection = () => {
+        const sel = window.getSelection()
+        if (sel && sel.rangeCount > 0) {
+            sel.removeAllRanges()
+        }
+        if (currentSelectionButtons) {
+            currentSelectionButtons.remove()
+            currentSelectionButtons = null
+        }
+    }
+    
+    const handleSelectionChange = () => {
+        const sel = window.getSelection()
+        if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+            clearSelection()
+            return
+        }
+        
+        const range = sel.getRangeAt(0)
+        const commonAncestor = range.commonAncestorContainer instanceof Element
+            ? range.commonAncestorContainer
+            : range.commonAncestorContainer?.parentElement ?? null
+        
+        // Check if selection is within transcript content
+        if (!commonAncestor || (!transcriptContent.contains(commonAncestor) && commonAncestor !== transcriptContent)) {
+            clearSelection()
+            return
+        }
+        
+        const text = sel.toString().trim()
+        if (!text) {
+            clearSelection()
+            return
+        }
+        
+        const rect = range.getBoundingClientRect()
+        if (!rect || (rect.width === 0 && rect.height === 0)) {
+            clearSelection()
+            return
+        }
+        
+        // Show action buttons
+        showSelectionActionButtons(rect, text, videoId, containerId)
+    }
+    
+    // Listen for selection events
+    const handleMouseUp = () => {
+        requestAnimationFrame(handleSelectionChange)
+    }
+    
+    const handleKeyUp = (event) => {
+        if (event.key === 'Shift' || event.key === 'Meta' || event.key === 'Control') return
+        requestAnimationFrame(handleSelectionChange)
+    }
+    
+    const handleScroll = () => {
+        if (currentSelectionButtons) {
+            clearSelection()
+        }
+    }
+    
+    // Add event listeners
+    document.addEventListener('mouseup', handleMouseUp)
+    document.addEventListener('keyup', handleKeyUp)
+    document.addEventListener('touchend', handleMouseUp)
+    document.addEventListener('scroll', handleScroll, true)
+    document.addEventListener('mousedown', clearSelection)
+    
+    // Store cleanup function
+    transcriptContent._selectionCleanup = () => {
+        document.removeEventListener('mouseup', handleMouseUp)
+        document.removeEventListener('keyup', handleKeyUp)
+        document.removeEventListener('touchend', handleMouseUp)
+        document.removeEventListener('scroll', handleScroll, true)
+        document.removeEventListener('mousedown', clearSelection)
+        clearSelection()
+    }
+}
+
+/**
+ * Show selection action buttons (Explain button)
+ */
+function showSelectionActionButtons(rect, selectedText, videoId, containerId) {
+    // Remove existing buttons
+    const existing = document.querySelector('.youtube-transcript-selection-actions')
+    if (existing) {
+        existing.remove()
+    }
+    
+    // Create buttons container
+    const buttonsContainer = document.createElement('div')
+    buttonsContainer.className = 'youtube-transcript-selection-actions'
+    buttonsContainer.setAttribute('data-video-id', videoId)
+    
+    // Create Explain button
+    const explainButton = document.createElement('button')
+    explainButton.className = 'youtube-transcript-selection-explain'
+    explainButton.textContent = i18n('transcript.explain', 'Explain')
+    explainButton.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        handleExplainSelection(selectedText, videoId, containerId)
+        buttonsContainer.remove()
+        const sel = window.getSelection()
+        if (sel && sel.rangeCount > 0) {
+            sel.removeAllRanges()
+        }
+    })
+    
+    buttonsContainer.appendChild(explainButton)
+    document.body.appendChild(buttonsContainer)
+    
+    // Position the buttons
+    const top = rect.top + window.scrollY - 48
+    const left = rect.left + window.scrollX + rect.width / 2
+    
+    buttonsContainer.style.top = `${Math.max(top, 12)}px`
+    buttonsContainer.style.left = `${left}px`
+    buttonsContainer.style.transform = 'translateX(-50%)'
+    
+    // Prevent clicks on buttons from clearing selection
+    buttonsContainer.addEventListener('mousedown', (e) => {
+        e.stopPropagation()
+    })
+}
+
+/**
+ * Handle explain selection - switch to chat tab and send message
+ */
+function handleExplainSelection(selectedText, videoId, containerId) {
+    if (!selectedText || !selectedText.trim()) return
+    
+    // Find the container
+    const container = document.getElementById(containerId)
+    if (!container) return
+    
+    // Switch to chat tab
+    const chatTab = container.querySelector('.youtube-transcript-tab[data-tab="chat"]')
+    if (chatTab) {
+        chatTab.click()
+    }
+    
+    // Wait a bit for chat tab to initialize, then trigger explain event
+    // Use a longer delay to ensure setupChatTab has completed
+    setTimeout(() => {
+        const prompt = `Explain "${selectedText.trim()}"`
+        window.dispatchEvent(new CustomEvent('tldw-explain-selection', {
+            detail: { text: prompt, videoId: videoId }
+        }))
+    }, 300)
 }
 
 /**
@@ -2020,6 +2187,31 @@ async function setupChatTab(container, videoId) {
     
     // Render initial messages
     renderMessages()
+    
+    // Listen for explain selection events
+    const handleExplainEvent = (event) => {
+        const customEvent = event
+        const detail = customEvent.detail
+        if (!detail || !detail.text || !detail.videoId || detail.videoId !== videoId) {
+            return
+        }
+        
+        // Ensure input element is available and send the message
+        if (inputElement && typeof sendMessage === 'function') {
+            inputElement.value = detail.text
+            // Use setTimeout to ensure the value is set before sending
+            setTimeout(() => {
+                sendMessage()
+            }, 50)
+        }
+    }
+    
+    window.addEventListener('tldw-explain-selection', handleExplainEvent)
+    
+    // Store cleanup function
+    chatContainer._explainCleanup = () => {
+        window.removeEventListener('tldw-explain-selection', handleExplainEvent)
+    }
 }
 
 /**

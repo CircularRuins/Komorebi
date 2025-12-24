@@ -339,6 +339,49 @@ article blockquote {
     background: #9ca3af;
 }
 
+/* Selection actions for explain feature */
+.youtube-transcript-selection-actions {
+    position: fixed;
+    z-index: 9999;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    animation: fadeIn 0.2s ease-out;
+    pointer-events: auto;
+}
+
+.youtube-transcript-selection-explain {
+    padding: 6px 10px;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: #374151;
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.youtube-transcript-selection-explain:hover {
+    background-color: rgba(0, 120, 212, 0.1);
+    color: #1f2937;
+    transform: scale(1.05);
+}
+
+.youtube-transcript-selection-explain:active {
+    transform: scale(1);
+    background-color: rgba(0, 120, 212, 0.15);
+}
+
 /* Loading and error states */
 .youtube-transcript-loading,
 .youtube-transcript-error {
