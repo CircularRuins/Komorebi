@@ -273,6 +273,8 @@
         "extracting": "抽出中...",
         "extractingQuotes": "引用を抽出中...",
         "failedToExtractQuotes": "引用の抽出に失敗しました：{error}",
+        "regenerateSummary": "要約を再生成",
+        "reextractQuotes": "引用を再抽出",
         "explain": "説明",
         "chat": {
             "placeholder": "動画について質問...",

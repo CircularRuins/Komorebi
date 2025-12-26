@@ -218,6 +218,8 @@
         "extracting": "Extrayendo...",
         "extractingQuotes": "Extrayendo citas...",
         "failedToExtractQuotes": "Error al extraer citas: {error}",
+        "regenerateSummary": "Regenerar resumen",
+        "reextractQuotes": "Re-extraer citas",
         "explain": "Explicar",
         "chat": {
             "placeholder": "Pregunta sobre el video...",

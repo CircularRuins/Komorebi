@@ -521,6 +521,8 @@
         "extracting": "Extracting...",
         "extractingQuotes": "Extracting quotes...",
         "failedToExtractQuotes": "Failed to extract quotes: {error}",
+        "regenerateSummary": "Regenerate Summary",
+        "reextractQuotes": "Re-extract Quotes",
         "explain": "Explain",
         "chat": {
             "placeholder": "Ask about the video...",

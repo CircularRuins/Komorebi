@@ -523,6 +523,8 @@
         "extracting": "提取中...",
         "extractingQuotes": "正在提取引用...",
         "failedToExtractQuotes": "提取引用失败：{error}",
+        "regenerateSummary": "重新生成摘要",
+        "reextractQuotes": "重新提取引用",
         "explain": "解释",
         "chat": {
             "placeholder": "询问视频内容...",

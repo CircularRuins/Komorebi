@@ -152,22 +152,216 @@ function formatTime(seconds) {
     return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
+// YouTube字幕、摘要和引用缓存工具函数（与feed图标缓存模式一致）
+const YOUTUBE_TRANSCRIPT_CACHE_PREFIX = "youtube-transcript-"
+const YOUTUBE_SUMMARY_CACHE_PREFIX = "youtube-summary-"
+const YOUTUBE_QUOTES_CACHE_PREFIX = "youtube-quotes-"
+const TRANSCRIPT_CACHE_EXPIRY_DAYS = 30 // 30天过期
+
+/**
+ * 从缓存获取 YouTube 字幕
+ * @param {string} videoId YouTube视频ID
+ * @returns {Array|null} 字幕数据，如果缓存不存在或已过期则返回 null
+ */
+function getCachedTranscript(videoId) {
+    try {
+        const cacheKey = YOUTUBE_TRANSCRIPT_CACHE_PREFIX + videoId
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+            const data = JSON.parse(cached)
+            const now = Date.now()
+            const expiryTime = data.timestamp + TRANSCRIPT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+            
+            // 检查是否过期（超过30天）
+            if (now < expiryTime) {
+                return data.transcript
+            } else {
+                // 缓存已过期，删除
+                localStorage.removeItem(cacheKey)
+            }
+        }
+    } catch (error) {
+        // 如果解析失败，忽略错误
+        console.warn('Failed to get cached transcript:', error)
+    }
+    return null
+}
+
+/**
+ * 保存 YouTube 字幕到缓存
+ * @param {string} videoId YouTube视频ID
+ * @param {Array} transcript 字幕数据
+ */
+function saveCachedTranscript(videoId, transcript) {
+    try {
+        const cacheKey = YOUTUBE_TRANSCRIPT_CACHE_PREFIX + videoId
+        const data = {
+            transcript: transcript,
+            timestamp: Date.now(),
+        }
+        localStorage.setItem(cacheKey, JSON.stringify(data))
+    } catch (error) {
+        // 如果存储失败（如 localStorage 已满），忽略错误
+        console.warn('Failed to save cached transcript:', error)
+    }
+}
+
+/**
+ * 从缓存获取 YouTube 摘要
+ * @param {string} videoId YouTube视频ID
+ * @returns {Object|null} 摘要数据，如果缓存不存在或已过期则返回 null
+ */
+function getCachedSummary(videoId) {
+    try {
+        const cacheKey = YOUTUBE_SUMMARY_CACHE_PREFIX + videoId
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+            const data = JSON.parse(cached)
+            const now = Date.now()
+            const expiryTime = data.timestamp + TRANSCRIPT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+            
+            // 检查是否过期（超过30天）
+            if (now < expiryTime) {
+                return data.summary
+            } else {
+                // 缓存已过期，删除
+                localStorage.removeItem(cacheKey)
+            }
+        }
+    } catch (error) {
+        // 如果解析失败，忽略错误
+        console.warn('Failed to get cached summary:', error)
+    }
+    return null
+}
+
+/**
+ * 保存 YouTube 摘要到缓存
+ * @param {string} videoId YouTube视频ID
+ * @param {Object} summary 摘要数据
+ */
+function saveCachedSummary(videoId, summary) {
+    try {
+        const cacheKey = YOUTUBE_SUMMARY_CACHE_PREFIX + videoId
+        const data = {
+            summary: summary,
+            timestamp: Date.now(),
+        }
+        localStorage.setItem(cacheKey, JSON.stringify(data))
+    } catch (error) {
+        // 如果存储失败（如 localStorage 已满），忽略错误
+        console.warn('Failed to save cached summary:', error)
+    }
+}
+
+/**
+ * 清除 YouTube 摘要缓存（内存和localStorage）
+ * @param {string} videoId YouTube视频ID
+ */
+function clearSummaryCache(videoId) {
+    try {
+        // 从内存Map删除
+        transcriptSummaries.delete(videoId)
+        // 从localStorage删除
+        const cacheKey = YOUTUBE_SUMMARY_CACHE_PREFIX + videoId
+        localStorage.removeItem(cacheKey)
+    } catch (error) {
+        // 如果清除失败，忽略错误
+        console.warn('Failed to clear summary cache:', error)
+    }
+}
+
+/**
+ * 从缓存获取 YouTube 引用
+ * @param {string} videoId YouTube视频ID
+ * @returns {Array|null} 引用数据，如果缓存不存在或已过期则返回 null
+ */
+function getCachedQuotes(videoId) {
+    try {
+        const cacheKey = YOUTUBE_QUOTES_CACHE_PREFIX + videoId
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+            const data = JSON.parse(cached)
+            const now = Date.now()
+            const expiryTime = data.timestamp + TRANSCRIPT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+            
+            // 检查是否过期（超过30天）
+            if (now < expiryTime) {
+                return data.quotes
+            } else {
+                // 缓存已过期，删除
+                localStorage.removeItem(cacheKey)
+            }
+        }
+    } catch (error) {
+        // 如果解析失败，忽略错误
+        console.warn('Failed to get cached quotes:', error)
+    }
+    return null
+}
+
+/**
+ * 保存 YouTube 引用到缓存
+ * @param {string} videoId YouTube视频ID
+ * @param {Array} quotes 引用数据
+ */
+function saveCachedQuotes(videoId, quotes) {
+    try {
+        const cacheKey = YOUTUBE_QUOTES_CACHE_PREFIX + videoId
+        const data = {
+            quotes: quotes,
+            timestamp: Date.now(),
+        }
+        localStorage.setItem(cacheKey, JSON.stringify(data))
+    } catch (error) {
+        // 如果存储失败（如 localStorage 已满），忽略错误
+        console.warn('Failed to save cached quotes:', error)
+    }
+}
+
+/**
+ * 清除 YouTube 引用缓存（内存和localStorage）
+ * @param {string} videoId YouTube视频ID
+ */
+function clearQuotesCache(videoId) {
+    try {
+        // 从内存Map删除
+        transcriptQuotes.delete(videoId)
+        // 从localStorage删除
+        const cacheKey = YOUTUBE_QUOTES_CACHE_PREFIX + videoId
+        localStorage.removeItem(cacheKey)
+    } catch (error) {
+        // 如果清除失败，忽略错误
+        console.warn('Failed to clear quotes cache:', error)
+    }
+}
+
 /**
  * Fetch transcript from YouTube using Electron API
+ * First checks cache, then falls back to API if cache miss or expired
  */
 async function fetchYouTubeTranscript(videoId) {
     try {
+        // First, check cache
+        const cachedTranscript = getCachedTranscript(videoId)
+        if (cachedTranscript && Array.isArray(cachedTranscript) && cachedTranscript.length > 0) {
+            return cachedTranscript
+        }
+        
+        // Cache miss or expired, fetch from API
         // Check if we're in Electron environment
         if (typeof window !== 'undefined' && window.utils && window.utils.getYouTubeTranscript) {
             const result = await window.utils.getYouTubeTranscript(videoId)
             
             // Check if result has error
             if (result && result.error) {
-                return null
+                return { error: result.error }
             }
             
             // Check if result is an array (successful transcript)
-            if (Array.isArray(result)) {
+            if (Array.isArray(result) && result.length > 0) {
+                // Save to cache for future use
+                saveCachedTranscript(videoId, result)
                 return result
             }
             
@@ -176,7 +370,8 @@ async function fetchYouTubeTranscript(videoId) {
             return null
         }
     } catch (error) {
-        return null
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        return { error: errorMessage }
     }
 }
 
@@ -1186,6 +1381,11 @@ function renderSummaryTakeaways(summary, videoId) {
     html += '</div>'
     html += '</div>'
     
+    // Add regenerate button at the end
+    html += '<div class="youtube-transcript-summary-regenerate-wrapper">'
+    html += `<button class="youtube-transcript-summary-regenerate" data-video-id="${videoId}" type="button">${i18n('transcript.regenerateSummary', 'Regenerate Summary')}</button>`
+    html += '</div>'
+    
     return html
 }
 
@@ -1211,9 +1411,17 @@ function setupSummaryTimestampHandlers(container, videoId) {
  * Generate summary for video transcript
  */
 async function generateSummary(videoId) {
-    // Check if summary already exists
+    // First, check memory cache
     if (transcriptSummaries.has(videoId)) {
         return transcriptSummaries.get(videoId)
+    }
+    
+    // Then, check localStorage cache
+    const cachedSummary = getCachedSummary(videoId)
+    if (cachedSummary && cachedSummary.overview && cachedSummary.takeaways && Array.isArray(cachedSummary.takeaways) && cachedSummary.takeaways.length > 0) {
+        // Store in memory cache for faster access
+        transcriptSummaries.set(videoId, cachedSummary)
+        return cachedSummary
     }
     
     // Get transcript data
@@ -1238,8 +1446,9 @@ async function generateSummary(videoId) {
             throw new Error('Empty summary received from API')
         }
         
-        // Cache the summary
+        // Cache the summary in memory and localStorage
         transcriptSummaries.set(videoId, summary)
+        saveCachedSummary(videoId, summary)
         
         return summary
     } catch (error) {
@@ -1365,6 +1574,11 @@ function renderQuotes(quotes, videoId) {
     html += '</ul>'
     html += '</div>'
     
+    // Add re-extract button at the end
+    html += '<div class="youtube-transcript-quotes-reextract-wrapper">'
+    html += `<button class="youtube-transcript-quotes-reextract" data-video-id="${videoId}" type="button">${i18n('transcript.reextractQuotes', 'Re-extract Quotes')}</button>`
+    html += '</div>'
+    
     return html
 }
 
@@ -1423,9 +1637,17 @@ function extractArticleSnippet() {
  * Extract quotes for video transcript
  */
 async function generateQuotes(videoId) {
-    // Check if quotes already exists
+    // First, check memory cache
     if (transcriptQuotes.has(videoId)) {
         return transcriptQuotes.get(videoId)
+    }
+    
+    // Then, check localStorage cache
+    const cachedQuotes = getCachedQuotes(videoId)
+    if (cachedQuotes && Array.isArray(cachedQuotes) && cachedQuotes.length > 0) {
+        // Store in memory cache for faster access
+        transcriptQuotes.set(videoId, cachedQuotes)
+        return cachedQuotes
     }
     
     // Get transcript data
@@ -1450,8 +1672,9 @@ async function generateQuotes(videoId) {
             throw new Error('Empty quotes received from API')
         }
         
-        // Cache the quotes
+        // Cache the quotes in memory and localStorage
         transcriptQuotes.set(videoId, quotes)
+        saveCachedQuotes(videoId, quotes)
         
         return quotes
     } catch (error) {
@@ -1529,6 +1752,52 @@ async function setupQuotesTab(container, videoId) {
         const htmlQuotes = renderQuotes(existingQuotes, videoId)
         quotesContent.innerHTML = htmlQuotes
         setupQuotesTimestampHandlers(quotesContent, videoId)
+        
+        // Setup re-extract button click handler
+        const handleReextractQuotes = async () => {
+            // Disable button and show loading
+            quotesContent.innerHTML = '<div class="youtube-transcript-quotes-loading">' + i18n('transcript.extractingQuotes', 'Extracting quotes...') + '</div>'
+            
+            try {
+                // Clear cache before re-extracting
+                clearQuotesCache(videoId)
+                // Re-extract quotes
+                const quotes = await generateQuotes(videoId)
+                // Display new quotes
+                const htmlQuotes = renderQuotes(quotes, videoId)
+                quotesContent.innerHTML = htmlQuotes
+                setupQuotesTimestampHandlers(quotesContent, videoId)
+                
+                // Setup re-extract button again for the new content
+                const newReextractButton = quotesContent.querySelector('.youtube-transcript-quotes-reextract')
+                if (newReextractButton) {
+                    newReextractButton.addEventListener('click', handleReextractQuotes)
+                }
+            } catch (error) {
+                console.error('Error re-extracting quotes:', error)
+                const errorMessage = error instanceof Error ? error.message : String(error)
+                const failedMessage = i18n('transcript.failedToExtractQuotes', 'Failed to extract quotes: {error}')
+                quotesContent.innerHTML = `
+                    <div class="youtube-transcript-quotes-error">
+                        <div>${failedMessage.replace('{error}', errorMessage)}</div>
+                        <button class="youtube-transcript-quotes-retry">${i18n('transcript.retry', 'Retry')}</button>
+                    </div>
+                `
+                
+                // Setup retry button
+                const retryButton = quotesContent.querySelector('.youtube-transcript-quotes-retry')
+                if (retryButton) {
+                    retryButton.addEventListener('click', () => {
+                        setupQuotesTab(container, videoId)
+                    })
+                }
+            }
+        }
+        
+        const reextractButton = quotesContent.querySelector('.youtube-transcript-quotes-reextract')
+        if (reextractButton) {
+            reextractButton.addEventListener('click', handleReextractQuotes)
+        }
     } else {
         // Show Extract button
         quotesContent.innerHTML = `
@@ -1552,6 +1821,52 @@ async function setupQuotesTab(container, videoId) {
                     const htmlQuotes = renderQuotes(quotes, videoId)
                     quotesContent.innerHTML = htmlQuotes
                     setupQuotesTimestampHandlers(quotesContent, videoId)
+                    
+                    // Setup re-extract button for the new content
+                    const handleReextractQuotes = async () => {
+                        // Disable button and show loading
+                        quotesContent.innerHTML = '<div class="youtube-transcript-quotes-loading">' + i18n('transcript.extractingQuotes', 'Extracting quotes...') + '</div>'
+                        
+                        try {
+                            // Clear cache before re-extracting
+                            clearQuotesCache(videoId)
+                            // Re-extract quotes
+                            const newQuotes = await generateQuotes(videoId)
+                            // Display new quotes
+                            const htmlQuotes = renderQuotes(newQuotes, videoId)
+                            quotesContent.innerHTML = htmlQuotes
+                            setupQuotesTimestampHandlers(quotesContent, videoId)
+                            
+                            // Setup re-extract button again for the new content
+                            const newReextractButton = quotesContent.querySelector('.youtube-transcript-quotes-reextract')
+                            if (newReextractButton) {
+                                newReextractButton.addEventListener('click', handleReextractQuotes)
+                            }
+                        } catch (error) {
+                            console.error('Error re-extracting quotes:', error)
+                            const errorMessage = error instanceof Error ? error.message : String(error)
+                            const failedMessage = i18n('transcript.failedToExtractQuotes', 'Failed to extract quotes: {error}')
+                            quotesContent.innerHTML = `
+                                <div class="youtube-transcript-quotes-error">
+                                    <div>${failedMessage.replace('{error}', errorMessage)}</div>
+                                    <button class="youtube-transcript-quotes-retry">${i18n('transcript.retry', 'Retry')}</button>
+                                </div>
+                            `
+                            
+                            // Setup retry button
+                            const retryButton = quotesContent.querySelector('.youtube-transcript-quotes-retry')
+                            if (retryButton) {
+                                retryButton.addEventListener('click', () => {
+                                    setupQuotesTab(container, videoId)
+                                })
+                            }
+                        }
+                    }
+                    
+                    const reextractButton = quotesContent.querySelector('.youtube-transcript-quotes-reextract')
+                    if (reextractButton) {
+                        reextractButton.addEventListener('click', handleReextractQuotes)
+                    }
                 } catch (error) {
                     console.error('Error extracting quotes:', error)
                     const errorMessage = error instanceof Error ? error.message : String(error)
@@ -1630,6 +1945,52 @@ async function setupSummaryTab(container, videoId) {
         const htmlSummary = renderSummaryTakeaways(existingSummary, videoId)
         summaryContent.innerHTML = htmlSummary
         setupSummaryTimestampHandlers(summaryContent, videoId)
+        
+        // Setup regenerate button click handler
+        const handleRegenerateSummary = async () => {
+            // Disable button and show loading
+            summaryContent.innerHTML = '<div class="youtube-transcript-summary-loading">' + i18n('transcript.generatingSummary', 'Generating summary...') + '</div>'
+            
+            try {
+                // Clear cache before regenerating
+                clearSummaryCache(videoId)
+                // Regenerate summary
+                const takeaways = await generateSummary(videoId)
+                // Display new summary (render as structured takeaways)
+                const htmlSummary = renderSummaryTakeaways(takeaways, videoId)
+                summaryContent.innerHTML = htmlSummary
+                setupSummaryTimestampHandlers(summaryContent, videoId)
+                
+                // Setup regenerate button again for the new content
+                const newRegenerateButton = summaryContent.querySelector('.youtube-transcript-summary-regenerate')
+                if (newRegenerateButton) {
+                    newRegenerateButton.addEventListener('click', handleRegenerateSummary)
+                }
+            } catch (error) {
+                console.error('Error regenerating summary:', error)
+                const errorMessage = error instanceof Error ? error.message : String(error)
+                const failedMessage = i18n('transcript.failedToGenerateSummary', 'Failed to generate summary: {error}')
+                summaryContent.innerHTML = `
+                    <div class="youtube-transcript-summary-error">
+                        <div>${failedMessage.replace('{error}', errorMessage)}</div>
+                        <button class="youtube-transcript-summary-retry">${i18n('transcript.retry', 'Retry')}</button>
+                    </div>
+                `
+                
+                // Setup retry button
+                const retryButton = summaryContent.querySelector('.youtube-transcript-summary-retry')
+                if (retryButton) {
+                    retryButton.addEventListener('click', () => {
+                        setupSummaryTab(container, videoId)
+                    })
+                }
+            }
+        }
+        
+        const regenerateButton = summaryContent.querySelector('.youtube-transcript-summary-regenerate')
+        if (regenerateButton) {
+            regenerateButton.addEventListener('click', handleRegenerateSummary)
+        }
     } else {
         // Show Generate button
         summaryContent.innerHTML = `
@@ -1653,6 +2014,52 @@ async function setupSummaryTab(container, videoId) {
                     const htmlSummary = renderSummaryTakeaways(takeaways, videoId)
                     summaryContent.innerHTML = htmlSummary
                     setupSummaryTimestampHandlers(summaryContent, videoId)
+                    
+                    // Setup regenerate button for the new content
+                    const handleRegenerateSummary = async () => {
+                        // Disable button and show loading
+                        summaryContent.innerHTML = '<div class="youtube-transcript-summary-loading">' + i18n('transcript.generatingSummary', 'Generating summary...') + '</div>'
+                        
+                        try {
+                            // Clear cache before regenerating
+                            clearSummaryCache(videoId)
+                            // Regenerate summary
+                            const newTakeaways = await generateSummary(videoId)
+                            // Display new summary (render as structured takeaways)
+                            const htmlSummary = renderSummaryTakeaways(newTakeaways, videoId)
+                            summaryContent.innerHTML = htmlSummary
+                            setupSummaryTimestampHandlers(summaryContent, videoId)
+                            
+                            // Setup regenerate button again for the new content
+                            const newRegenerateButton = summaryContent.querySelector('.youtube-transcript-summary-regenerate')
+                            if (newRegenerateButton) {
+                                newRegenerateButton.addEventListener('click', handleRegenerateSummary)
+                            }
+                        } catch (error) {
+                            console.error('Error regenerating summary:', error)
+                            const errorMessage = error instanceof Error ? error.message : String(error)
+                            const failedMessage = i18n('transcript.failedToGenerateSummary', 'Failed to generate summary: {error}')
+                            summaryContent.innerHTML = `
+                                <div class="youtube-transcript-summary-error">
+                                    <div>${failedMessage.replace('{error}', errorMessage)}</div>
+                                    <button class="youtube-transcript-summary-retry">${i18n('transcript.retry', 'Retry')}</button>
+                                </div>
+                            `
+                            
+                            // Setup retry button
+                            const retryButton = summaryContent.querySelector('.youtube-transcript-summary-retry')
+                            if (retryButton) {
+                                retryButton.addEventListener('click', () => {
+                                    setupSummaryTab(container, videoId)
+                                })
+                            }
+                        }
+                    }
+                    
+                    const regenerateButton = summaryContent.querySelector('.youtube-transcript-summary-regenerate')
+                    if (regenerateButton) {
+                        regenerateButton.addEventListener('click', handleRegenerateSummary)
+                    }
                 } catch (error) {
                     console.error('Error generating summary:', error)
                     const errorMessage = error instanceof Error ? error.message : String(error)
@@ -2506,7 +2913,29 @@ async function renderTranscript(containerId, videoId) {
     // Fetch transcript from YouTube
     const transcript = await fetchYouTubeTranscript(videoId)
     
-    // If transcript fetch failed, show error message
+    // Check if transcript fetch failed or returned an error
+    if (transcript && transcript.error) {
+        // Show specific error message
+        const errorMessage = transcript.error
+        container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>' + transcriptTab + '</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">' + aiSummaryTab + '</button><button class="youtube-transcript-tab" data-tab="quotes">' + quotesTab + '</button><button class="youtube-transcript-tab" data-tab="chat">' + chatTab + '</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-error"><div>' + escapeHtml(errorMessage) + '</div><button class="youtube-transcript-reload">' + reloadText + '</button></div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="quotes" style="display: none;"><div class="youtube-transcript-quotes"><div class="youtube-transcript-quotes-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="chat" style="display: none;"><div class="youtube-transcript-chat"></div></div></div>'
+        setupTabSwitching(container)
+        setupTranscriptLanguageMenu(container, videoId)
+        
+        // Setup reload button
+        const transcriptContent = container.querySelector('.youtube-transcript-content')
+        if (transcriptContent) {
+            const reloadButton = transcriptContent.querySelector('.youtube-transcript-reload')
+            if (reloadButton) {
+                reloadButton.addEventListener('click', () => {
+                    renderTranscript(containerId, videoId)
+                })
+            }
+        }
+        
+        return
+    }
+    
+    // If transcript is null or empty array, show "not available" message
     if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
         container.innerHTML = '<div class="youtube-transcript"><div class="youtube-transcript-tabs"><button class="youtube-transcript-tab active" data-tab="transcript"><span>' + transcriptTab + '</span><span class="youtube-transcript-language-chevron" data-video-id="' + videoId + '"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><button class="youtube-transcript-tab" data-tab="summary">' + aiSummaryTab + '</button><button class="youtube-transcript-tab" data-tab="quotes">' + quotesTab + '</button><button class="youtube-transcript-tab" data-tab="chat">' + chatTab + '</button></div><div class="youtube-transcript-tab-content" data-content="transcript"><div class="youtube-transcript-content"><div class="youtube-transcript-error"><div>' + notAvailableText + '</div><button class="youtube-transcript-reload">' + reloadText + '</button></div></div></div><div class="youtube-transcript-tab-content" data-content="summary" style="display: none;"><div class="youtube-transcript-summary"><div class="youtube-transcript-summary-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="quotes" style="display: none;"><div class="youtube-transcript-quotes"><div class="youtube-transcript-quotes-content"></div></div></div><div class="youtube-transcript-tab-content" data-content="chat" style="display: none;"><div class="youtube-transcript-chat"></div></div></div>'
         setupTabSwitching(container)
