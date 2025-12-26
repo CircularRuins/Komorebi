@@ -1134,8 +1134,7 @@ export function aiModeReducer(
                     'hyde-generation': intl.get("settings.aiMode.progress.steps.hydeGeneration"),
                     'vector-retrieval': intl.get("settings.aiMode.progress.steps.vectorRetrieval"),
                     'calculate-similarity': intl.get("settings.aiMode.progress.steps.calculateSimilarity"),
-                    'llm-refine': intl.get("settings.aiMode.progress.steps.llmRefine"),
-                    'classify-articles': intl.get("settings.aiMode.progress.steps.classifyArticles")
+                    'llm-refine': intl.get("settings.aiMode.progress.steps.llmRefine")
                 }
                 const stepTitle = stepTitles[action.stepId] || action.stepId
                 const newStep: QueryProgressStep = {

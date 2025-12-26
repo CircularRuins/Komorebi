@@ -273,6 +273,10 @@
                     "classificationCompletedNoResults": "分类完成，但没有有效的分类结果",
                     "mergingDuplicateCategories": "正在合并重复的分类...",
                     "classificationCompleted": "已完成分类，共 {count} 个分类",
+                    "classifyingArticles": "正在分类 {count} 篇文章...",
+                    "classificationFailed": "文章分类失败",
+                    "noArticlesToClassify": "没有文章需要分类",
+                    "startClassifying": "开始分类文章...",
                     "filterByTimeRange": "根据时间范围筛选",
                     "skipSimilarityCalculation": "文章数量({count})小于等于TopK({topk})，跳过相似度计算",
                     "recognizingIntent": "正在识别查询意图\"{topic}\"...",
@@ -320,6 +324,7 @@
                 "topkInvalid": "TopK必须是大于0的正整数",
                 "queryFailed": "查询失败，请稍后重试",
                 "clusterFailed": "分类分析失败，已显示原始文章列表",
+                "classificationFailed": "文章分类失败",
                 "configIncomplete": "请先完成AI配置（在设置中配置）",
                 "configNotSet": "AI配置未设置",
                 "openConfig": "打开配置"
@@ -518,6 +523,7 @@
         "extracting": "提取中...",
         "extractingQuotes": "正在提取引用...",
         "failedToExtractQuotes": "提取引用失败：{error}",
+        "explain": "解释",
         "chat": {
             "placeholder": "询问视频内容...",
             "send": "发送",

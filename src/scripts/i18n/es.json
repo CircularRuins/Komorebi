@@ -214,6 +214,20 @@
         "generating": "Generando...",
         "generatingSummary": "Generando resumen...",
         "failedToGenerateSummary": "Error al generar resumen: {error}",
-        "retry": "Reintentar"
+        "retry": "Reintentar",
+        "extracting": "Extrayendo...",
+        "extractingQuotes": "Extrayendo citas...",
+        "failedToExtractQuotes": "Error al extraer citas: {error}",
+        "explain": "Explicar",
+        "chat": {
+            "placeholder": "Pregunta sobre el video...",
+            "send": "Enviar",
+            "loading": "Pensando...",
+            "error": "Error al obtener respuesta",
+            "configIncomplete": "Modelo de IA no configurado",
+            "configIncompleteMessage": "Por favor configure primero la configuración de Chat API.",
+            "apiNotAvailable": "Chat API no disponible",
+            "transcriptNotAvailable": "Transcripción no disponible"
+        }
     }
 }

@@ -271,6 +271,10 @@
                     "classificationCompletedNoResults": "Classification completed, but no valid classification results",
                     "mergingDuplicateCategories": "Merging duplicate categories...",
                     "classificationCompleted": "Classification completed, {count} categories in total",
+                    "classifyingArticles": "Classifying {count} articles...",
+                    "classificationFailed": "Article classification failed",
+                    "noArticlesToClassify": "No articles to classify",
+                    "startClassifying": "Starting classification...",
                     "filterByTimeRange": "Filter by Time Range",
                     "skipSimilarityCalculation": "Article count ({count}) is less than or equal to TopK ({topk}), skipping similarity calculation",
                     "recognizingIntent": "Recognizing query intent \"{topic}\"...",
@@ -318,6 +322,7 @@
                 "topkInvalid": "TopK must be a positive integer greater than 0",
                 "queryFailed": "Query failed, please try again later",
                 "clusterFailed": "Classification analysis failed, showing original article list",
+                "classificationFailed": "Article classification failed",
                 "configIncomplete": "Please complete AI configuration first (configure in settings)",
                 "configNotSet": "AI Configuration Not Set",
                 "openConfig": "Open Config"
@@ -516,6 +521,7 @@
         "extracting": "Extracting...",
         "extractingQuotes": "Extracting quotes...",
         "failedToExtractQuotes": "Failed to extract quotes: {error}",
+        "explain": "Explain",
         "chat": {
             "placeholder": "Ask about the video...",
             "send": "Send",

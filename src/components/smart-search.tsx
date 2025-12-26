@@ -72,7 +72,6 @@ import {
     consolidate,
     ConsolidateConfig,
     ConsolidateCallbacks,
-    normalizeApiEndpoint,
 } from "../scripts/consolidate"
 
 // 重新导出类型以便其他文件使用
@@ -491,7 +490,7 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
             { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: 'in_progress', message: intl.get("settings.aiMode.progress.messages.querying"), visible: true }
         ]
         
-        // 注意：所有后续步骤（vector-retrieval, llm-refine, classify-articles）
+        // 注意：所有后续步骤（vector-retrieval, llm-refine）
         // 都根据实际执行情况动态添加，不在这里预先添加
         // 注意：calculate-similarity 不再作为独立步骤，它现在是 vector-retrieval 的子步骤
         
@@ -559,7 +558,7 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
 
 
     // ==================== 主函数: 查询符合条件的文章（使用consolidate函数）====================
-    queryArticles = async (timeRangeDays: number | null, topic: string | null): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, tokenStatistics: TokenStatistics }> => {
+    queryArticles = async (timeRangeDays: number | null, topic: string | null): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, tokenStatistics: TokenStatistics, summaries: Map<number, string>, reasons: Map<number, string>, clusters: ArticleCluster[] }> => {
         const { aiMode, updateQueryProgress } = this.props
         
         // 从 window.settings 读取配置（与检查配置的地方一致）
@@ -715,9 +714,9 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
             // 解析时间范围
             const timeRangeDays = this.parseTimeRange(timeRange)
 
-            // 查询文章（根据时间范围和话题）
+            // 查询文章（根据时间范围和话题，包括分类）
             const result = await this.queryArticles(timeRangeDays, currentTopic)
-            const { articles, timeRangeHasArticles, topicGuidance, tokenStatistics } = result
+            const { articles, timeRangeHasArticles, topicGuidance, tokenStatistics, summaries, reasons, clusters } = result
             
             // 保存时间范围内是否有文章的信息
             setTimeRangeHasArticles(timeRangeHasArticles)
@@ -799,21 +798,18 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
                 dispatch(fetchItemsSuccess(articlesWithValidSources, itemState))
             }
             
-            // 保存筛选后的文章列表
+            // 保存筛选后的文章列表和分类结果
             setArticleCount(articlesWithValidSources.length)
             setFilteredArticles(articlesWithValidSources)
-            setClusters([])
+            setClusters(clusters)  // 直接使用 consolidate 返回的 clusters
             setError(null) // 清除错误状态
             setLoading(false)
+            setClustering(false)  // consolidate 已完成，包括分类步骤
             
             // 如果无文章，完成查询进度并保持在进度界面
             // consolidate 函数已经更新了 queryProgress，只包含实际执行的步骤，移除了所有未执行的步骤
             // 这里不需要再做任何处理，直接使用 consolidate 函数更新后的 queryProgress
             if (articlesWithValidSources.length === 0) {
-                // 确保分类相关状态已清除
-                setClustering(false)
-                setClusters([])
-                
                 if (typeof window !== 'undefined') {
                     const event = new CustomEvent('smartSearchUpdated')
                     window.dispatchEvent(event)
@@ -821,9 +817,8 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
                 return
             }
             
-            // 不执行分类步骤，直接展示所有文章
-            setClustering(false)
-            setShowResults(false)  // 不自动显示结果，等待用户点击按钮
+            // 不自动显示结果，等待用户点击按钮
+            setShowResults(false)
             if (typeof window !== 'undefined') {
                 const event = new CustomEvent('smartSearchUpdated')
                 window.dispatchEvent(event)
@@ -1203,7 +1198,7 @@ export class SmartSearchComponent extends React.Component<SmartSearchProps> {
                         const defaultStatus = isCompleted ? 'completed' as const : 'in_progress' as const
                         const defaultMessage = isCompleted ? intl.get("settings.aiMode.progress.messages.completed") : intl.get("settings.aiMode.progress.messages.querying")
                         
-                        // 注意：分类步骤由 initializeQueryProgress 根据是否有话题和分类依据决定是否添加
+                        // 注意：不再进行分类步骤
                         // 注意：calculate-similarity 不再作为独立步骤，它现在是 vector-retrieval 的子步骤
                         progress = {
                             steps: [

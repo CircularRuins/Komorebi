@@ -749,6 +749,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 extracting: getI18n("transcript.extracting", "Extracting..."),
                 extractingQuotes: getI18n("transcript.extractingQuotes", "Extracting quotes..."),
                 failedToExtractQuotes: getI18n("transcript.failedToExtractQuotes", "Failed to extract quotes: {error}"),
+                explain: getI18n("transcript.explain", "Explain"),
                 chat: {
                     placeholder: getI18n("transcript.chat.placeholder", "Ask about the video..."),
                     send: getI18n("transcript.chat.send", "Send"),

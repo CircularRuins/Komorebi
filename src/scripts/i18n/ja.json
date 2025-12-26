@@ -269,6 +269,20 @@
         "generating": "生成中...",
         "generatingSummary": "要約を生成中...",
         "failedToGenerateSummary": "要約の生成に失敗しました：{error}",
-        "retry": "再試行"
+        "retry": "再試行",
+        "extracting": "抽出中...",
+        "extractingQuotes": "引用を抽出中...",
+        "failedToExtractQuotes": "引用の抽出に失敗しました：{error}",
+        "explain": "説明",
+        "chat": {
+            "placeholder": "動画について質問...",
+            "send": "送信",
+            "loading": "考え中...",
+            "error": "応答の取得に失敗しました",
+            "configIncomplete": "AIモデルが設定されていません",
+            "configIncompleteMessage": "まずChat API設定を行ってください。",
+            "apiNotAvailable": "Chat APIが利用できません",
+            "transcriptNotAvailable": "字幕が利用できません"
+        }
     }
 }

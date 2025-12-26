@@ -530,7 +530,7 @@ export async function stepLLMRefine(
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks,
     tokenStatistics?: TokenStatistics
-): Promise<RSSItem[]> {
+): Promise<{ articles: RSSItem[], summaries: Map<number, string>, reasons: Map<number, string> }> {
     const { chatApiKey, model, chatApiBaseURL } = config
 
     if (!chatApiBaseURL) {
@@ -540,12 +540,12 @@ export async function stepLLMRefine(
     if (articles.length === 0) {
         // 即使没有文章，也要更新步骤状态，确保步骤可见
         callbacks.updateStepStatus('llm-refine', 'completed', intl.get("settings.aiMode.progress.messages.noRelatedArticlesAfterLLM"))
-        return []
+        return { articles: [], summaries: new Map<number, string>(), reasons: new Map<number, string>() }
     }
 
     callbacks.updateStepStatus('llm-refine', 'in_progress', intl.get("settings.aiMode.progress.messages.llmFiltering", { count: articles.length }), 0)
 
-    const batchSize = 5 // 每批最多5篇文章
+    const batchSize = 1 // 每批1篇文章，并行处理
     const totalArticles = articles.length
     const totalBatches = Math.ceil(totalArticles / batchSize)
     
@@ -561,6 +561,10 @@ export async function stepLLMRefine(
     // 用于跟踪已完成的批次数量
     let completedCount = 0
     const allRelatedIndices = new Set<number>()
+    // 存储文章索引到概括的映射
+    const articleSummaries = new Map<number, string>()
+    // 存储文章索引到判断依据的映射
+    const articleReasons = new Map<number, string>()
     
     // 更新进度的辅助函数（带节流）
     const updateProgress = () => {
@@ -584,7 +588,7 @@ export async function stepLLMRefine(
             // 准备当前批次的文章文本
             const articlesText = batch.map((article, index) => {
                 const dateStr = article.date.toLocaleDateString('en-US')
-                const snippet = ((article.snippet || '') + ' ' + (article.content ? article.content.substring(0, 500) : '')).trim()
+                const snippet = ((article.snippet || '') + ' ' + (article.content || '')).trim()
                 return `Article ${index}:
 Title: ${article.title}
 Published Date: ${dateStr}
@@ -667,21 +671,24 @@ Summary: ${snippet}`
                     throw new Error(`LLM精选失败：批次 ${batchNumber} 无法解析LLM返回的JSON响应`)
                 }
 
-                // 提取相关文章索引
-                if (responseData.relatedArticleIndices && Array.isArray(responseData.relatedArticleIndices)) {
-                    responseData.relatedArticleIndices.forEach((idx: number) => {
-                        if (typeof idx === 'number' && idx >= 0 && idx < batch.length) {
-                            // 将批次内的索引转换为全局索引
-                            const globalIndex = batchStart + idx
-                            if (globalIndex >= 0 && globalIndex < articles.length) {
-                                allRelatedIndices.add(globalIndex)
-                            }
-                        }
-                    })
+                // 提取相关文章索引和判断依据（每批只有1篇文章，索引为0）
+                const batchIndex = 0
+                const globalIndex = batchStart + batchIndex
+                
+                if (responseData.related !== undefined) {
+                    // 提取并存储判断依据（无论是否相关都应该有reason）
+                    if (responseData.reason && typeof responseData.reason === 'string' && responseData.reason.trim()) {
+                        articleReasons.set(globalIndex, responseData.reason.trim())
+                    }
+                    
+                    // 如果文章相关，添加到结果中
+                    if (responseData.related === true && globalIndex >= 0 && globalIndex < articles.length) {
+                        allRelatedIndices.add(globalIndex)
+                    }
                 } else {
                     // 如果响应格式不正确，抛出错误（严格模式）
                     updateProgress()
-                    throw new Error(`LLM精选失败：批次 ${batchNumber} LLM返回的响应中缺少relatedArticleIndices字段`)
+                    throw new Error(`LLM精选失败：批次 ${batchNumber} LLM返回的响应中缺少related字段`)
                 }
             } else {
                 // 如果API调用失败或没有响应，抛出错误（严格模式）
@@ -726,14 +733,14 @@ Summary: ${snippet}`
     // 根据筛选结果返回相关文章
     const refinedArticles = articles.filter((_, index) => allRelatedIndices.has(index))
     
-    // 如果筛选后没有文章，返回空数组
+    // 如果筛选后没有文章，返回空数组和空Map
     if (refinedArticles.length === 0) {
         callbacks.updateStepStatus('llm-refine', 'completed', intl.get("settings.aiMode.progress.messages.noRelatedArticlesAfterLLM"))
-        return []
+        return { articles: [], summaries: new Map<number, string>(), reasons: new Map<number, string>() }
     }
     
     callbacks.updateStepStatus('llm-refine', 'completed', intl.get("settings.aiMode.progress.messages.llmFilteringCompleted", { total: articles.length, refined: refinedArticles.length }))
-    return refinedArticles
+    return { articles: refinedArticles, summaries: articleSummaries, reasons: articleReasons }
 }
 
 // ==================== 主函数 ====================
@@ -745,7 +752,7 @@ export async function consolidate(
     classificationStandard: string | null,
     config: ConsolidateConfig,
     callbacks: ConsolidateCallbacks
-): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, tokenStatistics: TokenStatistics }> {
+): Promise<{ articles: RSSItem[], timeRangeHasArticles: boolean, topicGuidance: string | null, tokenStatistics: TokenStatistics, summaries: Map<number, string>, reasons: Map<number, string>, clusters: ArticleCluster[] }> {
     // 初始化token统计
     const tokenStatistics = createInitialTokenStatistics()
     
@@ -822,7 +829,7 @@ export async function consolidate(
                 { id: 'query-db', title: intl.get("settings.aiMode.progress.steps.queryDb"), status: 'completed', message: queryDbMessage, visible: true }
             ]
             
-            // 完全替换 steps，确保移除所有未执行的步骤（包括 classify-articles）
+            // 完全替换 steps，确保移除所有未执行的步骤
             callbacks.updateQueryProgress({
                 steps,
                 currentStepIndex: 0,
@@ -834,7 +841,7 @@ export async function consolidate(
         if (callbacks.updateTokenStatistics) {
             callbacks.updateTokenStatistics(tokenStatistics)
         }
-        return { articles: [], timeRangeHasArticles: false, topicGuidance: null, tokenStatistics }
+        return { articles: [], timeRangeHasArticles: false, topicGuidance: null, tokenStatistics, summaries: new Map<number, string>(), reasons: new Map<number, string>(), clusters: [] }
     }
 
     // 如果没有话题，直接返回所有文章
@@ -843,7 +850,7 @@ export async function consolidate(
         if (callbacks.updateTokenStatistics) {
             callbacks.updateTokenStatistics(tokenStatistics)
         }
-        return { articles: items, timeRangeHasArticles: true, topicGuidance: null, tokenStatistics }
+        return { articles: items, timeRangeHasArticles: true, topicGuidance: null, tokenStatistics, summaries: new Map<number, string>(), reasons: new Map<number, string>(), clusters: [] }
     }
 
     const trimmedTopic = topic.trim()
@@ -890,7 +897,7 @@ export async function consolidate(
                     currentMessage: intl.get("settings.aiMode.progress.messages.completed")
                 })
             }
-            return { articles: [], timeRangeHasArticles: true, topicGuidance, tokenStatistics }
+            return { articles: [], timeRangeHasArticles: true, topicGuidance, tokenStatistics, summaries: new Map<number, string>(), reasons: new Map<number, string>(), clusters: [] }
         }
         
         // 更新queryProgress，标记初筛完成，准备LLM精选
@@ -927,7 +934,10 @@ export async function consolidate(
     }
     
     // 步骤2: LLM精选（使用改写后的查询，对文章进行筛选）
-    const refinedArticles = await stepLLMRefine(articlesToRefine, topicGuidance, normalizedConfig, callbacks, tokenStatistics)
+    const refineResult = await stepLLMRefine(articlesToRefine, topicGuidance, normalizedConfig, callbacks, tokenStatistics)
+    const refinedArticles = refineResult.articles
+    const articleSummaries = refineResult.summaries
+    const articleReasons = refineResult.reasons
     
     // 如果LLM精选后没有文章，更新 queryProgress，只保留已执行的步骤
     if (refinedArticles.length === 0) {
@@ -952,23 +962,33 @@ export async function consolidate(
                 currentMessage: intl.get("settings.aiMode.progress.messages.completed")
             })
         }
-        return { articles: [], timeRangeHasArticles: true, topicGuidance, tokenStatistics }
+        return { articles: [], timeRangeHasArticles: true, topicGuidance, tokenStatistics, summaries: new Map<number, string>(), reasons: new Map<number, string>(), clusters: [] }
     }
     
-    return { articles: refinedArticles, timeRangeHasArticles: true, topicGuidance, tokenStatistics }
-}
-
-// ==================== 分类函数 ====================
-// 注意：分类功能已移除，此函数保留仅为向后兼容，实际不会被调用
-export async function classifyArticles(
-    articles: RSSItem[],
-    topicGuidance: string | null,
-    classificationGuidance: string | null,
-    config: ConsolidateConfig,
-    callbacks: ConsolidateCallbacks,
-    tokenStatistics?: TokenStatistics
-): Promise<ArticleCluster[]> {
-    // 分类功能已移除，返回空数组
-    return []
+    // 完成查询，不再进行分类
+    if (callbacks.updateQueryProgress) {
+        const currentSteps: QueryProgressStep[] = shouldPerformPreliminaryFilter
+            ? [
+                { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed' as const, message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
+                { id: 'intent-recognition-topic', title: intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"), status: 'completed' as const, visible: true },
+                { id: 'llm-preliminary-filter', title: intl.get("settings.aiMode.progress.steps.llmPreliminaryFilter"), status: 'completed' as const, message: intl.get("settings.aiMode.progress.messages.llmPreliminaryFilteringCompleted", { total: items.length, filtered: articlesToRefine.length }), visible: true },
+                { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'completed' as const, message: intl.get("settings.aiMode.progress.messages.llmFilteringCompleted", { total: articlesToRefine.length, refined: refinedArticles.length }), visible: true }
+            ]
+            : [
+                { id: 'query-db', title: intl.get("settings.aiMode.progress.messages.filterByTimeRange"), status: 'completed' as const, message: intl.get("settings.aiMode.progress.messages.queryCompleted", { count: items.length }), visible: true },
+                { id: 'intent-recognition-topic', title: intl.get("settings.aiMode.progress.steps.intentRecognitionTopic"), status: 'completed' as const, visible: true },
+                { id: 'llm-refine', title: intl.get("settings.aiMode.progress.steps.llmRefine"), status: 'completed' as const, message: intl.get("settings.aiMode.progress.messages.llmFilteringCompleted", { total: articlesToRefine.length, refined: refinedArticles.length }), visible: true }
+            ]
+        
+        callbacks.updateQueryProgress({
+            steps: currentSteps,
+            currentStepIndex: shouldPerformPreliminaryFilter ? 3 : 2,
+            overallProgress: 100,
+            currentMessage: intl.get("settings.aiMode.progress.messages.completed")
+        })
+    }
+    
+    // 返回结果，clusters设为空数组（不再进行分类）
+    return { articles: refinedArticles, timeRangeHasArticles: true, topicGuidance, tokenStatistics, summaries: articleSummaries, reasons: articleReasons, clusters: [] }
 }
 

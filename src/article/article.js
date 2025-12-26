@@ -543,6 +543,13 @@ function showSelectionActionButtons(rect, selectedText, videoId, containerId) {
 
 /**
  * Handle explain selection - switch to chat tab and send message
+ * 
+ * Note: The prompt is always in English (e.g., "Explain \"...\""), but the LLM response
+ * will be in the application's language setting. This is handled by the backend:
+ * - The chat-with-transcript IPC handler gets the app's locale setting
+ * - It converts the locale to a language name (e.g., "简体中文", "English")
+ * - The generateChatResponse function adds a language requirement to the system prompt
+ * - The LLM responds in the specified language while the user prompt remains in English
  */
 function handleExplainSelection(selectedText, videoId, containerId) {
     if (!selectedText || !selectedText.trim()) return
@@ -560,6 +567,8 @@ function handleExplainSelection(selectedText, videoId, containerId) {
     // Wait a bit for chat tab to initialize, then trigger explain event
     // Use a longer delay to ensure setupChatTab has completed
     setTimeout(() => {
+        // Prompt is always in English, but the LLM will respond in the app's language
+        // (handled by the backend based on locale setting)
         const prompt = `Explain "${selectedText.trim()}"`
         window.dispatchEvent(new CustomEvent('tldw-explain-selection', {
             detail: { text: prompt, videoId: videoId }

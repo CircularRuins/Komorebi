@@ -278,12 +278,17 @@ Analyze each article and determine if it matches the criteria specified in the i
 ${formatLLMRefineExamples()}
 
 ## Output Format
-Return a JSON object with the indices (0-based) of articles that meet the criteria:
+Return a JSON object. **IMPORTANT: Always provide the "reason" field first, then the "related" field. This order helps you think through the reasoning before making the final judgment:**
 {
-  "relatedArticleIndices": [0, 2, 5, 7]
+  "reason": "Brief explanation (1-2 sentences) of why the article is or is not related to the topic",
+  "related": true
 }
 
-If all articles match the guidance, return all indices. If none do, return an empty array.
+**Important:**
+- **First, analyze and write the "reason" field** - explain your judgment basis for whether the article is related or not
+- **Then, set the "related" field** based on your reasoning: true if the article matches the criteria, false if it doesn't
+- The "reason" field should explain the judgment basis for whether the article is related or not
+- Always provide both fields, with "reason" appearing before "related" in the JSON object
 
 ## Articles to Analyze
 ${articlesText}
