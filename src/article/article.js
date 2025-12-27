@@ -152,10 +152,11 @@ function formatTime(seconds) {
     return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-// YouTube字幕、摘要和引用缓存工具函数（与feed图标缓存模式一致）
+// YouTube字幕、摘要、引用和翻译缓存工具函数（与feed图标缓存模式一致）
 const YOUTUBE_TRANSCRIPT_CACHE_PREFIX = "youtube-transcript-"
 const YOUTUBE_SUMMARY_CACHE_PREFIX = "youtube-summary-"
 const YOUTUBE_QUOTES_CACHE_PREFIX = "youtube-quotes-"
+const YOUTUBE_TRANSLATION_CACHE_PREFIX = "youtube-translation-"
 const TRANSCRIPT_CACHE_EXPIRY_DAYS = 30 // 30天过期
 
 /**
@@ -337,6 +338,103 @@ function clearQuotesCache(videoId) {
 }
 
 /**
+ * 从缓存获取 YouTube 翻译
+ * @param {string} videoId YouTube视频ID
+ * @param {string} languageCode 语言代码（如 'en', 'zh-CN'）
+ * @returns {Array|null} 翻译文本数组，如果缓存不存在或已过期则返回 null
+ */
+function getCachedTranslation(videoId, languageCode) {
+    try {
+        const cacheKey = YOUTUBE_TRANSLATION_CACHE_PREFIX + videoId + '-' + languageCode
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+            const data = JSON.parse(cached)
+            const now = Date.now()
+            const expiryTime = data.timestamp + TRANSCRIPT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+            
+            // 检查是否过期（超过30天）
+            if (now < expiryTime) {
+                return data.translations
+            } else {
+                // 缓存已过期，删除
+                localStorage.removeItem(cacheKey)
+            }
+        }
+    } catch (error) {
+        // 如果解析失败，忽略错误
+        console.warn('Failed to get cached translation:', error)
+    }
+    return null
+}
+
+/**
+ * 保存 YouTube 翻译到缓存
+ * @param {string} videoId YouTube视频ID
+ * @param {string} languageCode 语言代码（如 'en', 'zh-CN'）
+ * @param {Array} translations 翻译文本数组
+ */
+function saveCachedTranslation(videoId, languageCode, translations) {
+    try {
+        const cacheKey = YOUTUBE_TRANSLATION_CACHE_PREFIX + videoId + '-' + languageCode
+        const data = {
+            translations: translations,
+            timestamp: Date.now(),
+        }
+        localStorage.setItem(cacheKey, JSON.stringify(data))
+    } catch (error) {
+        // 如果存储失败（如 localStorage 已满），忽略错误
+        console.warn('Failed to save cached translation:', error)
+    }
+}
+
+/**
+ * 清除 YouTube 翻译缓存（内存和localStorage）
+ * @param {string} videoId YouTube视频ID
+ * @param {string} languageCode 可选，语言代码。如果不提供，清除该视频所有语言的缓存
+ */
+function clearTranslationCache(videoId, languageCode) {
+    try {
+        // 从内存Map删除
+        if (transcriptTranslations.has(videoId)) {
+            if (languageCode) {
+                // 清除指定语言
+                const videoTranslations = transcriptTranslations.get(videoId)
+                videoTranslations.delete(languageCode)
+                // 如果该视频没有其他语言的翻译，删除整个videoId的Map
+                if (videoTranslations.size === 0) {
+                    transcriptTranslations.delete(videoId)
+                }
+            } else {
+                // 清除所有语言
+                transcriptTranslations.delete(videoId)
+            }
+        }
+        
+        // 从localStorage删除
+        if (languageCode) {
+            // 清除指定语言的缓存
+            const cacheKey = YOUTUBE_TRANSLATION_CACHE_PREFIX + videoId + '-' + languageCode
+            localStorage.removeItem(cacheKey)
+        } else {
+            // 清除该视频所有语言的缓存
+            // 遍历localStorage，找到所有匹配的键
+            const prefix = YOUTUBE_TRANSLATION_CACHE_PREFIX + videoId + '-'
+            const keysToRemove = []
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i)
+                if (key && key.startsWith(prefix)) {
+                    keysToRemove.push(key)
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key))
+        }
+    } catch (error) {
+        // 如果清除失败，忽略错误
+        console.warn('Failed to clear translation cache:', error)
+    }
+}
+
+/**
  * Fetch transcript from YouTube using Electron API
  * First checks cache, then falls back to API if cache miss or expired
  */
@@ -397,6 +495,29 @@ async function translateAndRenderTranscript(containerId, videoId, targetLanguage
         return
     }
     
+    // First, check memory cache
+    if (transcriptTranslations.has(videoId)) {
+        const videoTranslations = transcriptTranslations.get(videoId)
+        if (videoTranslations.has(targetLanguageCode)) {
+            // Translation already in memory, render directly
+            renderTranscriptWithTranslation(containerId, videoId, targetLanguageCode)
+            return
+        }
+    }
+    
+    // Then, check localStorage cache
+    const cachedTranslation = getCachedTranslation(videoId, targetLanguageCode)
+    if (cachedTranslation && Array.isArray(cachedTranslation) && cachedTranslation.length > 0) {
+        // Store in memory cache for faster access
+        if (!transcriptTranslations.has(videoId)) {
+            transcriptTranslations.set(videoId, new Map())
+        }
+        transcriptTranslations.get(videoId).set(targetLanguageCode, cachedTranslation)
+        // Render with cached translation
+        renderTranscriptWithTranslation(containerId, videoId, targetLanguageCode)
+        return
+    }
+    
     // Check if translation config is available (使用Chat API配置)
     if (typeof window === 'undefined' || !window.settings) {
         console.error('Translation config not available')
@@ -448,11 +569,12 @@ async function translateAndRenderTranscript(containerId, videoId, targetLanguage
         
         const translatedTexts = await window.utils.translateTranscript(texts, targetLanguageCode)
         
-        // Store translation
+        // Store translation in memory and localStorage
         if (!transcriptTranslations.has(videoId)) {
             transcriptTranslations.set(videoId, new Map())
         }
         transcriptTranslations.get(videoId).set(targetLanguageCode, translatedTexts)
+        saveCachedTranslation(videoId, targetLanguageCode, translatedTexts)
         
         // Render with translation
         renderTranscriptWithTranslation(containerId, videoId, targetLanguageCode)
@@ -496,10 +618,26 @@ function renderTranscriptWithTranslation(containerId, videoId, targetLanguageCod
     
     // Get translations if available
     let translations = null
-    if (targetLanguageCode && transcriptTranslations.has(videoId)) {
-        const videoTranslations = transcriptTranslations.get(videoId)
-        if (videoTranslations.has(targetLanguageCode)) {
-            translations = videoTranslations.get(targetLanguageCode)
+    if (targetLanguageCode) {
+        // First, check memory cache
+        if (transcriptTranslations.has(videoId)) {
+            const videoTranslations = transcriptTranslations.get(videoId)
+            if (videoTranslations.has(targetLanguageCode)) {
+                translations = videoTranslations.get(targetLanguageCode)
+            }
+        }
+        
+        // If not in memory, check localStorage cache
+        if (!translations) {
+            const cachedTranslation = getCachedTranslation(videoId, targetLanguageCode)
+            if (cachedTranslation && Array.isArray(cachedTranslation) && cachedTranslation.length > 0) {
+                // Store in memory cache for faster access
+                if (!transcriptTranslations.has(videoId)) {
+                    transcriptTranslations.set(videoId, new Map())
+                }
+                transcriptTranslations.get(videoId).set(targetLanguageCode, cachedTranslation)
+                translations = cachedTranslation
+            }
         }
     }
     
