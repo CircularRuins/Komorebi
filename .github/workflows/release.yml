@@ -87,15 +87,17 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: ${{ matrix.verify-cmd }}
       
-      - name: Update package.json version
+      - name: Update package.json version (Mac)
+        if: matrix.os == 'macos-latest'
+        run: npm version ${{ env.VERSION }} --no-git-tag-version
+      
+      - name: Update package.json version (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
         run: |
-          if [ "${{ matrix.os }}" == "macos-latest" ]; then
-            npm version ${{ env.VERSION }} --no-git-tag-version
-          else
-            # Windows PowerShell
-            (Get-Content package.json) -replace '"version": "[^"]*"', '"version": "${{ env.VERSION }}"' | Set-Content package.json
-          fi
-        shell: ${{ matrix.os == 'macos-latest' && 'bash' || 'pwsh' }}
+          $content = Get-Content package.json -Raw
+          $content = $content -replace '"version": "[^"]*"', '"version": "${{ env.VERSION }}"'
+          Set-Content package.json -Value $content -NoNewline
       
       - name: Build frontend
         run: npm run build
