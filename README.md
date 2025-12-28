@@ -27,56 +27,34 @@ Instead, it is tailored for AI professionals who want to keep pace with:
 - New progress on a fancy product.
 - State-of-the-art papers in a specific research area.
 
+## 🌐 Product Page
+
+Want to learn more about Komorebi's features, design philosophy, and how it can help you stay ahead in the AI field? Visit our [product page](https://circularruins.github.io/Komorebi) for a comprehensive introduction.
+
+
 ## 👋🏻 Getting Started
 
 Komorebi is a desktop application that supports Windows and macOS. You can [get Komorebi from GitHub releases](https://github.com/CircularRuins/Komorebi/releases).
 
+> \[!NOTE]
+>
+> **Mac Users / Mac 用户提示**：If you encounter the error "Komorebi.app is damaged and can't be opened. You should move it to the Trash." when opening the app, you can resolve it by running the following command in Terminal: 如果打开应用时遇到"已损坏，无法打开。你应该将它移到废纸篓。"这个错误，可以在终端输入以下命令来解决：
+> ```bash
+> sudo xattr -rd com.apple.quarantine /Applications/Komorebi.app
+> ```
+
 > \[!IMPORTANT]
 >
 > **Star Us**, You will receive all release notifications from GitHub without any delay \~
-
-## ✨ Features
-
-### Simple UI
-
-Keep only essential features. Easy to use. Supports English, 简体中文, Español, 日本語.
-<img width="1476" height="936" alt="feature1" src="https://github.com/user-attachments/assets/ce3de2ae-d43c-4f54-a41a-21657d1ca6e6" />
-
-
-<!-- ![](https://github.com/CircularRuins/Komorebi/raw/main/docs/feature1.png) -->
-
-### Diverse And High-quality Information Sources
-
-Subscribe to a vast range of feeds and curated lists. Curate your favorites and keep track of what matters most to you.
-
-
-
-### Dynamic Content Support
-
-From articles to videos, tweets to newsletters — Komorebi can display them in a compelling way.
-
-
-
-### LLM-powered
-
-A smarter and more efficient browsing with LLM-powered features like translation, summary, extraction, and more.
-
-
 
 
 
 ## 🤝 Contribute
 Help make Komorebi better by reporting bugs or opening feature requests through [GitHub issues](https://github.com/CircularRuins/Komorebi/issues). 
 
-## ☀️ Product Philosophy
-**Komorebi (木漏れ日)** is a Japanese word that describes the soft, dappled sunlight filtering through leaves and trees.
-
-Today, AI is the hottest field—like the sun itself. An overwhelming flood of news, products, and research shines down relentlessly, often leaving people burned out and anxious rather than informed.
-
-Komorebi is designed to be a filter, not another beam of direct light. By carefully curating information sources and refining product features, it transforms the experience of staying informed into something calm, focused, and enjoyable—like standing beneath the trees, absorbing only the gentle warmth of komorebi.
 
 ## ❤️ Buy Me a Coffee
-This project will always be 100% open source and free. But if you feel like supporting it, I won’t pretend I don’t like coffee ☕️. [GitHub Sponsors](https://github.com/sponsors/yang991178), [Paypal](https://www.paypal.me/yang991178), or [Alipay](https://hyliu.me/komorebi/imgs/alipay.jpg).
+This project will always be 100% open source and free. But if you feel like supporting it, I won’t pretend I don’t like coffee ☕️. [Paypal](https://www.paypal.me/wfwang96), or [Alipay](https://komorebi-homepage.vercel.app/assets/compressed/alipay.JPG).
 
 
 
