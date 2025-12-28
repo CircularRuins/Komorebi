@@ -1,0 +1,104 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            arch: arm64
+            python-build-cmd: bash build-python.sh arm64
+            verify-cmd: bash verify-build.sh Darwin 'arm64'
+            build-cmd: electron-builder --mac --arm64
+          - os: windows-latest
+            arch: x64
+            python-build-cmd: npm run build-python
+            verify-cmd: npm run verify-python
+            build-cmd: electron-builder -w --x64 -p never
+    
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+          cache: 'pip'
+      
+      - name: Install npm dependencies
+        run: npm ci
+      
+      - name: Install Python dependencies
+        run: |
+          pip install -r python-scripts/requirements.txt
+          pip install pyinstaller
+      
+      - name: Build Python executable (Mac)
+        if: matrix.os == 'macos-latest'
+        working-directory: python-scripts
+        run: ${{ matrix.python-build-cmd }}
+      
+      - name: Build Python executable (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ${{ matrix.python-build-cmd }}
+      
+      - name: Verify Python build (Mac)
+        if: matrix.os == 'macos-latest'
+        working-directory: python-scripts
+        run: ${{ matrix.verify-cmd }}
+      
+      - name: Verify Python build (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ${{ matrix.verify-cmd }}
+      
+      - name: Build frontend
+        run: npm run build
+      
+      - name: Package application
+        run: ${{ matrix.build-cmd }}
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            bin/**/*.dmg
+            bin/**/*Setup*.exe
+          retention-days: 1
+  
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*Setup*.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
