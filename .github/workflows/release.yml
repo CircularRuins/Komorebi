@@ -87,11 +87,21 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: ${{ matrix.verify-cmd }}
       
+      - name: Update package.json version
+        run: |
+          if [ "${{ matrix.os }}" == "macos-latest" ]; then
+            npm version ${{ env.VERSION }} --no-git-tag-version
+          else
+            # Windows PowerShell
+            (Get-Content package.json) -replace '"version": "[^"]*"', '"version": "${{ env.VERSION }}"' | Set-Content package.json
+          fi
+        shell: ${{ matrix.os == 'macos-latest' && 'bash' || 'pwsh' }}
+      
       - name: Build frontend
         run: npm run build
       
       - name: Package application
-        run: ${{ matrix.build-cmd-base }} --config.version=${{ env.VERSION }}
+        run: ${{ matrix.build-cmd-base }}
       
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
