@@ -38,14 +38,15 @@ Komorebi is a desktop application that supports Windows and macOS. You can [get 
 
 > \[!NOTE]
 >
-> If you encounter the error "Komorebi.app is damaged and can't be opened. You should move it to the Trash." when opening the app, you can resolve it by running the following command in Terminal: \ 如果打开应用时遇到"已损坏，无法打开。你应该将它移到废纸篓。"这个错误，可以在终端输入以下命令来解决：
+> If you encounter the error "Komorebi.app is damaged and can't be opened. You should move it to the Trash." when opening the app, you can resolve it by running the following command in Terminal
+> 如果打开应用时遇到"已损坏，无法打开。你应该将它移到废纸篓。"这个错误，可以在终端输入以下命令来解决
 > ```bash
 > sudo xattr -rd com.apple.quarantine /Applications/Komorebi.app
 > ```
 
-<!-- > \[!IMPORTANT]
+> \[!IMPORTANT]
 >
-> **Star**, You will receive all release notifications from GitHub without any delay \~ -->
+> 中国大陆用户在使用这款应用之前需要先连vpn \~
 
 
 
@@ -53,8 +54,8 @@ Komorebi is a desktop application that supports Windows and macOS. You can [get 
 Help make Komorebi better by reporting bugs or opening feature requests through [GitHub issues](https://github.com/CircularRuins/Komorebi/issues). 
 
 
-## ❤️ Support
-This project will always be 100% open source and free. But if you feel like supporting it, I won’t pretend I don’t like coffee ☕️. [Paypal](https://www.paypal.me/wfwang96), or [Alipay](https://komorebi-homepage.vercel.app/assets/compressed/alipay.JPG).
+<!-- ## ❤️ Support
+This project will always be 100% open source and free. But if you feel like supporting it, I won’t pretend I don’t like coffee ☕️. [Paypal](https://www.paypal.me/wfwang96), or [Alipay](https://komorebi-homepage.vercel.app/assets/compressed/alipay.JPG). -->
 
 
 
