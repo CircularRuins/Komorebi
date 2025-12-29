@@ -29,7 +29,7 @@ Instead, it is tailored for AI professionals who want to keep pace with:
 
 ## 🌐 Product Page
 
-Want to learn more about Komorebi's features, design philosophy, and how it can help you stay ahead in the AI field? Visit our [product page](https://circularruins.github.io/Komorebi) for a comprehensive introduction.
+Want to learn more about Komorebi's features, design philosophy, and how it can help you stay ahead in the AI field? Visit our [product page](https://komorebi-homepage.vercel.app) for a comprehensive introduction.
 
 
 ## 👋🏻 Getting Started
@@ -38,14 +38,14 @@ Komorebi is a desktop application that supports Windows and macOS. You can [get 
 
 > \[!NOTE]
 >
-> **Mac Users / Mac 用户提示**：If you encounter the error "Komorebi.app is damaged and can't be opened. You should move it to the Trash." when opening the app, you can resolve it by running the following command in Terminal: 如果打开应用时遇到"已损坏，无法打开。你应该将它移到废纸篓。"这个错误，可以在终端输入以下命令来解决：
+> If you encounter the error "Komorebi.app is damaged and can't be opened. You should move it to the Trash." when opening the app, you can resolve it by running the following command in Terminal: \ 如果打开应用时遇到"已损坏，无法打开。你应该将它移到废纸篓。"这个错误，可以在终端输入以下命令来解决：
 > ```bash
 > sudo xattr -rd com.apple.quarantine /Applications/Komorebi.app
 > ```
 
-> \[!IMPORTANT]
+<!-- > \[!IMPORTANT]
 >
-> **Star Us**, You will receive all release notifications from GitHub without any delay \~
+> **Star**, You will receive all release notifications from GitHub without any delay \~ -->
 
 
 
@@ -53,7 +53,7 @@ Komorebi is a desktop application that supports Windows and macOS. You can [get 
 Help make Komorebi better by reporting bugs or opening feature requests through [GitHub issues](https://github.com/CircularRuins/Komorebi/issues). 
 
 
-## ❤️ Buy Me a Coffee
+## ❤️ Support
 This project will always be 100% open source and free. But if you feel like supporting it, I won’t pretend I don’t like coffee ☕️. [Paypal](https://www.paypal.me/wfwang96), or [Alipay](https://komorebi-homepage.vercel.app/assets/compressed/alipay.JPG).
 
 

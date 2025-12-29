@@ -22,6 +22,7 @@ import {
     updateAIModeChatApiKey,
     updateAIModeModel,
 } from "../scripts/models/ai-mode"
+import { callLLM, chatApiConfigToLLMConfig } from "../scripts/llm-client"
 import { selectAllArticles } from "../scripts/models/page"
 import { AppDispatch } from "../scripts/utils"
 
@@ -540,6 +541,73 @@ class Page extends React.Component<PageProps> {
 const AIConfigPageWrapperComponent = (props: any) => {
     const aiMode = props.aiMode
     const dispatch = props.dispatch
+    const [isTestingApi, setIsTestingApi] = React.useState(false)
+
+    const handleTestApi = async () => {
+        const { tempChatApiEndpoint, tempChatApiKey, tempModel } = aiMode
+
+        if (!tempChatApiEndpoint || !tempChatApiKey || !tempModel) {
+            await window.utils.showMessageBox(
+                intl.get("settings.aiMode.config.testApiFailed"),
+                intl.get("settings.aiMode.config.testApiFailed") + ": " + intl.get("settings.aiMode.config.testApiIncomplete"),
+                "OK",
+                "",
+                false,
+                "error"
+            )
+            return
+        }
+
+        setIsTestingApi(true)
+
+        try {
+            // 使用 callLLM 进行测试，与实际使用保持一致
+            const llmConfig = chatApiConfigToLLMConfig({
+                apiEndpoint: tempChatApiEndpoint,
+                apiKey: tempChatApiKey,
+                model: tempModel
+            })
+
+            await callLLM(
+                llmConfig,
+                {
+                    messages: [
+                        {
+                            role: 'user',
+                            content: 'Hello'
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 8000,
+                },
+                'api-test'
+            )
+
+            // 测试成功
+            await window.utils.showMessageBox(
+                intl.get("settings.aiMode.config.testApiSuccess"),
+                intl.get("settings.aiMode.config.testApiSuccessMessage"),
+                "OK",
+                "",
+                false,
+                "info"
+            )
+        } catch (error: any) {
+            // 测试失败 - 直接显示 callLLM 已经格式化好的错误消息（包含状态码、错误代码等）
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            
+            await window.utils.showMessageBox(
+                intl.get("settings.aiMode.config.testApiFailed"),
+                errorMessage,
+                "OK",
+                "",
+                false,
+                "error"
+            )
+        } finally {
+            setIsTestingApi(false)
+        }
+    }
     
     return (
         <AIConfig
@@ -568,6 +636,8 @@ const AIConfigPageWrapperComponent = (props: any) => {
                 // 实时保存到 electron-store
                 dispatch(updateAIModeModel(value))
             }}
+            onTestApi={handleTestApi}
+            isTestingApi={isTestingApi}
         />
     )
 }

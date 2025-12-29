@@ -12,6 +12,7 @@ import {
     LLM_REFINE_SYSTEM_MESSAGE,
     getLLMRefinePrompt
 } from "./prompts"
+import { callLLM, consolidateConfigToLLMConfig, type OnApiCallCallback } from "./llm-client"
 
 // ==================== 配置和回调接口 ====================
 
@@ -211,54 +212,42 @@ async function stepRecognizeTopicIntent(
     callbacks.updateStepStatus('intent-recognition-topic', 'in_progress', intl.get("settings.aiMode.progress.messages.recognizingTopicIntent", { topic: trimmedTopic }))
 
     try {
-        const openai = new OpenAI({
-            apiKey: chatApiKey,
-            baseURL: chatApiBaseURL,
-            dangerouslyAllowBrowser: true
-        })
-
         const prompt = getTopicIntentRecognitionPrompt(trimmedTopic)
 
-        const completionParams: any = {
-            model: model,
-            messages: [
-                {
-                    role: 'system',
-                    content: TOPIC_INTENT_RECOGNITION_SYSTEM_MESSAGE
-                },
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            temperature: 0.3,
-            max_tokens: 500
-        }
+        const llmConfig = consolidateConfigToLLMConfig({
+            chatApiEndpoint: chatApiBaseURL || config.chatApiEndpoint || '',
+            chatApiKey: chatApiKey,
+            model: model
+        })
 
-        // 某些模型可能不支持response_format，尝试添加但不强制
-        try {
-            completionParams.response_format = { type: "json_object" }
-        } catch (e) {
-            // 忽略错误，继续使用普通格式
-        }
+        // 提供API调用记录回调（如果需要）
+        const onApiCall: OnApiCallCallback | undefined = undefined
 
-        const completion = await openai.chat.completions.create(completionParams)
+        const completion = await callLLM(
+            llmConfig,
+            {
+                messages: [
+                    {
+                        role: 'system',
+                        content: TOPIC_INTENT_RECOGNITION_SYSTEM_MESSAGE
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.3,
+                max_tokens: 500,
+                response_format: { type: "json_object" }
+            },
+            'topic-intent-recognition',
+            onApiCall
+        )
 
         // 收集token使用量
         if (completion.usage && callbacks.updateTokenStatistics && tokenStatistics) {
             addTokenUsage(tokenStatistics, completion.usage, true)
             callbacks.updateTokenStatistics(tokenStatistics)
-        }
-
-        // 记录API调用（动态导入，避免在主进程中打包）
-        if (completion.usage) {
-            import("./api-call-recorder").then(({ recordApiCall }) => {
-                recordApiCall(model, 'chat', 'topic-intent-recognition', completion.usage).catch(err => {
-                    console.error('记录API调用失败:', err)
-                })
-            }).catch(() => {
-                // 忽略导入失败（可能是在主进程中）
-            })
         }
 
         if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
@@ -378,37 +367,31 @@ export async function stepLLMPreliminaryFilter(
 
             const prompt = getLLMPreliminaryFilterPrompt(intentGuidance, titlesText)
 
-            const openai = new OpenAI({
-                apiKey: chatApiKey,
-                baseURL: chatApiBaseURL,
-                dangerouslyAllowBrowser: true
+            const llmConfig = consolidateConfigToLLMConfig({
+                chatApiEndpoint: chatApiBaseURL || '',
+                chatApiKey: chatApiKey,
+                model: model
             })
 
-            // 尝试使用JSON格式，如果不支持则回退到普通格式
-            const completionParams: any = {
-                model: model,
-                messages: [
-                    {
-                        role: 'system',
-                        content: LLM_PRELIMINARY_FILTER_SYSTEM_MESSAGE
-                    },
-                    {
-                        role: 'user',
-                        content: prompt
-                    }
-                ],
-                temperature: 0.3,
-                max_tokens: 2000
-            }
-            
-            // 某些模型可能不支持response_format，尝试添加但不强制
-            try {
-                completionParams.response_format = { type: "json_object" }
-            } catch (e) {
-                // 忽略错误，继续使用普通格式
-            }
-            
-            const completion = await openai.chat.completions.create(completionParams)
+            const completion = await callLLM(
+                llmConfig,
+                {
+                    messages: [
+                        {
+                            role: 'system',
+                            content: LLM_PRELIMINARY_FILTER_SYSTEM_MESSAGE
+                        },
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.3,
+                    max_tokens: 2000,
+                    response_format: { type: "json_object" }
+                },
+                'llm-preliminary-filter'
+            )
             
             // 收集token使用量
             if (completion.usage && callbacks.updateTokenStatistics && tokenStatistics) {
@@ -422,17 +405,6 @@ export async function stepLLMPreliminaryFilter(
                     prompt_tokens: completion.usage.prompt_tokens || 0,
                     completion_tokens: completion.usage.completion_tokens || 0,
                     total_tokens: completion.usage.total_tokens || 0
-                })
-            }
-
-            // 记录API调用（动态导入，避免在主进程中打包）
-            if (completion.usage) {
-                import("./api-call-recorder").then(({ recordApiCall }) => {
-                    recordApiCall(model, 'chat', 'llm-preliminary-filter', completion.usage).catch(err => {
-                        console.error('记录API调用失败:', err)
-                    })
-                }).catch(() => {
-                    // 忽略导入失败（可能是在主进程中）
                 })
             }
             
@@ -597,37 +569,31 @@ Summary: ${snippet}`
 
             const prompt = getLLMRefinePrompt(intentGuidance, articlesText)
 
-            const openai = new OpenAI({
-                apiKey: chatApiKey,
-                baseURL: chatApiBaseURL,
-                dangerouslyAllowBrowser: true
+            const llmConfig = consolidateConfigToLLMConfig({
+                chatApiEndpoint: chatApiBaseURL || '',
+                chatApiKey: chatApiKey,
+                model: model
             })
 
-            // 尝试使用JSON格式，如果不支持则回退到普通格式
-            const completionParams: any = {
-                model: model,
-                messages: [
-                    {
-                        role: 'system',
-                        content: LLM_REFINE_SYSTEM_MESSAGE
-                    },
-                    {
-                        role: 'user',
-                        content: prompt
-                    }
-                ],
-                temperature: 0.3,
-                max_tokens: 2000
-            }
-            
-            // 某些模型可能不支持response_format，尝试添加但不强制
-            try {
-                completionParams.response_format = { type: "json_object" }
-            } catch (e) {
-                // 忽略错误，继续使用普通格式
-            }
-            
-            const completion = await openai.chat.completions.create(completionParams)
+            const completion = await callLLM(
+                llmConfig,
+                {
+                    messages: [
+                        {
+                            role: 'system',
+                            content: LLM_REFINE_SYSTEM_MESSAGE
+                        },
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.3,
+                    max_tokens: 2000,
+                    response_format: { type: "json_object" }
+                },
+                'llm-refine'
+            )
             
             // 收集token使用量
             if (completion.usage && callbacks.updateTokenStatistics && tokenStatistics) {
@@ -641,17 +607,6 @@ Summary: ${snippet}`
                     prompt_tokens: completion.usage.prompt_tokens || 0,
                     completion_tokens: completion.usage.completion_tokens || 0,
                     total_tokens: completion.usage.total_tokens || 0
-                })
-            }
-
-            // 记录API调用（动态导入，避免在主进程中打包）
-            if (completion.usage) {
-                import("./api-call-recorder").then(({ recordApiCall }) => {
-                    recordApiCall(model, 'chat', 'llm-refine', completion.usage).catch(err => {
-                        console.error('记录API调用失败:', err)
-                    })
-                }).catch(() => {
-                    // 忽略导入失败（可能是在主进程中）
                 })
             }
             

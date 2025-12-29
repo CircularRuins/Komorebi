@@ -16,6 +16,8 @@ type AIConfigProps = {
     onChatApiEndpointChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onChatApiKeyChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
     onModelChange: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => void
+    onTestApi?: () => Promise<void>
+    isTestingApi?: boolean
 }
 
 class AIConfig extends React.Component<AIConfigProps> {
@@ -82,6 +84,15 @@ class AIConfig extends React.Component<AIConfigProps> {
                     <span className="settings-hint up" style={{ fontSize: '11px' }}>
                         {intl.get("settings.aiMode.config.chatModelHint")}
                     </span>
+
+                    <Stack horizontal style={{ marginTop: '16px' }}>
+                        <PrimaryButton
+                            text={this.props.isTestingApi ? intl.get("settings.aiMode.config.testingApi") : intl.get("settings.aiMode.config.testApi")}
+                            onClick={this.props.onTestApi}
+                            disabled={this.props.isTestingApi || !this.props.tempChatApiEndpoint || !this.props.tempChatApiKey || !this.props.tempModel}
+                            styles={{ root: { fontSize: '12px' } }}
+                        />
+                    </Stack>
                 </div>
             </div>
         )

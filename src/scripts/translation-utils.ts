@@ -1,4 +1,5 @@
 import OpenAI from "openai"
+import { callLLM, translationConfigToLLMConfig, type OnApiCallCallback } from "./llm-client"
 
 // 尝试导入tiktoken，如果失败则使用fallback
 // 使用require来避免TypeScript编译时的模块解析问题
@@ -164,7 +165,8 @@ export function splitTextsIntoChunksBySentence(
 }
 
 /**
- * 规范化API端点
+ * 规范化API端点（保留用于向后兼容，但不再使用）
+ * @deprecated 使用llm-client中的统一封装
  */
 export function normalizeApiEndpoint(apiEndpoint: string): string {
     let normalizedEndpoint = apiEndpoint.trim()
@@ -178,7 +180,8 @@ export function normalizeApiEndpoint(apiEndpoint: string): string {
 }
 
 /**
- * 创建OpenAI客户端
+ * 创建OpenAI客户端（保留用于向后兼容，但不再使用）
+ * @deprecated 使用llm-client中的统一封装
  */
 export function createOpenAIClient(config: TranslationConfig): OpenAI {
     const normalizedEndpoint = normalizeApiEndpoint(config.apiEndpoint)
@@ -233,41 +236,30 @@ export async function translateTextChunk(
     // 构建翻译提示词
     const prompt = `Please translate the following text into ${targetLanguage}. If the text is already in ${targetLanguage}, return it as is. Maintain the order and structure of the text, with each segment separated by "---SEPARATOR---".
 
+Important instructions:
+- Your response should ONLY contain the translated text, with no additional content, explanations, or commentary.
+- You may keep proper nouns (such as person names, product names, brand names, etc.) untranslated if they are commonly used in their original form.
+
 ${textToTranslate}`
 
-    const openai = createOpenAIClient(config)
+    // 使用统一的LLM客户端
+    const llmConfig = translationConfigToLLMConfig(config)
 
-    const completion = await openai.chat.completions.create({
-        model: config.model,
-        messages: [
-            {
-                role: 'user',
-                content: prompt
-            }
-        ],
-        temperature: 0.3,
-        max_tokens: 8000,
-    })
-
-    // 记录API调用
-    if (completion.usage) {
-        if (onApiCall) {
-            // 如果提供了记录函数，使用它（用于主进程）
-            onApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage)
-        } else if (typeof window !== 'undefined' && window.utils && window.utils.recordApiCall) {
-            // 在渲染进程中，通过 IPC 调用（因为可能从主进程调用，需要通过 IPC 转发）
-            window.utils.recordApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage).catch(err => {
-                console.error('记录API调用失败:', err)
-            })
-        } else if (typeof window !== 'undefined') {
-            // 在渲染进程中，直接调用数据库
-            const { recordApiCall } = await import("./api-call-recorder")
-            recordApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage).catch(err => {
-                console.error('记录API调用失败:', err)
-            })
-        }
-        // 在主进程中且没有提供记录函数时，不记录（由调用者负责）
-    }
+    const completion = await callLLM(
+        llmConfig,
+        {
+            messages: [
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.3,
+            max_tokens: 8000,
+        },
+        'transcript-translation-chunk',
+        onApiCall as OnApiCallCallback | undefined
+    )
 
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
         const translatedText = completion.choices[0].message.content || ''
@@ -302,43 +294,29 @@ export async function translateTexts(
     
     // 如果只有一个chunk且句子数较少，直接翻译
     if (chunks.length === 1 && texts.length <= 5) {
-        const openai = createOpenAIClient(config)
         const textToTranslate = texts.join('\n\n---SEPARATOR---\n\n')
         const prompt = `Please translate the following text into ${targetLanguage}. If the text is already in ${targetLanguage}, return it as is. Maintain the order and structure of the text, with each segment separated by "---SEPARATOR---".
 
 ${textToTranslate}`
         
-        const completion = await openai.chat.completions.create({
-            model: config.model,
-            messages: [
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            temperature: 0.3,
-            max_tokens: 8000,
-        })
+        // 使用统一的LLM客户端
+        const llmConfig = translationConfigToLLMConfig(config)
 
-    // 记录API调用
-    if (completion.usage) {
-        if (onApiCall) {
-            // 如果提供了记录函数，使用它（用于主进程）
-            onApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage)
-        } else if (typeof window !== 'undefined' && window.utils && window.utils.recordApiCall) {
-            // 在渲染进程中，通过 IPC 调用（统一使用 IPC，因为可能从主进程调用）
-            window.utils.recordApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage).catch(err => {
-                console.error('记录API调用失败:', err)
-            })
-        } else if (typeof window !== 'undefined') {
-            // 在渲染进程中，直接调用数据库（fallback）
-            const { recordApiCall } = await import("./api-call-recorder")
-            recordApiCall(config.model, 'chat', 'transcript-translation-chunk', completion.usage).catch(err => {
-                console.error('记录API调用失败:', err)
-            })
-        }
-        // 在主进程中且没有提供记录函数时，不记录（由调用者负责）
-    }
+        const completion = await callLLM(
+            llmConfig,
+            {
+                messages: [
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.3,
+                max_tokens: 8000,
+            },
+            'transcript-translation-chunk',
+            onApiCall as OnApiCallCallback | undefined
+        )
 
         if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
             const translatedText = completion.choices[0].message.content || ''

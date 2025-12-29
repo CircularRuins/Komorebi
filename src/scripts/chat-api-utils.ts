@@ -4,7 +4,7 @@
  */
 
 import OpenAI from "openai"
-import { createOpenAIClient, TranslationConfig } from "./translation-utils"
+import { callLLM, chatApiConfigToLLMConfig, type OnApiCallCallback } from "./llm-client"
 
 /**
  * Chat API配置
@@ -440,53 +440,29 @@ ${transcriptWithTimestamps}
 ]]></transcript>
 </task>`
 
-    // 使用和翻译功能相同的客户端创建方式
-    const translationConfig: TranslationConfig = {
-        apiEndpoint: config.apiEndpoint,
-        apiKey: config.apiKey,
-        model: config.model
-    }
-    const openai = createOpenAIClient(translationConfig)
+    // 使用统一的LLM客户端
+    const llmConfig = chatApiConfigToLLMConfig(config)
 
-    const completion = await openai.chat.completions.create({
-        model: config.model,
-        messages: [
-            {
-                role: 'system',
-                content: `You are a helpful assistant that summarizes video transcripts. You MUST write ALL output text (including overview and all takeaways) STRICTLY in ${targetLanguage} language. This is mandatory. Never use any other language. If the transcript is in a different language, you must translate and summarize it in ${targetLanguage}.`
-            },
-            {
-                role: 'user',
-                content: prompt
-            }
-        ],
-        temperature: 0.6,
-        max_tokens: 2000,
-        response_format: { type: "json_object" }
-    })
-
-    // 记录API调用
-    if (completion.usage) {
-        if (onApiCall) {
-            // 如果提供了记录函数，使用它（用于主进程）
-            onApiCall(config.model, 'chat', 'transcript-summary', completion.usage)
-        } else if (typeof window !== 'undefined' && window.utils && window.utils.recordApiCall) {
-            // 在渲染进程中，通过 IPC 调用
-            window.utils.recordApiCall(config.model, 'chat', 'transcript-summary', completion.usage).catch(err => {
-                console.error('记录API调用失败:', err)
-            })
-        } else if (typeof window !== 'undefined') {
-            // 在渲染进程中，直接调用数据库（fallback）
-            import("./api-call-recorder").then(({ recordApiCall }) => {
-                recordApiCall(config.model, 'chat', 'transcript-summary', completion.usage).catch(err => {
-                    console.error('记录API调用失败:', err)
-                })
-            }).catch(() => {
-                // 忽略导入失败
-            })
-        }
-        // 在主进程中且没有提供记录函数时，不记录（由调用者负责）
-    }
+    const completion = await callLLM(
+        llmConfig,
+        {
+            messages: [
+                {
+                    role: 'system',
+                    content: `You are a helpful assistant that summarizes video transcripts. You MUST write ALL output text (including overview and all takeaways) STRICTLY in ${targetLanguage} language. This is mandatory. Never use any other language. If the transcript is in a different language, you must translate and summarize it in ${targetLanguage}.`
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.6,
+            max_tokens: 2000,
+            response_format: { type: "json_object" }
+        },
+        'transcript-summary',
+        onApiCall as OnApiCallCallback | undefined
+    )
 
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
         const responseText = completion.choices[0].message.content || ''
@@ -626,53 +602,29 @@ ${transcriptWithTimestamps}
 ]]></transcript>
 </task>`
 
-    // 使用和翻译功能相同的客户端创建方式
-    const translationConfig: TranslationConfig = {
-        apiEndpoint: config.apiEndpoint,
-        apiKey: config.apiKey,
-        model: config.model
-    }
-    const openai = createOpenAIClient(translationConfig)
+    // 使用统一的LLM客户端
+    const llmConfig = chatApiConfigToLLMConfig(config)
 
-    const completion = await openai.chat.completions.create({
-        model: config.model,
-        messages: [
-            {
-                role: 'system',
-                content: `You are a helpful assistant that extracts memorable quotes from video transcripts. CRITICAL: The "interpretation" field in your JSON response MUST be written STRICTLY in ${targetLanguage}. The "quote" field should remain in the original language of the transcript. Never use English or any other language for the interpretation field when the target language is ${targetLanguage}.`
-            },
-            {
-                role: 'user',
-                content: prompt
-            }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
-        response_format: { type: "json_object" }
-    })
-
-    // 记录API调用
-    if (completion.usage) {
-        if (onApiCall) {
-            // 如果提供了记录函数，使用它（用于主进程）
-            onApiCall(config.model, 'chat', 'transcript-quotes', completion.usage)
-        } else if (typeof window !== 'undefined' && window.utils && window.utils.recordApiCall) {
-            // 在渲染进程中，通过 IPC 调用
-            window.utils.recordApiCall(config.model, 'chat', 'transcript-quotes', completion.usage).catch(err => {
-                console.error('记录API调用失败:', err)
-            })
-        } else if (typeof window !== 'undefined') {
-            // 在渲染进程中，直接调用数据库（fallback）
-            import("./api-call-recorder").then(({ recordApiCall }) => {
-                recordApiCall(config.model, 'chat', 'transcript-quotes', completion.usage).catch(err => {
-                    console.error('记录API调用失败:', err)
-                })
-            }).catch(() => {
-                // 忽略导入失败
-            })
-        }
-        // 在主进程中且没有提供记录函数时，不记录（由调用者负责）
-    }
+    const completion = await callLLM(
+        llmConfig,
+        {
+            messages: [
+                {
+                    role: 'system',
+                    content: `You are a helpful assistant that extracts memorable quotes from video transcripts. CRITICAL: The "interpretation" field in your JSON response MUST be written STRICTLY in ${targetLanguage}. The "quote" field should remain in the original language of the transcript. Never use English or any other language for the interpretation field when the target language is ${targetLanguage}.`
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.7,
+            max_tokens: 2000,
+            response_format: { type: "json_object" }
+        },
+        'transcript-quotes',
+        onApiCall as OnApiCallCallback | undefined
+    )
 
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
         const responseText = completion.choices[0].message.content || ''
@@ -842,53 +794,29 @@ ${message}
 ]]></userQuestion>
 </task>`
 
-    // 使用和翻译功能相同的客户端创建方式
-    const translationConfig: TranslationConfig = {
-        apiEndpoint: config.apiEndpoint,
-        apiKey: config.apiKey,
-        model: config.model
-    }
-    const openai = createOpenAIClient(translationConfig)
+    // 使用统一的LLM客户端
+    const llmConfig = chatApiConfigToLLMConfig(config)
 
-    const completion = await openai.chat.completions.create({
-        model: config.model,
-        messages: [
-            {
-                role: 'system',
-                content: 'You are a helpful assistant that answers questions about video transcripts. You MUST include timestamps in brackets [MM:SS] when referencing the transcript. Return your response as JSON with "answer" and "timestamps" fields.'
-            },
-            {
-                role: 'user',
-                content: prompt
-            }
-        ],
-        temperature: 0.6,
-        max_tokens: 1024,
-        response_format: { type: "json_object" }
-    })
-
-    // 记录API调用
-    if (completion.usage) {
-        if (onApiCall) {
-            // 如果提供了记录函数，使用它（用于主进程）
-            onApiCall(config.model, 'chat', 'transcript-chat', completion.usage)
-        } else if (typeof window !== 'undefined' && window.utils && window.utils.recordApiCall) {
-            // 在渲染进程中，通过 IPC 调用
-            window.utils.recordApiCall(config.model, 'chat', 'transcript-chat', completion.usage).catch(err => {
-                console.error('记录API调用失败:', err)
-            })
-        } else if (typeof window !== 'undefined') {
-            // 在渲染进程中，直接调用数据库（fallback）
-            import("./api-call-recorder").then(({ recordApiCall }) => {
-                recordApiCall(config.model, 'chat', 'transcript-chat', completion.usage).catch(err => {
-                    console.error('记录API调用失败:', err)
-                })
-            }).catch(() => {
-                // 忽略导入失败
-            })
-        }
-        // 在主进程中且没有提供记录函数时，不记录（由调用者负责）
-    }
+    const completion = await callLLM(
+        llmConfig,
+        {
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are a helpful assistant that answers questions about video transcripts. You MUST include timestamps in brackets [MM:SS] when referencing the transcript. Return your response as JSON with "answer" and "timestamps" fields.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.6,
+            max_tokens: 1024,
+            response_format: { type: "json_object" }
+        },
+        'transcript-chat',
+        onApiCall as OnApiCallCallback | undefined
+    )
 
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
         const responseText = completion.choices[0].message.content || ''

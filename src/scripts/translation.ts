@@ -5,9 +5,12 @@ import {
     TextChunk,
     estimateTokenCount,
     splitTextsIntoChunks,
-    normalizeApiEndpoint,
-    createOpenAIClient
+    normalizeApiEndpoint
 } from "./translation-utils"
+import {
+    callLLM,
+    translationConfigToLLMConfig
+} from "./llm-client"
 
 // 重新导出TranslationConfig类型
 export type { TranslationConfig } from "./translation-utils"
@@ -107,32 +110,29 @@ async function translateSingleText(
     // 构建简单的翻译提示词
     const prompt = `Please translate the following text into ${targetLanguage}. If the text is already in ${targetLanguage}, return it as is.
 
+Important instructions:
+- Your response should ONLY contain the translated text, with no additional content, explanations, or commentary.
+- You may keep proper nouns (such as person names, product names, brand names, etc.) untranslated if they are commonly used in their original form.
+
 ${text}`
 
-    const openai = createOpenAIClient(config)
+    // 使用统一的LLM客户端
+    const llmConfig = translationConfigToLLMConfig(config)
 
-    const completion = await openai.chat.completions.create({
-        model: model,
-        messages: [
-            {
-                role: 'user',
-                content: prompt
-            }
-        ],
-        temperature: 0.3,
-        max_tokens: 8000,
-    })
-
-    // 记录API调用（动态导入，避免在主进程中打包）
-    if (completion.usage) {
-        import("./api-call-recorder").then(({ recordApiCall }) => {
-            recordApiCall(model, 'chat', 'article-translation-paragraph', completion.usage).catch(err => {
-                console.error('记录API调用失败:', err)
-            })
-        }).catch(() => {
-            // 忽略导入失败（可能是在主进程中）
-        })
-    }
+    const completion = await callLLM(
+        llmConfig,
+        {
+            messages: [
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.3,
+            max_tokens: 8000,
+        },
+        'article-translation-paragraph'
+    )
 
     if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
         const translatedText = completion.choices[0].message.content || ''
