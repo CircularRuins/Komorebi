@@ -233,14 +233,16 @@ export async function translateTextChunk(
     // 构建要翻译的文本
     const textToTranslate = chunk.texts.join('\n\n---SEPARATOR---\n\n')
 
-    // 构建翻译提示词
-    const prompt = `Please translate the following text into ${targetLanguage}. If the text is already in ${targetLanguage}, return it as is. Maintain the order and structure of the text, with each segment separated by "---SEPARATOR---".
+    // 将指令放在 system message 中，避免被当作翻译内容
+    const systemMessage = `You are a professional translator. Translate the text enclosed in <text> tags into ${targetLanguage}. Maintain the order and structure of the text, with each segment separated by "---SEPARATOR---".
 
-Important instructions:
+Important rules:
 - Your response should ONLY contain the translated text, with no additional content, explanations, or commentary.
-- You may keep proper nouns (such as person names, product names, brand names, etc.) untranslated if they are commonly used in their original form.
+- Do not include the <text> tags in your response.
+- If the text is already in ${targetLanguage}, return it as is.
+- You may keep proper nouns (such as person names, product names, brand names, etc.) untranslated if they are commonly used in their original form.`
 
-${textToTranslate}`
+    const userMessage = `<text>\n${textToTranslate}\n</text>`
 
     // 使用统一的LLM客户端
     const llmConfig = translationConfigToLLMConfig(config)
@@ -250,8 +252,12 @@ ${textToTranslate}`
         {
             messages: [
                 {
+                    role: 'system',
+                    content: systemMessage
+                },
+                {
                     role: 'user',
-                    content: prompt
+                    content: userMessage
                 }
             ],
             temperature: 0.3,
