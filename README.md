@@ -39,7 +39,6 @@ Komorebi is a desktop application that supports Windows and macOS. You can [get 
 > \[!NOTE]
 >
 > If you encounter the error "Komorebi.app is damaged and can't be opened. You should move it to the Trash." when opening the app, you can resolve it by running the following command in Terminal
-> 如果打开应用时遇到"已损坏，无法打开。你应该将它移到废纸篓。"这个错误，可以在终端输入以下命令来解决
 > ```bash
 > sudo xattr -rd com.apple.quarantine /Applications/Komorebi.app
 > ```
