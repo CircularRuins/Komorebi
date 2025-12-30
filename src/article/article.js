@@ -748,9 +748,35 @@ function setupSelectionActions(containerId, videoId) {
     
     let currentSelectionButtons = null
     
-    const clearSelection = () => {
+    const clearSelection = (event) => {
+        // Don't interfere with input elements (chat input, etc.)
+        if (event && event.target && (
+            event.target.tagName === 'TEXTAREA' ||
+            event.target.tagName === 'INPUT' ||
+            event.target.closest('.youtube-transcript-chat-input-container') ||
+            event.target.hasAttribute('data-chat-input')
+        )) {
+            return
+        }
+        
         const sel = window.getSelection()
+        // Only clear selection if it's not within an input element
         if (sel && sel.rangeCount > 0) {
+            const range = sel.getRangeAt(0)
+            const commonAncestor = range.commonAncestorContainer instanceof Element
+                ? range.commonAncestorContainer
+                : range.commonAncestorContainer?.parentElement ?? null
+            
+            // Don't clear if selection is within a chat input
+            if (commonAncestor && (
+                commonAncestor.tagName === 'TEXTAREA' ||
+                commonAncestor.tagName === 'INPUT' ||
+                commonAncestor.closest('.youtube-transcript-chat-input-container') ||
+                commonAncestor.hasAttribute('data-chat-input')
+            )) {
+                return
+            }
+            
             sel.removeAllRanges()
         }
         if (currentSelectionButtons) {
@@ -799,6 +825,15 @@ function setupSelectionActions(containerId, videoId) {
     }
     
     const handleKeyUp = (event) => {
+        // Don't interfere with chat input or other input elements
+        if (event.target && (
+            event.target.tagName === 'TEXTAREA' ||
+            event.target.tagName === 'INPUT' ||
+            event.target.closest('.youtube-transcript-chat-input-container') ||
+            event.target.hasAttribute('data-chat-input')
+        )) {
+            return
+        }
         if (event.key === 'Shift' || event.key === 'Meta' || event.key === 'Control') return
         requestAnimationFrame(handleSelectionChange)
     }
@@ -814,7 +849,7 @@ function setupSelectionActions(containerId, videoId) {
     document.addEventListener('keyup', handleKeyUp)
     document.addEventListener('touchend', handleMouseUp)
     document.addEventListener('scroll', handleScroll, true)
-    document.addEventListener('mousedown', clearSelection)
+    document.addEventListener('mousedown', (e) => clearSelection(e))
     
     // Store cleanup function
     transcriptContent._selectionCleanup = () => {
@@ -2365,7 +2400,7 @@ async function setupChatTab(container, videoId) {
     chatContainer.innerHTML = `
         <div class="youtube-transcript-chat-content">
             <div class="youtube-transcript-chat-messages"></div>
-            <form class="youtube-transcript-chat-input-container" onsubmit="return false;" autocomplete="off" novalidate>
+            <div class="youtube-transcript-chat-input-container">
                 <div class="youtube-transcript-chat-input-wrapper">
                     <textarea class="youtube-transcript-chat-input" placeholder="${placeholder}" rows="2" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
                     <button type="button" class="youtube-transcript-chat-send">
@@ -2374,7 +2409,7 @@ async function setupChatTab(container, videoId) {
                         </svg>
                     </button>
                 </div>
-            </form>
+            </div>
         </div>
     `
     
@@ -2384,90 +2419,7 @@ async function setupChatTab(container, videoId) {
     const inputContainer = chatContainer.querySelector('.youtube-transcript-chat-input-container')
     const inputWrapper = chatContainer.querySelector('.youtube-transcript-chat-input-wrapper')
     
-    // Prevent form submission and all form-related events
-    if (inputContainer) {
-        // Use capture phase and immediate stop to prevent any form submission
-        const preventFormSubmit = (e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            e.stopImmediatePropagation()
-            return false
-        }
-        
-        inputContainer.addEventListener('submit', preventFormSubmit, true)
-        inputContainer.addEventListener('reset', preventFormSubmit, true)
-        
-        // Also prevent at the form level
-        inputContainer.setAttribute('onsubmit', 'return false;')
-        inputContainer.setAttribute('onreset', 'return false;')
-        
-        // Prevent any other form events
-        inputContainer.addEventListener('formdata', (e) => {
-            e.preventDefault()
-            e.stopPropagation()
-        }, true)
-    }
-    
-    // Also prevent any click events on the wrapper that might bubble up
-    if (inputWrapper) {
-        inputWrapper.addEventListener('click', (e) => {
-            e.stopPropagation()
-        })
-        
-        inputWrapper.addEventListener('mousedown', (e) => {
-            e.stopPropagation()
-        })
-        
-        inputWrapper.addEventListener('mouseup', (e) => {
-            e.stopPropagation()
-        })
-    }
-    
-    // Prevent any global event handlers from interfering
-    // Wrap the entire chat container to prevent event bubbling
-    if (chatContainer) {
-        const stopAllEvents = (e) => {
-            // Only stop events that originate from within the chat container
-            if (e.target && chatContainer.contains(e.target)) {
-                // Don't stop propagation for events we need (like clicks on buttons)
-                if (e.target.closest('.youtube-transcript-chat-send')) {
-                    return
-                }
-                // For input-related events, always stop
-                if (e.type === 'submit' || e.type === 'reset' || 
-                    (e.type === 'keydown' && e.key === 'Enter' && !e.shiftKey)) {
-                    e.stopPropagation()
-                    e.stopImmediatePropagation()
-                }
-            }
-        }
-        
-        // Only prevent form-related events at the container level
-        chatContainer.addEventListener('submit', stopAllEvents, true)
-        chatContainer.addEventListener('reset', stopAllEvents, true)
-    }
-    
-    // Add a global event listener at document level to catch any events that might bubble up
-    // This is a last resort to prevent page refresh
-    const globalEventBlocker = (e) => {
-        // Check if the event originated from the chat input
-        if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-chat-input')) {
-            // For form submission, always prevent
-            if (e.type === 'submit') {
-                e.preventDefault()
-                e.stopPropagation()
-                e.stopImmediatePropagation()
-            }
-            // Don't block keydown events here - let the input element handle them
-            // This allows the sendMessage function to be called properly
-        }
-    }
-    
-    // Only add submit blocker to document
-    document.addEventListener('submit', globalEventBlocker, true)
-    
-    // Store the blocker function so we can remove it later if needed
-    chatContainer._globalEventBlocker = globalEventBlocker
+    // No form tag, so no need to prevent form submission
     
     // Render existing messages
     function renderMessages() {
@@ -2623,120 +2575,38 @@ async function setupChatTab(container, videoId) {
     let isComposing = false
     
     // Setup Enter key (Shift+Enter for new line)
+    // Keep it simple - only handle what's necessary, like TLDW does
     if (inputElement) {
+        // Ensure input is enabled
+        inputElement.disabled = false
+        
         // Handle IME composition events (for Chinese/Japanese/Korean input)
-        inputElement.addEventListener('compositionstart', (e) => {
+        inputElement.addEventListener('compositionstart', () => {
             isComposing = true
-            inputElement.setAttribute('data-composing', 'true')
-            e.stopPropagation()
-            e.stopImmediatePropagation()
-        }, true)
+        })
         
-        inputElement.addEventListener('compositionupdate', (e) => {
-            e.stopPropagation()
-            e.stopImmediatePropagation()
-        }, true)
-        
-        inputElement.addEventListener('compositionend', (e) => {
+        inputElement.addEventListener('compositionend', () => {
             isComposing = false
-            inputElement.removeAttribute('data-composing')
-            e.stopPropagation()
-            e.stopImmediatePropagation()
-        }, true)
+        })
         
-        // Prevent any default behavior that might cause page refresh
+        // Simple keydown handler - only prevent Enter from submitting form
+        // Don't prevent other keys - let them work normally
         inputElement.addEventListener('keydown', (e) => {
-            // Don't handle Enter during composition
+            // Don't handle Enter during composition (IME input)
             if (isComposing && e.key === 'Enter') {
                 return
             }
             
+            // Handle Enter key to send message
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
-                e.stopPropagation()
-                e.stopImmediatePropagation()
-                // Call sendMessage asynchronously to avoid blocking
-                setTimeout(() => {
-                    sendMessage()
-                }, 0)
-                return false
+                sendMessage()
             }
-            
-            // Prevent other keys that might trigger navigation
-            if (e.key === 'Escape' || (e.ctrlKey && e.key === 'Enter')) {
-                e.stopPropagation()
-            }
-        }, false) // Don't use capture phase, use bubble phase so it runs after composition events
-        
-        // Also prevent form submission on keypress
-        inputElement.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
-                e.preventDefault()
-                e.stopPropagation()
-                e.stopImmediatePropagation()
-                return false
-            }
-        }, false) // Use bubble phase
-        
-        // Prevent any input events that might trigger navigation
-        inputElement.addEventListener('input', (e) => {
-            e.stopPropagation()
+            // For all other keys, let them work normally - don't prevent anything
         })
-        
-        // Prevent beforeinput events
-        inputElement.addEventListener('beforeinput', (e) => {
-            e.stopPropagation()
-        })
-        
-        // Prevent focus events from triggering anything
-        inputElement.addEventListener('focus', (e) => {
-            e.stopPropagation()
-            e.stopImmediatePropagation()
-        }, true)
-        
-        inputElement.addEventListener('blur', (e) => {
-            e.stopPropagation()
-            e.stopImmediatePropagation()
-        }, true)
-        
-        // Prevent paste events that might trigger issues
-        inputElement.addEventListener('paste', (e) => {
-            e.stopPropagation()
-            e.stopImmediatePropagation()
-        }, true)
-        
-        // Prevent cut/copy events
-        inputElement.addEventListener('cut', (e) => {
-            e.stopPropagation()
-            e.stopImmediatePropagation()
-        }, true)
-        
-        inputElement.addEventListener('copy', (e) => {
-            e.stopPropagation()
-            e.stopImmediatePropagation()
-        }, true)
-        
-        // Prevent contextmenu events
-        inputElement.addEventListener('contextmenu', (e) => {
-            e.stopPropagation()
-            e.stopImmediatePropagation()
-        }, true)
-        
-        // Prevent selectstart events
-        inputElement.addEventListener('selectstart', (e) => {
-            // Allow text selection, but stop propagation
-            e.stopPropagation()
-        }, true)
         
         // Add a data attribute to mark this as a chat input
         inputElement.setAttribute('data-chat-input', 'true')
-        
-        // Prevent any default form behaviors
-        inputElement.addEventListener('invalid', (e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            e.stopImmediatePropagation()
-        }, true)
     }
     
     // Render initial messages
