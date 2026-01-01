@@ -985,7 +985,9 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                     key={
                         this.props.item._id +
                         (this.state.loadWebpage ? "_" : "") +
-                        (this.state.loadFull ? "__" : "")
+                        (this.state.loadFull ? "__" : "") +
+                        (this.state.showTranslated ? "_translated" : "") +
+                        (this.state.translatedContent ? "_hasTranslation" : "")
                     }
                     src={
                         this.state.loadWebpage
