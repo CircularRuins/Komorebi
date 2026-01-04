@@ -20,25 +20,32 @@
 <!-- <hr /> -->
 </div>
 
-**Komorebi isn’t trying to be a general-purpose RSS reader.**\
-Instead, it is tailored for AI professionals who want to keep pace with:
-- Visionary insights into where we are headed.
-- Top trending news and topics about AI.
-- New progress on a fancy product.
-- State-of-the-art papers in a specific research area.
+**Komorebi并不是一个通用的RSS阅读器**\
+它专为AI从业者打造，可以帮助AI从业者第一时间获悉:
+- 最前沿的行业认知.
+- 最新的产品和技术应用.
+- SOTA论文.
 
-## 🌐 Product Page
+## 为什么选择Komorebi
+- Komorebi是开箱即用的，我整理了丰富而优质的AI信息源，用户可以直接点击订阅。而且提供了详细指南，帮助大家订阅更多自己的信息源。
+- Komorebi针对内容的展示，尤其是Twitter和Youtube做了很多优化，使用体验好。
+- Komorebi设计了AI功能，但用户可以选择是否使用，如果使用，用户需要用自己的API KEY。
+- Komorebi保证永远免费并且开源，欢迎大家一起来贡献代码，增加功能，提高体验。
 
-Want to learn more about Komorebi's features, design philosophy, and how it can help you stay ahead in the AI field? Visit our [product page](https://komorebi-homepage.vercel.app) for a comprehensive introduction.
+
+## 🌐 产品主页
+
+
+[产品主页](https://komorebi-homepage.vercel.app) 里有详细的产品介绍，中国大陆需要连接vpn访问。
 
 
 ## 👋🏻 Getting Started
 
-Komorebi is a desktop application that supports Windows and macOS. You can [get Komorebi from GitHub releases](https://github.com/CircularRuins/Komorebi/releases).
+Komorebi 是桌面应用，支持Windows 和 macOS. 可以 [在GitHub releases下载](https://github.com/CircularRuins/Komorebi/releases).
 
 > \[!NOTE]
 >
-> If you encounter the error "Komorebi.app is damaged and can't be opened. You should move it to the Trash." when opening the app, you can resolve it by running the following command in Terminal:
+> macOS用户在打开应用时如果遇到 "已损坏，无法打开. 你应该将它移到废纸篓" 这个错误，可以在Terminal输入：
 > ```bash
 > sudo xattr -rd com.apple.quarantine /Applications/Komorebi.app
 > ```
@@ -50,8 +57,7 @@ Komorebi is a desktop application that supports Windows and macOS. You can [get 
 
 
 ## 🤝 Contribute
-Help make Komorebi better by reporting bugs or opening feature requests through [GitHub issues](https://github.com/CircularRuins/Komorebi/issues). 
-
+如果你遇到问题，或有建议，可以通过[GitHub issues](https://github.com/CircularRuins/Komorebi/issues). 也欢迎大家一起来开发，做一款真正适合AI从业者的，好用的，开源的rss阅读器。
 
 <!-- ## ❤️ Support
 This project will always be 100% open source and free. But if you feel like supporting it, I won’t pretend I don’t like coffee ☕️. [Paypal](https://www.paypal.me/wfwang96), or [Alipay](https://komorebi-homepage.vercel.app/assets/compressed/alipay.JPG). -->
@@ -59,8 +65,8 @@ This project will always be 100% open source and free. But if you feel like supp
 
 
 
-## 🎉 Acknowledgements
-This project wouldn't have been possible without the support of the following open-source projects.
+## 🎉 致谢
+特别感谢以下开源项目：
 - [Fluent Reader](https://github.com/yang991178/fluent-reader)
 - [BestBlogs](https://github.com/ginobefun/BestBlogs)
 - [longcut](https://github.com/SamuelZ12/longcut)
