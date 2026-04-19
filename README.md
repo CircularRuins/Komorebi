@@ -45,11 +45,12 @@ The project is designed to be useful out of the box: users can start with recomm
 
 The product website is available at [komorebi-homepage.vercel.app](https://komorebi-homepage.vercel.app).
 
-Note for users in mainland China: access to the website and some in-app network features may require a VPN or proxy connection.
-
 ## Installation
 
 Komorebi is a desktop application for Windows and macOS. Prebuilt packages are available on the [GitHub Releases page](https://github.com/CircularRuins/Komorebi/releases).
+
+> [!IMPORTANT]
+> Network access is a hard requirement for both the website and core in-app content retrieval. If you are in mainland China or another restricted network environment, you should expect to use a VPN or a correctly configured proxy/PAC setup before Komorebi can work reliably.
 
 ### macOS Note
 
@@ -58,10 +59,6 @@ If macOS shows the message that the app is damaged and should be moved to the Tr
 ```bash
 sudo xattr -rd com.apple.quarantine /Applications/Komorebi.app
 ```
-
-### Network Note
-
-Some users, especially those in mainland China, may need a VPN or properly configured proxy before using the app reliably.
 
 ## AI Configuration
 
